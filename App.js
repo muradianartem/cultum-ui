@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from './components';
+import { Button, TextButton } from './components';
 import { colors, spacing } from './theme/tokens';
 
 // Temporary gallery to preview primitives as we build them.
@@ -18,8 +18,15 @@ export default function App() {
       <Button label="Add a plant" variant="outline" onPress={() => {}} />
       <Button label="Sign in with email" variant="ghost" onPress={() => {}} />
       <Button label="Remove plant" variant="danger" onPress={() => {}} />
-      <Button label="Not now" variant="text" onPress={() => {}} />
 
+      <Text style={styles.h1}>TextButton</Text>
+      <View style={styles.row}>
+        <TextButton label="Not now" onPress={() => {}} />
+        <TextButton label="Undo" tone="danger" onPress={() => {}} />
+        <TextButton label="Skip" size="sm" tone="muted" onPress={() => {}} />
+      </View>
+
+      <Text style={styles.h1}>Button sizes & states</Text>
       <View style={styles.row}>
         <Button label="Save" size="sm" fullWidth={false} onPress={() => {}} />
         <Button

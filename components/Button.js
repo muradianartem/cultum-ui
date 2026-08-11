@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import {
   Animated,
   Pressable,
@@ -7,17 +6,21 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
-import { colors, radius, controls, shadow, fontSize } from '../theme/tokens';
+import { colors, radius, controls, shadow } from '../theme/tokens';
+import { usePressScale } from './usePressScale';
 
 /**
- * Button — Cultum's primary action primitive.
+ * Button — Cultum's primary action primitive: a pill, 52px tall, weight 600.
  *
- * Ported from the prototype's `.btn` family. A pill, 52px tall, weight 600.
- * Green is reserved for care verbs and health-positive actions (design rule),
- * so `primary` is the green fill; use `dark` / `secondary` / `outline` for
- * everything else and `danger` (burnt orange, never red) for destructive text.
+ * Ported from the prototype's `.btn` family. Green is reserved for care verbs
+ * and health-positive actions (design rule), so `primary` is the green fill;
+ * use `dark` / `secondary` / `outline` / `ghost` for everything else, and the
+ * filled `danger` for destructive confirmations.
  *
- * Variants: primary | dark | secondary | outline | ghost | danger | text
+ * For low-emphasis, inline, chrome-less actions ("Not now", "Undo"), use
+ * <TextButton> instead — that is a different primitive, not a Button variant.
+ *
+ * Variants: primary | dark | secondary | outline | ghost | danger
  * Sizes:    md (52) | sm (44)
  */
 
@@ -36,8 +39,6 @@ const VARIANTS = {
     border: { borderWidth: 1.5, borderColor: colors.onbLine },
   },
   danger: { bg: colors.danger, fg: colors.white },
-  // text button: no fill, low emphasis, green-deep label
-  text: { bg: 'transparent', fg: colors.greenDeep, text: true },
 };
 
 export default function Button({
@@ -58,28 +59,17 @@ export default function Button({
 }) {
   const v = VARIANTS[variant] || VARIANTS.primary;
   const isDisabled = disabled || loading;
-  const scale = useRef(new Animated.Value(1)).current;
+  const { scale, onPressIn, onPressOut } = usePressScale();
 
-  const spring = (to) =>
-    Animated.spring(scale, {
-      toValue: to,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 0,
-    }).start();
-
-  // The `text` variant is a bare label with no pill chrome.
-  const isText = v.text;
   const height = size === 'sm' ? controls.btnHeightSm : controls.btnHeight;
-  const labelSize = isText ? fontSize.body : size === 'sm' ? 15 : 16;
-
+  const labelSize = size === 'sm' ? 15 : 16;
   const content = children ?? label;
 
   return (
     <Animated.View
       style={[
-        fullWidth && !isText ? styles.block : styles.inline,
-        !isText && v.shadow && !isDisabled ? v.shadow : null,
+        fullWidth ? styles.block : styles.inline,
+        v.shadow && !isDisabled ? v.shadow : null,
         { transform: [{ scale }] },
         style,
       ]}
@@ -87,17 +77,17 @@ export default function Button({
       <Pressable
         onPress={onPress}
         disabled={isDisabled}
-        onPressIn={() => spring(0.97)}
-        onPressOut={() => spring(1)}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         accessibilityLabel={
           accessibilityLabel ?? (typeof content === 'string' ? content : undefined)
         }
         style={[
-          isText ? styles.textBtn : styles.base,
-          !isText && { height, backgroundColor: v.bg },
-          !isText && v.border,
+          styles.base,
+          { height, backgroundColor: v.bg },
+          v.border,
           isDisabled && styles.disabled,
         ]}
         {...rest}
@@ -110,11 +100,7 @@ export default function Button({
             {typeof content === 'string' ? (
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.label,
-                  { color: v.fg, fontSize: labelSize },
-                  textStyle,
-                ]}
+                style={[styles.label, { color: v.fg, fontSize: labelSize }, textStyle]}
               >
                 {content}
               </Text>
@@ -137,12 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-  },
-  textBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',
