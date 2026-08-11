@@ -1,32 +1,52 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from './components';
+import { colors, spacing } from './theme/tokens';
 
+// Temporary gallery to preview primitives as we build them.
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Hello, Cultum 👋</Text>
-      <Text style={styles.subtitle}>Your Expo app is up and running.</Text>
-      <StatusBar style="light" />
-    </View>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={styles.h1}>Button</Text>
+
+      <Button label="Water now" onPress={() => {}} />
+      <Button label="Continue" variant="dark" onPress={() => {}} />
+      <Button label="Skip today" variant="secondary" onPress={() => {}} />
+      <Button label="Add a plant" variant="outline" onPress={() => {}} />
+      <Button label="Sign in with email" variant="ghost" onPress={() => {}} />
+      <Button label="Remove plant" variant="danger" onPress={() => {}} />
+      <Button label="Not now" variant="text" onPress={() => {}} />
+
+      <View style={styles.row}>
+        <Button label="Save" size="sm" fullWidth={false} onPress={() => {}} />
+        <Button
+          label="Saved"
+          size="sm"
+          variant="secondary"
+          fullWidth={false}
+          onPress={() => {}}
+        />
+      </View>
+
+      <Button label="Loading" loading onPress={() => {}} />
+      <Button label="Disabled" disabled onPress={() => {}} />
+
+      <StatusBar style="dark" />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    color: '#f8fafc',
-    fontSize: 32,
+  screen: { flex: 1, backgroundColor: colors.paper },
+  content: { padding: spacing.margin, gap: 12, paddingTop: 72 },
+  h1: {
+    fontSize: 25,
     fontWeight: '700',
-    marginBottom: 8,
+    color: colors.ink,
+    marginBottom: 4,
   },
-  subtitle: {
-    color: '#94a3b8',
-    fontSize: 16,
-  },
+  row: { flexDirection: 'row', gap: 12 },
 });
