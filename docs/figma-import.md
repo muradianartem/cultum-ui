@@ -32,21 +32,23 @@ priority. Node ids are stable handles for `get_figma_data`.
 | P1 | Toggle | `26744:5118` | ✅ done |
 | P2 | **Badge** | `26744:5100` | ✅ done |
 | P2 | Bottom Sheet | `26744:6931` | ✅ done (Figma) |
-| P2 | Card | `26744:5101` | |
-| P2 | Dropdown | `26744:5105` | |
-| P2 | Dropdown Menu | `26744:5106` | |
-| P2 | List | `26744:5108` | |
-| P2 | Loading Indicator | `26744:5109` | |
-| P2 | Navigation bar | `26744:6012` | |
-| P2 | Search Bar | `26744:5112` | |
-| P2 | Segmented Control | `26744:5113` | |
-| P2 | Snackbar | `26744:5114` | |
-| P2 | State | `26744:5115` | |
-| P2 | Tab Bar | `26744:5116` | |
-| P2 | Text Input | `26734:5390` | |
-| P3 | Avatar | `26744:5099` | |
-| P3 | Overlay | `26744:5110` | |
-| P3 | Tabs | `26744:5117` | |
+| P2 | Card | `26744:5101` | ✅ done |
+| P2 | Dropdown | `26744:5105` | ✅ done |
+| P2 | Dropdown Menu | `26744:5106` | ✅ done |
+| P2 | List | `26744:5108` | ✅ done (List + ListItem) |
+| P2 | Loading Indicator | `26744:5109` | ✅ done |
+| P2 | Navigation bar | `26744:6012` | ✅ done |
+| P2 | Search Bar | `26744:5112` | ✅ done |
+| P2 | Segmented Control | `26744:5113` | ✅ done |
+| P2 | Snackbar | `26744:5114` | ✅ done |
+| P2 | State | `26744:5115` | ✅ done |
+| P2 | Tab Bar | `26744:5116` | ✅ done |
+| P2 | Text Input | `26734:5390` | ✅ done |
+| P3 | Avatar | `26744:5099` | ✅ done (Avatar + AvatarGroup) |
+| P3 | Overlay | `26744:5110` | ✅ done |
+| P3 | Tabs | `26744:5117` | ✅ done |
+
+**🎉 The full component library is complete — every Figma component (P1 + P2 + P3) is imported, tested, and rendering.**
 
 Foundation pages (`Colors – P0`, `Typography – P0`, `Radius – P0`,
 `Spacing – P0`, `Stroke`, etc.) feed `theme/tokens.js` — reconcile those first

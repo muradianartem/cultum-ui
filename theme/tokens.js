@@ -158,6 +158,181 @@ export const chip = {
   iconSize: 24,
 };
 
+// ---- loading indicator (Figma: "Loading Indicator – P2", node 26744:5109) ----
+// 24px ring, 2px stroke #606160 spinning through the 4 Figma frames. Drawn as a
+// rotating bordered circle (no react-native-svg).
+export const loading = { size: 24, stroke: 2, color: '#606160', track: '#ECEDEC' };
+
+// ---- state / empty-state (Figma: "State – P2", node 26744:5115) ----
+// Centred placeholder: an icon badge (reuses button colours) + title + subtitle
+// + optional actions. Style=Card wraps it in a grey rounded panel.
+export const emptyState = {
+  cardBg: '#ECEDEC',
+  cardRadius: 16,
+  titleInk: '#151515', // Literata Bold 20
+  subtitleInk: '#404140', // Inter 14
+  width: 343,
+  iconSizes: { lg: 48, md: 40, sm: 32 },
+};
+
+// ---- snackbar (Figma: "Snackbar – P2", node 26744:5114) ----
+// Dark 343×56 pill: 12px light copy, optional leading icon, optional dark action
+// pill, optional close (Dismissable=True). Sits over content with a low shadow.
+export const snackbar = {
+  bg: '#151515',
+  border: '#B6B9B6',
+  ink: '#FAFAFA',
+  radius: 8,
+  actionBg: '#383937',
+  actionInk: '#FCFCFC',
+  width: 343,
+  minHeight: 56,
+};
+
+// ---- segmented control (Figma: "Segmented Control – P2", node 26744:5113) ----
+// Pill track (#ECEDEC, 4px pad) of equal segments; the selected one is a white
+// pill. Labels are Body/Body Medium Emphasized (Inter 500, 14).
+export const segmented = {
+  trackBg: '#ECEDEC',
+  thumbBg: '#FAFAFA',
+  pressedBg: 'rgba(0,0,0,0.08)',
+  ink: '#151515',
+  inkDisabled: '#404140',
+  pad: 4,
+};
+
+// ---- search bar (Figma: "Search Bar – P2", node 26744:5112) ----
+// 48px pill field: leading search glyph, input, trailing clear button when
+// filled. Focus (Active) adds a 1px ink border; pressed/disabled shift the fill.
+export const searchBar = {
+  bg: '#ECEDEC',
+  bgPressed: '#D9DAD9',
+  bgDisabled: '#E3E4E3',
+  focusBorder: '#151515',
+  ink: '#151515',
+  placeholder: '#606160',
+  clearBg: '#D9DBD8',
+  height: 48,
+};
+
+// ---- text input (Figma: "Text Input – P2", node 26734:5390) ----
+// Label (+ optional tag) over a 48px field (#FAFAFA, 8px radius, 16 pad), over a
+// helper line. State axis → borders: Focused ink, Error red, Disabled grey fill.
+export const textInput = {
+  bg: '#FAFAFA',
+  bgDisabled: '#E3E4E3',
+  border: '#B6B9B6',
+  borderFocus: '#151515',
+  borderError: '#DA3737',
+  ink: '#151515',
+  placeholder: '#606160',
+  labelInk: '#151515',
+  optionalInk: '#404140',
+  helperInk: '#404140',
+  errorInk: '#DA3737',
+  height: 48,
+  radius: 8,
+};
+
+// ---- card (Figma: "Card – P2", node 26744:5101) ----
+// Grey rounded container: optional icon badge + title/subtitle, optional body,
+// optional 1–2 actions (reuse <Button size="md">) laid out horizontal/vertical.
+export const card = {
+  bg: '#ECEDEC',
+  radius: 16,
+  padding: 20,
+  gap: 12,
+  titleInk: '#151515', // Literata Bold 20
+  subtitleInk: '#404140', // Inter 14
+  bodyInk: '#404140',
+  iconBadgeBg: '#D9DBD8',
+  iconBadgeSize: 48,
+};
+
+// ---- list (Figma: "List – P2", node 26744:5108) ----
+// A ListItem row: optional before area (icon badge/avatar), title + optional
+// subtitle, optional after area (checkbox/toggle/label/icon), optional divider.
+// Style=List is edge-to-edge; Style=Card wraps the group in a grey panel.
+export const list = {
+  titleInk: '#151515', // Body Large 16
+  subtitleInk: '#404140', // Body Medium 14
+  pressedList: '#E6E6E6',
+  pressedCard: '#D9DAD9',
+  cardBg: '#ECEDEC',
+  cardRadius: 16,
+  rowRadius: 12,
+  beforeBadgeBg: '#D9DBD8',
+  beforeBadgeSize: 40,
+};
+
+// ---- dropdown menu (Figma: "Dropdown Menu – P2", node 26744:5106) ----
+// Floating surface (#FAFAFA, 8px radius, low shadow, 8px pad) of menu items;
+// each item is a row (title + optional subtitle + trailing icon) that darkens
+// while pressed.
+export const menu = {
+  bg: '#FAFAFA',
+  radius: 8,
+  itemRadius: 12,
+  pressed: '#E6E6E6',
+  titleInk: '#151515', // Body Medium 14
+  subtitleInk: '#404140', // Body Small 12
+  width: 208,
+};
+
+// ---- navigation bar (Figma: "Navigation bar – P2", node 26744:6012) ----
+// Top bar: leading Back/Close button, a title (+ subtitle), 0–2 trailing ghost
+// icon actions, optional bottom divider. Size=Small centres the title; Size=Large
+// stacks a big serif title below the button row.
+export const navbar = {
+  bg: '#FAFAFA',
+  titleInk: '#151515', // Literata
+  subtitleInk: '#404140',
+  height: 56,
+};
+
+// ---- tab bar (Figma: "Tab Bar – P2", node 26744:5116) ----
+// Bottom nav of equal icon+label tabs. The active tab darkens its label and
+// shows a subtle pill behind the icon; an Emphasized tab gets a green pill.
+export const tabBar = {
+  bg: '#FAFAFA',
+  borderTop: '#B6B9B6',
+  labelInactive: '#404140',
+  labelActive: '#151515',
+  activePill: '#ECEDEC',
+  emphasizedPill: colors.green,
+  pressedPill: 'rgba(0,0,0,0.08)',
+};
+
+// ---- avatar (Figma: "Avatar - P3", node 26744:5099) ----
+// Circular Photo / Initials / Overflow ("+N") avatar in four sizes. Overflow
+// dims a photo with a dark scrim and light text. AvatarGroup overlaps them with
+// a light ring between.
+export const avatar = {
+  bg: '#ECEDEC',
+  initialsInk: '#151515',
+  overflowInk: '#FAFAFA',
+  overflowScrim: 'rgba(21,21,21,0.4)',
+  ring: '#FAFAFA',
+  sizes: { xs: 24, sm: 32, md: 40, lg: 56 },
+  fontSizes: { xs: 10, sm: 12, md: 14, lg: 20 },
+};
+
+// ---- overlay (Figma: "Overlay - P3", node 26744:5110) ----
+// Full-screen scrim behind modal content; Figma uses a #FAFAFA layer at 0.85.
+export const overlay = { color: '#FAFAFA', opacity: 0.85 };
+
+// ---- tabs (Figma: "Tabs - P3", node 26744:5117) ----
+// Top underline tabs: optional icon + 14px label, a green underline under the
+// active tab, a hairline along the bottom. Pressed tabs get a subtle pill.
+export const tabs = {
+  ink: '#151515',
+  inkDisabled: '#404140',
+  underline: colors.green,
+  border: '#B6B9B6',
+  pressed: 'rgba(0,0,0,0.08)',
+  height: 40,
+};
+
 // ---- bottom sheet (Figma: "Bottom Sheet – P2", node 26744:6931) ----
 // Confirmation-style sheet: grabber + optional close, status icon, title,
 // description, primary/secondary actions (reuse <Button>), caption.
@@ -256,4 +431,4 @@ export const motion = {
   durSlow: 440,
 };
 
-export default { colors, badge, button, chip, sheet, divider, toggle, checkbox, radio, radius, spacing, fonts, fontSize, shadow, controls, motion };
+export default { colors, badge, button, card, chip, menu, navbar, tabBar, tabs, avatar, overlay, sheet, divider, toggle, checkbox, radio, loading, emptyState, snackbar, segmented, searchBar, textInput, list, radius, spacing, fonts, fontSize, shadow, controls, motion };
