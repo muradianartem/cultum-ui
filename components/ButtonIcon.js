@@ -64,7 +64,7 @@ export default function ButtonIcon({
             height: dim,
             backgroundColor: isDisabled
               ? button.disabledBg
-              : pressed
+              : pressed && !p.stateLayer
               ? p.bgPressed
               : p.bg,
           },
@@ -75,10 +75,17 @@ export default function ButtonIcon({
         ]}
         {...rest}
       >
-        {loading ? (
-          <ActivityIndicator color={p.fg} size="small" />
-        ) : (
-          <View style={styles.icon}>{glyph}</View>
+        {({ pressed }) => (
+          <>
+            {pressed && p.stateLayer && !isDisabled ? (
+              <View pointerEvents="none" style={styles.stateLayer} />
+            ) : null}
+            {loading ? (
+              <ActivityIndicator color={p.fg} size="small" />
+            ) : (
+              <View style={styles.icon}>{glyph}</View>
+            )}
+          </>
         )}
       </Pressable>
     </Animated.View>
@@ -91,6 +98,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden', // clip the pressed state layer to the circle
+  },
+  // Figma outline/ghost State=Pressed: a translucent tint over the base fill.
+  stateLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: button.pressedLayer,
   },
   icon: { alignItems: 'center', justifyContent: 'center' },
 });

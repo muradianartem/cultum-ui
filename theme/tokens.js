@@ -61,20 +61,27 @@ export const badge = {
 };
 
 // ---- button (Figma: "Button – P1", node 26734:3379) ----
-// Axes: Type (variant) × Destructive × Size × State. `bg`/`bgPressed`/`fg`
-// (+ `border` where drawn); disabled + font live below. Type=Primary enabled
-// is the brand green, so it reuses colors.green. Sizes: lg 56 / md 48 / sm 40,
-// pad 20/16/16, gap 8; label Inter Medium 500 (16 for lg+md, 14 for sm).
+// Axes: Type (variant) × Destructive × Size × State. `bg`/`fg` (+ `border` where
+// drawn); disabled + font live below. Type=Primary enabled is the brand green,
+// so it reuses colors.green. Sizes: lg 56 / md 48 / sm 40, pad 20/16/16, gap 8;
+// label Inter Medium 500 (16 for lg+md, 14 for sm).
+//
+// State=Pressed follows Figma's two models: the filled types (primary/secondary
+// + destructive) swap to a distinct `bgPressed` fill, while outline/ghost keep
+// their base fill and darken with a translucent `pressedLayer` state layer laid
+// over the top (Figma "State=Pressed" for Outlined/Ghost = rgba(0,0,0,0.08)).
+// Variants that darken via the state layer are flagged `stateLayer: true`.
 export const button = {
+  pressedLayer: 'rgba(0,0,0,0.08)', // Figma outline/ghost State=Pressed overlay
   primary: { bg: colors.green, bgPressed: '#9CEE86', fg: '#0C100A' },
   secondary: { bg: '#D9DBD8', bgPressed: '#C8C9C7', fg: '#151515' },
-  outline: { bg: '#FAFAFA', bgPressed: '#B6B9B6', fg: '#151515', border: '#B6B9B6' },
-  ghost: { bg: 'transparent', bgPressed: '#E3E4E3', fg: '#151515' },
+  outline: { bg: '#FAFAFA', fg: '#151515', border: '#B6B9B6', stateLayer: true },
+  ghost: { bg: 'transparent', fg: '#151515', stateLayer: true },
   // Destructive=True
   dangerPrimary: { bg: '#DA3737', bgPressed: '#DD4747', fg: '#FFF6F4' },
   dangerSecondary: { bg: '#FFC7BF', bgPressed: '#EBB7B0', fg: '#2D1410' },
-  dangerOutline: { bg: '#FAFAFA', bgPressed: '#EBB7B0', fg: '#DA3737', border: '#DA3737' },
-  dangerGhost: { bg: 'transparent', bgPressed: '#FFC7BF', fg: '#DA3737' },
+  dangerOutline: { bg: '#FAFAFA', fg: '#DA3737', border: '#DA3737', stateLayer: true },
+  dangerGhost: { bg: 'transparent', fg: '#DA3737', stateLayer: true },
   // State=Disabled (shared across filled types)
   disabledBg: '#E3E4E3', disabledFg: '#404140', disabledBorder: '#C8CAC8',
   sizes: {

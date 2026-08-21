@@ -83,7 +83,7 @@ export default function Button({
             paddingHorizontal: sz.paddingHorizontal,
             backgroundColor: isDisabled
               ? button.disabledBg
-              : pressed
+              : pressed && !p.stateLayer
               ? p.bgPressed
               : p.bg,
           },
@@ -95,27 +95,34 @@ export default function Button({
         ]}
         {...rest}
       >
-        {loading ? (
-          <ActivityIndicator color={p.fg} size="small" />
-        ) : (
-          <View style={styles.row}>
-            {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
-            {typeof content === 'string' ? (
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.label,
-                  { color: isDisabled ? button.disabledFg : p.fg, fontSize: sz.fontSize },
-                  textStyle,
-                ]}
-              >
-                {content}
-              </Text>
+        {({ pressed }) => (
+          <>
+            {pressed && p.stateLayer && !isDisabled ? (
+              <View pointerEvents="none" style={styles.stateLayer} />
+            ) : null}
+            {loading ? (
+              <ActivityIndicator color={p.fg} size="small" />
             ) : (
-              content
+              <View style={styles.row}>
+                {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
+                {typeof content === 'string' ? (
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.label,
+                      { color: isDisabled ? button.disabledFg : p.fg, fontSize: sz.fontSize },
+                      textStyle,
+                    ]}
+                  >
+                    {content}
+                  </Text>
+                ) : (
+                  content
+                )}
+                {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
+              </View>
             )}
-            {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
-          </View>
+          </>
         )}
       </Pressable>
     </Animated.View>
@@ -130,6 +137,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden', // clip the pressed state layer to the pill
+  },
+  // Figma outline/ghost State=Pressed: a translucent tint over the base fill.
+  stateLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: button.pressedLayer,
   },
   row: {
     flexDirection: 'row',

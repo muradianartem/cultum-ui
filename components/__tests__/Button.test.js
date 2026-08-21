@@ -48,6 +48,20 @@ test('outline draws a 1px border in the variant border colour', () => {
   expect(s.borderColor).toBe(button.outline.border);
 });
 
+test('pressed state follows Figma: filled types swap fill, outline/ghost use a state layer', () => {
+  // Figma State=Pressed models two ways: filled variants have a distinct
+  // bgPressed fill; outline/ghost keep their base fill + a translucent overlay.
+  expect(button.pressedLayer).toBe('rgba(0,0,0,0.08)');
+  for (const v of ['primary', 'secondary', 'dangerPrimary', 'dangerSecondary']) {
+    expect(button[v].bgPressed).toBeDefined();
+    expect(button[v].stateLayer).toBeUndefined();
+  }
+  for (const v of ['outline', 'ghost', 'dangerOutline', 'dangerGhost']) {
+    expect(button[v].stateLayer).toBe(true);
+    expect(button[v].bgPressed).toBeUndefined();
+  }
+});
+
 test('size maps to Figma pill height (lg 56 / md 48 / sm 40)', () => {
   expect(btnStyle(create(<Button label="a" size="lg" />)).height).toBe(56);
   expect(btnStyle(create(<Button label="a" size="md" />)).height).toBe(48);
