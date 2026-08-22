@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, List, ListItem } from '../components';
+import { useRouter } from '../routing';
 import { colors, fonts, radius } from '../theme/tokens';
 
 const HERO = require('../assets/plant/hero.png');
@@ -81,6 +82,7 @@ function AccordionItem({ question, answer, open, onToggle }) {
 
 export default function ProductPage() {
   const insets = useSafeAreaInsets();
+  const { navigate } = useRouter();
   const [openFaq, setOpenFaq] = useState(0);
 
   return (
@@ -163,7 +165,10 @@ export default function ProductPage() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.heading}>Gallery</Text>
-              <Pressable accessibilityRole="button" onPress={() => { }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigate('premium-gallery')}
+              >
                 <Text style={styles.viewAll}>View All</Text>
               </Pressable>
             </View>
