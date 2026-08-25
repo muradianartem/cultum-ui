@@ -25,3 +25,4 @@ export { default as TabBar } from './TabBar';
 export { default as Avatar, AvatarGroup } from './Avatar';
 export { default as Overlay } from './Overlay';
 export { default as Tabs } from './Tabs';
+export { default as Icon, ICON_NAMES } from './Icon';
