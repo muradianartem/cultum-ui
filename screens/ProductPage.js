@@ -8,33 +8,27 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge, Button, List, ListItem } from '../components';
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  List,
+  ListItem,
+  Overlay,
+  SegmentedControl,
+} from '../components';
 import { useRouter } from '../routing';
 import { colors, fonts, radius } from '../theme/tokens';
-
-const HERO = require('../assets/plant/hero.png');
-const GALLERY = [
-  require('../assets/plant/gallery1.png'),
-  require('../assets/plant/gallery2.png'),
-];
-
-const CARE_FACTS = [
-  { icon: '💧', label: 'Water', value: 'Every 7–10 days' },
-  { icon: '☀️', label: 'Sun', value: 'Bright, indirect' },
-  { icon: '🌡️', label: 'Temperature', value: '18–27℃ / 64–81℉' },
-  { icon: '☁️', label: 'Humidity', value: 'Average home is fine' },
-];
-
-const FAQ = [
-  {
-    q: 'Is it safe around pets?',
-    a: 'No. Monstera is toxic to cats and dogs if chewed — keep it out of their reach.',
-  },
-  { q: 'How often should I water it?' },
-  { q: 'Where should it live?' },
-  { q: 'What should I watch for?' },
-  { q: 'How fast does it grow?' },
-];
+import {
+  CARE_FACTS,
+  CHIPS,
+  FAQ,
+  HERO,
+  NEXT_REMINDER,
+  PHOTOS,
+  PLANT,
+  TODAYS_TASKS,
+} from './plantData';
 
 // Circular translucent nav button floating over the hero image.
 function NavButton({ glyph, label, onPress }) {
@@ -80,16 +74,82 @@ function AccordionItem({ question, answer, open, onToggle }) {
   );
 }
 
+// One "Today's tasks" row: colour-tinted icon tile + title/subtitle, a due
+// badge and a chevron. Built from <List variant="card"> + <ListItem> so it
+// reuses the design system's row primitive and pressed states.
+function TaskRow({ task, onPress }) {
+  return (
+    <List variant="card">
+      <ListItem
+        onPress={onPress}
+        before={
+          <View style={[styles.taskTile, { backgroundColor: task.tint }]}>
+            <Text style={styles.taskGlyph}>{task.icon}</Text>
+          </View>
+        }
+        title={task.title}
+        subtitle={task.subtitle}
+        after={
+          <View style={styles.taskAfter}>
+            <Badge
+              label={task.due}
+              variant="secondary"
+              leftIcon={<Text style={styles.badgeIcon}>🕑</Text>}
+            />
+            <Text style={styles.chevronRight}>›</Text>
+          </View>
+        }
+      />
+    </List>
+  );
+}
+
+// A titled content block (matches the Figma "Section ·" frames).
+function Section({ title, action, children }) {
+  return (
+    <View style={styles.section}>
+      {title ? (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.heading}>{title}</Text>
+          {action}
+        </View>
+      ) : null}
+      {children}
+    </View>
+  );
+}
+
 export default function ProductPage() {
   const insets = useSafeAreaInsets();
   const { navigate } = useRouter();
+
+  const [added, setAdded] = useState(false);
+  const [tasks, setTasks] = useState(TODAYS_TASKS);
+  const [segment, setSegment] = useState('about');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
+
+  const completeTask = (id) => setTasks((t) => t.filter((task) => task.id !== id));
+
+  const overflowItems = [
+    { title: 'Rename plant', onPress: () => setMenuOpen(false) },
+    { title: 'Move to another room', onPress: () => setMenuOpen(false) },
+    { title: 'Notification settings', onPress: () => setMenuOpen(false) },
+    {
+      title: 'Remove from my plants',
+      onPress: () => {
+        setMenuOpen(false);
+        setAdded(false);
+        setTasks(TODAYS_TASKS);
+      },
+    },
+  ];
 
   return (
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: added ? 24 : 24 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
@@ -97,58 +157,120 @@ export default function ProductPage() {
           <View style={styles.heroScrim} pointerEvents="none" />
 
           <View style={[styles.navRow, { top: insets.top + 8 }]}>
-            <NavButton glyph="‹" label="Back" onPress={() => { }} />
-            <NavButton glyph="🔖" label="Save" onPress={() => { }} />
+            <NavButton glyph="‹" label="Back" onPress={() => {}} />
+            <View style={styles.navRight}>
+              {added ? (
+                <>
+                  <NavButton glyph="⚙︎" label="Settings" onPress={() => {}} />
+                  <NavButton
+                    glyph="⋯"
+                    label="More options"
+                    onPress={() => setMenuOpen(true)}
+                  />
+                </>
+              ) : (
+                <NavButton glyph="🔖" label="Save" onPress={() => {}} />
+              )}
+            </View>
           </View>
 
           <View style={styles.heroText}>
             <View style={styles.chips}>
-              <Badge
-                label="Easy"
-                intent="positive"
-                variant="secondary"
-                leftIcon={<Text style={styles.badgeIcon}>🌿</Text>}
-              />
-              <Badge
-                label="Toxic"
-                intent="negative"
-                variant="secondary"
-                leftIcon={<Text style={styles.badgeIcon}>🐾</Text>}
-              />
+              {CHIPS.map((c) => (
+                <Badge
+                  key={c.label}
+                  label={c.label}
+                  intent={c.intent}
+                  variant="secondary"
+                  leftIcon={<Text style={styles.badgeIcon}>{c.glyph}</Text>}
+                />
+              ))}
             </View>
-            <Text style={styles.heroTitle}>Swiss cheese plant</Text>
-            <Text style={styles.heroSubtitle}>Monstera deliciosa</Text>
+            <Text style={styles.heroTitle}>{PLANT.commonName}</Text>
+            <Text style={styles.heroSubtitle}>{PLANT.latinName}</Text>
           </View>
         </ImageBackground>
 
         {/* ── Content ──────────────────────────────────────────── */}
         <View style={styles.content}>
-          {/* Owned banner */}
-          <List variant="card">
-            <ListItem
-              before={
-                <View style={styles.ownedIcon}>
-                  <Text style={styles.ownedCheck}>✓</Text>
-                </View>
-              }
-              title="You already have one"
-              subtitle="Kitchen Monstera · Kitchen"
-              after={<Text style={styles.chevronRight}>›</Text>}
-              onPress={() => { }}
-            />
-          </List>
+          {added ? (
+            <>
+              {/* Today's tasks */}
+              <Section title="Today’s tasks">
+                {tasks.length > 0 ? (
+                  <View style={styles.taskList}>
+                    {tasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onPress={() => completeTask(task.id)}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <List variant="card">
+                    <ListItem
+                      before={
+                        <View style={styles.doneIcon}>
+                          <Text style={styles.doneCheck}>✓</Text>
+                        </View>
+                      }
+                      title="All caught up"
+                      subtitle={NEXT_REMINDER}
+                      after={<Text style={styles.chevronRight}>›</Text>}
+                      onPress={() => {}}
+                    />
+                  </List>
+                )}
+              </Section>
 
-          {/* About */}
-          <View style={styles.section}>
-            <Text style={styles.bodyText}>
-              The split leaves are a grown-up trait: young plants only start
-              fenestrating with enough light and something to climb.
-            </Text>
-          </View>
+              {/* Your plant */}
+              <Section title="Your plant">
+                <SegmentedControl
+                  segments={[
+                    { label: 'About', value: 'about' },
+                    { label: 'Journal', value: 'journal' },
+                  ]}
+                  value={segment}
+                  onChange={setSegment}
+                  style={styles.segment}
+                />
+                {segment === 'about' ? (
+                  <Text style={styles.bodyText}>{PLANT.about}</Text>
+                ) : (
+                  <Text style={styles.bodyText}>
+                    No journal entries yet. Care you log — waterings, repottings,
+                    new leaves — will show up here.
+                  </Text>
+                )}
+              </Section>
+            </>
+          ) : (
+            <>
+              {/* Owned banner */}
+              <List variant="card">
+                <ListItem
+                  before={
+                    <View style={styles.ownedIcon}>
+                      <Text style={styles.ownedCheck}>✓</Text>
+                    </View>
+                  }
+                  title={PLANT.owned.title}
+                  subtitle={PLANT.owned.subtitle}
+                  after={<Text style={styles.chevronRight}>›</Text>}
+                  onPress={() => {}}
+                />
+              </List>
+
+              {/* About */}
+              <View style={styles.section}>
+                <Text style={styles.bodyText}>{PLANT.about}</Text>
+              </View>
+            </>
+          )}
 
           {/* How to care */}
-          <View style={styles.section}>
-            <Text style={styles.heading}>How to care</Text>
+          <Section title="How to care">
             <View style={styles.careGrid}>
               <View style={styles.careRow}>
                 <CareFact {...CARE_FACTS[0]} />
@@ -159,25 +281,29 @@ export default function ProductPage() {
                 <CareFact {...CARE_FACTS[3]} />
               </View>
             </View>
-          </View>
+          </Section>
 
-          {/* Gallery */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.heading}>Gallery</Text>
+          {/* V2: Gallery section — deferred with the full-screen photo viewer
+              (ImageViewer). "View All" → navigate('premium-gallery'); each photo
+              → navigate('image-viewer', { index: i }). Re-enable together in V2.
+
+          <Section
+            title="Gallery"
+            action={
               <Pressable
                 accessibilityRole="button"
                 onPress={() => navigate('premium-gallery')}
               >
                 <Text style={styles.viewAll}>View All</Text>
               </Pressable>
-            </View>
+            }
+          >
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.galleryScroller}
             >
-              {GALLERY.map((src, i) => (
+              {PHOTOS.slice(0, 2).map((src, i) => (
                 <ImageBackground
                   key={i}
                   source={src}
@@ -187,11 +313,11 @@ export default function ProductPage() {
                 />
               ))}
             </ScrollView>
-          </View>
+          </Section>
+          */}
 
           {/* FAQ */}
-          <View style={styles.section}>
-            <Text style={styles.heading}>FAQ</Text>
+          <Section title="FAQ">
             <View style={styles.accordionList}>
               {FAQ.map((item, i) => (
                 <View key={i} style={styles.accordion}>
@@ -204,19 +330,30 @@ export default function ProductPage() {
                 </View>
               ))}
             </View>
-          </View>
+          </Section>
         </View>
       </ScrollView>
 
-      {/* ── Sticky CTA ─────────────────────────────────────────── */}
-      <View style={[styles.cta, { paddingBottom: 16 + insets.bottom }]}>
-        <Button
-          label="Add to my plants"
-          size="lg"
-          onPress={() => { }}
-          leftIcon={<Text style={styles.addGlyph}>＋</Text>}
-        />
-      </View>
+      {/* ── Sticky CTA (only before the plant is added) ────────── */}
+      {!added ? (
+        <View style={[styles.cta, { paddingBottom: 16 + insets.bottom }]}>
+          <Button
+            label="Add to my plants"
+            size="lg"
+            onPress={() => setAdded(true)}
+            leftIcon={<Text style={styles.addGlyph}>＋</Text>}
+          />
+        </View>
+      ) : null}
+
+      {/* ── Overflow menu ──────────────────────────────────────── */}
+      {menuOpen ? (
+        <Overlay onPress={() => setMenuOpen(false)} color="transparent" opacity={1}>
+          <View style={[styles.menuAnchor, { top: insets.top + 52 }]}>
+            <DropdownMenu items={overflowItems} />
+          </View>
+        </Overlay>
+      ) : null}
     </View>
   );
 }
@@ -245,6 +382,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  navRight: { flexDirection: 'row', gap: 8 },
   navBtn: {
     width: 40,
     height: 40,
@@ -298,6 +436,28 @@ const styles = StyleSheet.create({
   ownedCheck: { fontSize: 18, color: colors.greenInk, fontWeight: '700' },
   chevronRight: { fontSize: 22, color: '#151515' },
 
+  // ── Today's tasks ──
+  taskList: { gap: 8 },
+  taskTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskGlyph: { fontSize: 20 },
+  segment: { alignSelf: 'stretch' },
+  taskAfter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  doneIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneCheck: { fontSize: 18, color: colors.greenInk, fontWeight: '700' },
+
   // ── Care grid ──
   careGrid: { gap: 12 },
   careRow: { flexDirection: 'row', gap: 12 },
@@ -344,4 +504,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.hairline,
   },
   addGlyph: { fontSize: 18, color: colors.greenInk, fontWeight: '600' },
+
+  // ── Overflow menu ──
+  menuAnchor: { position: 'absolute', right: 16 },
 });
