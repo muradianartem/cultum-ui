@@ -12,9 +12,11 @@ export const PLANT = {
     'fenestrating with enough light and something to climb.',
 };
 
+// `icon` values are Cultum icon names (see components/iconRegistry.js), mapped
+// from the Figma "Product Page" badges: Easy → stickers, Toxic → outlined-paw.
 export const CHIPS = [
-  { label: 'Easy', intent: 'positive', glyph: '🌿' },
-  { label: 'Toxic', intent: 'negative', glyph: '🐾' },
+  { label: 'Easy', intent: 'positive', icon: 'stickers' },
+  { label: 'Toxic', intent: 'negative', icon: 'outlined-paw' },
 ];
 
 export const HERO = require('../assets/plant/hero.png');
@@ -25,11 +27,15 @@ export const PHOTOS = [
   require('../assets/plant/hero.png'),
 ];
 
+// `icon` is a Cultum icon name where one exists (from the Figma Care Facts:
+// Water → outlined-water, Sun → sun, Humidity → cloude). Temperature uses
+// Material Symbols "thermometer" in Figma, which has no Cultum equivalent, so it
+// falls back to an emoji — CareFact renders any non-icon value as text.
 export const CARE_FACTS = [
-  { icon: '💧', label: 'Water', value: 'Every 7–10 days' },
-  { icon: '☀️', label: 'Sun', value: 'Bright, indirect' },
+  { icon: 'outlined-water', label: 'Water', value: 'Every 7–10 days' },
+  { icon: 'sun', label: 'Sun', value: 'Bright, indirect' },
   { icon: '🌡️', label: 'Temperature', value: '18–27℃ / 64–81℉' },
-  { icon: '☁️', label: 'Humidity', value: 'Average home is fine' },
+  { icon: 'cloude', label: 'Humidity', value: 'Average home is fine' },
 ];
 
 export const FAQ = [
@@ -43,16 +49,20 @@ export const FAQ = [
   { q: 'How fast does it grow?' },
 ];
 
-// Today's tasks for the owned plant. `tint`/`ink` come straight from the Figma
-// task-row icon tiles (water = blue, fertilize = amber). `due` fills the badge.
+// Today's tasks for the owned plant. `tint` is the icon-tile background and
+// `ink` the glyph colour (water = blue, fertilize = amber). `icon` is a Cultum
+// icon name where one exists; fertilizing has no Cultum equivalent, so it keeps
+// an emoji fallback (TaskRow renders any non-icon value as text). `due` fills
+// the badge.
 export const TODAYS_TASKS = [
   {
     id: 'water',
-    icon: '💧',
+    icon: 'outlined-water',
     title: 'Watering',
     subtitle: 'Every 6 days',
     due: 'Today',
     tint: '#CFE5FF',
+    ink: '#2B6EA6',
   },
   {
     id: 'fertilize',
@@ -61,6 +71,7 @@ export const TODAYS_TASKS = [
     subtitle: 'Every 4 weeks',
     due: '3d ago',
     tint: '#FFDECB',
+    ink: '#A85E08',
   },
 ];
 

@@ -8,10 +8,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Badge,
   Button,
   DropdownMenu,
+  Icon,
+  ICON_NAMES,
   List,
   ListItem,
   Overlay,
@@ -30,8 +33,18 @@ import {
   TODAYS_TASKS,
 } from './plantData';
 
+// Renders a Cultum <Icon> when `name` is a known icon, else falls back to the
+// raw value as text (used for the few care/task glyphs the icon set lacks, e.g.
+// temperature and fertilizing).
+function Glyph({ name, size = 24, color = colors.ink, textStyle }) {
+  if (ICON_NAMES.includes(name)) {
+    return <Icon name={name} size={size} color={color} />;
+  }
+  return <Text style={[{ fontSize: size }, textStyle]}>{name}</Text>;
+}
+
 // Circular translucent nav button floating over the hero image.
-function NavButton({ glyph, label, onPress }) {
+function NavButton({ icon, label, onPress }) {
   return (
     <Pressable
       onPress={onPress}
@@ -39,7 +52,7 @@ function NavButton({ glyph, label, onPress }) {
       accessibilityLabel={label}
       style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
     >
-      <Text style={styles.navGlyph}>{glyph}</Text>
+      <Icon name={icon} size={20} color={colors.white} />
     </Pressable>
   );
 }
@@ -48,7 +61,7 @@ function NavButton({ glyph, label, onPress }) {
 function CareFact({ icon, label, value }) {
   return (
     <View style={styles.careFact}>
-      <Text style={styles.careIcon}>{icon}</Text>
+      <Glyph name={icon} size={24} color={colors.ink} textStyle={styles.careIcon} />
       <Text style={styles.careLabel}>{label}</Text>
       <Text style={styles.careValue}>{value}</Text>
     </View>
@@ -69,7 +82,7 @@ function AccordionItem({ question, answer, open, onToggle }) {
         <Text style={styles.accQuestion}>{question}</Text>
         {open && answer ? <Text style={styles.accAnswer}>{answer}</Text> : null}
       </View>
-      <Text style={styles.accChevron}>{open ? '⌃' : '⌄'}</Text>
+      <Icon name={open ? 'chevron-up' : 'chevron-down'} size={24} color={colors.ink} />
     </Pressable>
   );
 }
@@ -84,7 +97,7 @@ function TaskRow({ task, onPress }) {
         onPress={onPress}
         before={
           <View style={[styles.taskTile, { backgroundColor: task.tint }]}>
-            <Text style={styles.taskGlyph}>{task.icon}</Text>
+            <Glyph name={task.icon} size={20} color={task.ink} textStyle={styles.taskGlyph} />
           </View>
         }
         title={task.title}
@@ -94,9 +107,9 @@ function TaskRow({ task, onPress }) {
             <Badge
               label={task.due}
               variant="secondary"
-              leftIcon={<Text style={styles.badgeIcon}>🕑</Text>}
+              leftIcon={<Icon name="clock" size={14} color={colors.ink2} />}
             />
-            <Text style={styles.chevronRight}>›</Text>
+            <Icon name="chevron-right" size={20} color={colors.ink} />
           </View>
         }
       />
@@ -154,22 +167,30 @@ export default function ProductPage() {
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
         <ImageBackground source={HERO} style={styles.hero} resizeMode="cover">
+          {/* Figma hero darkening: a flat 30% tint over the whole photo… */}
           <View style={styles.heroScrim} pointerEvents="none" />
+          {/* …plus a bottom-up gradient (transparent → #151714) so the title,
+              subtitle and chips stay legible over the photo. */}
+          <LinearGradient
+            colors={['rgba(21,23,20,0)', '#151714']}
+            style={styles.heroGradient}
+            pointerEvents="none"
+          />
 
           <View style={[styles.navRow, { top: insets.top + 8 }]}>
-            <NavButton glyph="‹" label="Back" onPress={() => {}} />
+            <NavButton icon="chevron-left" label="Back" onPress={() => {}} />
             <View style={styles.navRight}>
               {added ? (
                 <>
-                  <NavButton glyph="⚙︎" label="Settings" onPress={() => {}} />
+                  <NavButton icon="settings" label="Settings" onPress={() => {}} />
                   <NavButton
-                    glyph="⋯"
+                    icon="more-horizontal"
                     label="More options"
                     onPress={() => setMenuOpen(true)}
                   />
                 </>
               ) : (
-                <NavButton glyph="🔖" label="Save" onPress={() => {}} />
+                <NavButton icon="bookmark" label="Save" onPress={() => {}} />
               )}
             </View>
           </View>
@@ -182,7 +203,7 @@ export default function ProductPage() {
                   label={c.label}
                   intent={c.intent}
                   variant="secondary"
-                  leftIcon={<Text style={styles.badgeIcon}>{c.glyph}</Text>}
+                  leftIcon={<Icon name={c.icon} size={16} color={colors.ink} />}
                 />
               ))}
             </View>
@@ -212,12 +233,12 @@ export default function ProductPage() {
                     <ListItem
                       before={
                         <View style={styles.doneIcon}>
-                          <Text style={styles.doneCheck}>✓</Text>
+                          <Icon name="check" size={20} color={colors.greenInk} />
                         </View>
                       }
                       title="All caught up"
                       subtitle={NEXT_REMINDER}
-                      after={<Text style={styles.chevronRight}>›</Text>}
+                      after={<Icon name="chevron-right" size={20} color={colors.ink} />}
                       onPress={() => {}}
                     />
                   </List>
@@ -252,12 +273,12 @@ export default function ProductPage() {
                 <ListItem
                   before={
                     <View style={styles.ownedIcon}>
-                      <Text style={styles.ownedCheck}>✓</Text>
+                      <Icon name="check" size={20} color={colors.greenInk} />
                     </View>
                   }
                   title={PLANT.owned.title}
                   subtitle={PLANT.owned.subtitle}
-                  after={<Text style={styles.chevronRight}>›</Text>}
+                  after={<Icon name="chevron-right" size={20} color={colors.ink} />}
                   onPress={() => {}}
                 />
               </List>
@@ -341,7 +362,7 @@ export default function ProductPage() {
             label="Add to my plants"
             size="lg"
             onPress={() => setAdded(true)}
-            leftIcon={<Text style={styles.addGlyph}>＋</Text>}
+            leftIcon={<Icon name="add" size={20} color={colors.greenInk} />}
           />
         </View>
       ) : null}
@@ -372,8 +393,16 @@ const styles = StyleSheet.create({
   },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    // Figma bottom-up scrim so the light text stays legible over the photo.
+    // Figma "Image" fill: a flat 30% dark tint across the whole photo.
     backgroundColor: 'rgba(21,23,20,0.28)',
+  },
+  heroGradient: {
+    // Figma "Scrim": bottom 117px of the 353px hero, transparent → #151714.
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 117,
   },
   navRow: {
     position: 'absolute',
@@ -394,10 +423,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(250,250,250,0.6)',
   },
   navBtnPressed: { backgroundColor: 'rgba(250,250,250,0.34)' },
-  navGlyph: { color: colors.white, fontSize: 18, lineHeight: 20 },
   heroText: { gap: 6 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badgeIcon: { fontSize: 12 },
   heroTitle: {
     fontFamily: fonts.display,
     fontSize: 32,
@@ -433,8 +460,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ownedCheck: { fontSize: 18, color: colors.greenInk, fontWeight: '700' },
-  chevronRight: { fontSize: 22, color: '#151515' },
 
   // ── Today's tasks ──
   taskList: { gap: 8 },
@@ -456,7 +481,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doneCheck: { fontSize: 18, color: colors.greenInk, fontWeight: '700' },
 
   // ── Care grid ──
   careGrid: { gap: 12 },
@@ -493,7 +517,6 @@ const styles = StyleSheet.create({
   accText: { flex: 1, gap: 4 },
   accQuestion: { fontSize: 16, lineHeight: 22, color: '#151515' },
   accAnswer: { fontSize: 14, lineHeight: 20, color: '#404140' },
-  accChevron: { fontSize: 16, color: '#151515', width: 24, textAlign: 'center' },
 
   // ── CTA ──
   cta: {
@@ -503,7 +526,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.hairline,
   },
-  addGlyph: { fontSize: 18, color: colors.greenInk, fontWeight: '600' },
 
   // ── Overflow menu ──
   menuAnchor: { position: 'absolute', right: 16 },
