@@ -1,11 +1,7 @@
-// Mock plant model for the product-page flow. In a real app this comes from the
-// catalog/API; kept in one place so ProductPage, ImageViewer and PremiumGallery
-// stay in sync.
 
 export const PLANT = {
   commonName: 'Swiss cheese plant',
   latinName: 'Monstera deliciosa',
-  // Where the user already keeps one (drives the "You already have one" banner).
   owned: { title: 'You already have one', subtitle: 'Kitchen Monstera · Kitchen' },
   about:
     'The split leaves are a grown-up trait: young plants only start ' +
@@ -49,11 +45,7 @@ export const FAQ = [
   { q: 'How fast does it grow?' },
 ];
 
-// Today's tasks for the owned plant. `tint` is the icon-tile background and
-// `ink` the glyph colour (water = blue, fertilize = amber). `icon` is a Cultum
-// icon name where one exists; fertilizing has no Cultum equivalent, so it keeps
-// an emoji fallback (TaskRow renders any non-icon value as text). `due` fills
-// the badge.
+
 export const TODAYS_TASKS = [
   {
     id: 'water',
@@ -66,7 +58,7 @@ export const TODAYS_TASKS = [
   },
   {
     id: 'fertilize',
-    icon: '⚡',
+    icon: 'power',
     title: 'Fertilizing',
     subtitle: 'Every 4 weeks',
     due: '3d ago',
