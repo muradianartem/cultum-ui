@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
 import { ThemeProvider } from './theme/ThemeProvider';
+import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import PremiumGallery from './screens/PremiumGallery';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
@@ -26,7 +27,8 @@ export default function App() {
       {/* ThemeProvider makes the semantic color tokens available via useTheme()
           and drives light/dark. Follows the OS scheme by default. */}
       <ThemeProvider>
-        <Router initial="product">
+        <Router initial="today">
+          <Route name="today" component={TodayScreen} />
           <Route name="product" component={ProductPage} />
           <Route
             name="premium-gallery"
