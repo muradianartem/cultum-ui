@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ImageBackground,
   Pressable,
@@ -21,7 +21,8 @@ import {
   SegmentedControl,
 } from '../components';
 import { useRouter } from '../routing';
-import { colors, fonts, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
+import { radius, space, stroke, typography } from '../theme/foundations';
 import {
   CARE_FACTS,
   CHIPS,
@@ -33,18 +34,30 @@ import {
   TODAYS_TASKS,
 } from './plantData';
 
+// Hero chrome sits over a photograph, so these treatments are theme-independent
+// (they must read the same in light and dark). Everything else is themed.
+const HERO_FALLBACK = '#0E120B';
+const HERO_SCRIM = 'rgba(21,23,20,0.28)';
+const HERO_GRADIENT_TOP = 'rgba(21,23,20,0)';
+const HERO_GRADIENT_BOTTOM = '#151714';
+const GLASS = 'rgba(250,250,250,0.18)';
+const GLASS_PRESSED = 'rgba(250,250,250,0.34)';
+const GLASS_BORDER = 'rgba(250,250,250,0.6)';
+const OVER_PHOTO_TEXT = '#FFFFFF';
+const OVER_PHOTO_SUBTLE = '#DADBDA';
+
 // Renders a Cultum <Icon> when `name` is a known icon, else falls back to the
-// raw value as text (used for the few care/task glyphs the icon set lacks, e.g.
-// temperature and fertilizing).
-function Glyph({ name, size = 24, color = colors.ink, textStyle }) {
+// raw value as text (for the few care/task glyphs the icon set lacks, e.g. the
+// temperature emoji).
+function Glyph({ name, size = 24, color, textStyle }) {
   if (ICON_NAMES.includes(name)) {
     return <Icon name={name} size={size} color={color} />;
   }
-  return <Text style={[{ fontSize: size }, textStyle]}>{name}</Text>;
+  return <Text style={[{ fontSize: size, color }, textStyle]}>{name}</Text>;
 }
 
 // Circular translucent nav button floating over the hero image.
-function NavButton({ icon, label, onPress }) {
+function NavButton({ icon, label, onPress, styles }) {
   return (
     <Pressable
       onPress={onPress}
@@ -52,16 +65,16 @@ function NavButton({ icon, label, onPress }) {
       accessibilityLabel={label}
       style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
     >
-      <Icon name={icon} size={20} color={colors.white} />
+      <Icon name={icon} size={20} color={OVER_PHOTO_TEXT} />
     </Pressable>
   );
 }
 
 // One tile of the care grid: icon over a bold label over a caption value.
-function CareFact({ icon, label, value }) {
+function CareFact({ icon, label, value, styles, t }) {
   return (
     <View style={styles.careFact}>
-      <Glyph name={icon} size={24} color={colors.ink} textStyle={styles.careIcon} />
+      <Glyph name={icon} size={24} color={t.text.primary} textStyle={styles.careIcon} />
       <Text style={styles.careLabel}>{label}</Text>
       <Text style={styles.careValue}>{value}</Text>
     </View>
@@ -69,7 +82,7 @@ function CareFact({ icon, label, value }) {
 }
 
 // A single expand/collapse FAQ row.
-function AccordionItem({ question, answer, open, onToggle }) {
+function AccordionItem({ question, answer, open, onToggle, styles, t }) {
   return (
     <Pressable
       onPress={onToggle}
@@ -82,22 +95,22 @@ function AccordionItem({ question, answer, open, onToggle }) {
         <Text style={styles.accQuestion}>{question}</Text>
         {open && answer ? <Text style={styles.accAnswer}>{answer}</Text> : null}
       </View>
-      <Icon name={open ? 'chevron-up' : 'chevron-down'} size={24} color={colors.ink} />
+      <Icon name={open ? 'chevron-up' : 'chevron-down'} size={24} color={t.text.primary} />
     </Pressable>
   );
 }
 
-// One "Today's tasks" row: colour-tinted icon tile + title/subtitle, a due
-// badge and a chevron. Built from <List variant="card"> + <ListItem> so it
-// reuses the design system's row primitive and pressed states.
-function TaskRow({ task, onPress }) {
+// One "Today's tasks" row. The icon tile's colours come from the task's semantic
+// `tone` (information/warning) resolved against the theme, so it follows dark/light.
+function TaskRow({ task, onPress, styles, t }) {
+  const tone = t[task.tone] || t.information;
   return (
     <List variant="card">
       <ListItem
         onPress={onPress}
         before={
-          <View style={[styles.taskTile, { backgroundColor: task.tint }]}>
-            <Glyph name={task.icon} size={20} color={task.ink} textStyle={styles.taskGlyph} />
+          <View style={[styles.taskTile, { backgroundColor: tone.secondary }]}>
+            <Glyph name={task.icon} size={20} color={tone.primary} textStyle={styles.taskGlyph} />
           </View>
         }
         title={task.title}
@@ -107,9 +120,9 @@ function TaskRow({ task, onPress }) {
             <Badge
               label={task.due}
               variant="secondary"
-              leftIcon={<Icon name="clock" size={14} color={colors.ink2} />}
+              leftIcon={<Icon name="clock" size={14} color={t.text.secondary} />}
             />
-            <Icon name="chevron-right" size={20} color={colors.ink} />
+            <Icon name="chevron-right" size={20} color={t.text.primary} />
           </View>
         }
       />
@@ -118,7 +131,7 @@ function TaskRow({ task, onPress }) {
 }
 
 // A titled content block (matches the Figma "Section ·" frames).
-function Section({ title, action, children }) {
+function Section({ title, action, children, styles }) {
   return (
     <View style={styles.section}>
       {title ? (
@@ -135,6 +148,8 @@ function Section({ title, action, children }) {
 export default function ProductPage() {
   const insets = useSafeAreaInsets();
   const { navigate } = useRouter();
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const [added, setAdded] = useState(false);
   const [tasks, setTasks] = useState(TODAYS_TASKS);
@@ -162,35 +177,33 @@ export default function ProductPage() {
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: added ? 24 : 24 }}
+        contentContainerStyle={{ paddingBottom: space[24] }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
         <ImageBackground source={HERO} style={styles.hero} resizeMode="cover">
-          {/* Figma hero darkening: a flat 30% tint over the whole photo… */}
           <View style={styles.heroScrim} pointerEvents="none" />
-          {/* …plus a bottom-up gradient (transparent → #151714) so the title,
-              subtitle and chips stay legible over the photo. */}
           <LinearGradient
-            colors={['rgba(21,23,20,0)', '#151714']}
+            colors={[HERO_GRADIENT_TOP, HERO_GRADIENT_BOTTOM]}
             style={styles.heroGradient}
             pointerEvents="none"
           />
 
-          <View style={[styles.navRow, { top: insets.top + 8 }]}>
-            <NavButton icon="chevron-left" label="Back" onPress={() => {}} />
+          <View style={[styles.navRow, { top: insets.top + space[8] }]}>
+            <NavButton icon="chevron-left" label="Back" onPress={() => {}} styles={styles} />
             <View style={styles.navRight}>
               {added ? (
                 <>
-                  <NavButton icon="settings" label="Settings" onPress={() => {}} />
+                  <NavButton icon="settings" label="Settings" onPress={() => {}} styles={styles} />
                   <NavButton
                     icon="more-horizontal"
                     label="More options"
                     onPress={() => setMenuOpen(true)}
+                    styles={styles}
                   />
                 </>
               ) : (
-                <NavButton icon="bookmark" label="Save" onPress={() => {}} />
+                <NavButton icon="bookmark" label="Save" onPress={() => {}} styles={styles} />
               )}
             </View>
           </View>
@@ -203,7 +216,7 @@ export default function ProductPage() {
                   label={c.label}
                   intent={c.intent}
                   variant="secondary"
-                  leftIcon={<Icon name={c.icon} size={16} color={colors.ink} />}
+                  leftIcon={<Icon name={c.icon} size={16} color={t.text.primary} />}
                 />
               ))}
             </View>
@@ -217,7 +230,7 @@ export default function ProductPage() {
           {added ? (
             <>
               {/* Today's tasks */}
-              <Section title="Today’s tasks">
+              <Section title="Today’s tasks" styles={styles}>
                 {tasks.length > 0 ? (
                   <View style={styles.taskList}>
                     {tasks.map((task) => (
@@ -225,6 +238,8 @@ export default function ProductPage() {
                         key={task.id}
                         task={task}
                         onPress={() => completeTask(task.id)}
+                        styles={styles}
+                        t={t}
                       />
                     ))}
                   </View>
@@ -233,12 +248,12 @@ export default function ProductPage() {
                     <ListItem
                       before={
                         <View style={styles.doneIcon}>
-                          <Icon name="check" size={20} color={colors.greenInk} />
+                          <Icon name="check" size={20} color={t.brand.onPrimary} />
                         </View>
                       }
                       title="All caught up"
                       subtitle={NEXT_REMINDER}
-                      after={<Icon name="chevron-right" size={20} color={colors.ink} />}
+                      after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
                       onPress={() => {}}
                     />
                   </List>
@@ -246,7 +261,7 @@ export default function ProductPage() {
               </Section>
 
               {/* Your plant */}
-              <Section title="Your plant">
+              <Section title="Your plant" styles={styles}>
                 <SegmentedControl
                   segments={[
                     { label: 'About', value: 'about' },
@@ -273,12 +288,12 @@ export default function ProductPage() {
                 <ListItem
                   before={
                     <View style={styles.ownedIcon}>
-                      <Icon name="check" size={20} color={colors.greenInk} />
+                      <Icon name="check" size={20} color={t.brand.onPrimary} />
                     </View>
                   }
                   title={PLANT.owned.title}
                   subtitle={PLANT.owned.subtitle}
-                  after={<Icon name="chevron-right" size={20} color={colors.ink} />}
+                  after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
                   onPress={() => {}}
                 />
               </List>
@@ -291,54 +306,25 @@ export default function ProductPage() {
           )}
 
           {/* How to care */}
-          <Section title="How to care">
+          <Section title="How to care" styles={styles}>
             <View style={styles.careGrid}>
               <View style={styles.careRow}>
-                <CareFact {...CARE_FACTS[0]} />
-                <CareFact {...CARE_FACTS[1]} />
+                <CareFact {...CARE_FACTS[0]} styles={styles} t={t} />
+                <CareFact {...CARE_FACTS[1]} styles={styles} t={t} />
               </View>
               <View style={styles.careRow}>
-                <CareFact {...CARE_FACTS[2]} />
-                <CareFact {...CARE_FACTS[3]} />
+                <CareFact {...CARE_FACTS[2]} styles={styles} t={t} />
+                <CareFact {...CARE_FACTS[3]} styles={styles} t={t} />
               </View>
             </View>
           </Section>
 
           {/* V2: Gallery section — deferred with the full-screen photo viewer
               (ImageViewer). "View All" → navigate('premium-gallery'); each photo
-              → navigate('image-viewer', { index: i }). Re-enable together in V2.
-
-          <Section
-            title="Gallery"
-            action={
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => navigate('premium-gallery')}
-              >
-                <Text style={styles.viewAll}>View All</Text>
-              </Pressable>
-            }
-          >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.galleryScroller}
-            >
-              {PHOTOS.slice(0, 2).map((src, i) => (
-                <ImageBackground
-                  key={i}
-                  source={src}
-                  style={styles.galleryImage}
-                  imageStyle={styles.galleryImageRadius}
-                  resizeMode="cover"
-                />
-              ))}
-            </ScrollView>
-          </Section>
-          */}
+              → navigate('image-viewer', { index: i }). Re-enable together in V2. */}
 
           {/* FAQ */}
-          <Section title="FAQ">
+          <Section title="FAQ" styles={styles}>
             <View style={styles.accordionList}>
               {FAQ.map((item, i) => (
                 <View key={i} style={styles.accordion}>
@@ -347,6 +333,8 @@ export default function ProductPage() {
                     answer={item.a}
                     open={openFaq === i}
                     onToggle={() => setOpenFaq(openFaq === i ? -1 : i)}
+                    styles={styles}
+                    t={t}
                   />
                 </View>
               ))}
@@ -357,12 +345,12 @@ export default function ProductPage() {
 
       {/* ── Sticky CTA (only before the plant is added) ────────── */}
       {!added ? (
-        <View style={[styles.cta, { paddingBottom: 16 + insets.bottom }]}>
+        <View style={[styles.cta, { paddingBottom: space[16] + insets.bottom }]}>
           <Button
             label="Add to my plants"
             size="lg"
             onPress={() => setAdded(true)}
-            leftIcon={<Icon name="add" size={20} color={colors.greenInk} />}
+            leftIcon={<Icon name="add" size={20} color={t.brand.onPrimary} />}
           />
         </View>
       ) : null}
@@ -379,154 +367,142 @@ export default function ProductPage() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  scroll: { flex: 1 },
+const makeStyles = (t) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: t.background.primary },
+    scroll: { flex: 1 },
 
-  // ── Hero ──
-  hero: {
-    height: 353,
-    paddingHorizontal: 16,
-    paddingBottom: 25,
-    justifyContent: 'flex-end',
-    backgroundColor: colors.brandDark,
-  },
-  heroScrim: {
-    ...StyleSheet.absoluteFillObject,
-    // Figma "Image" fill: a flat 30% dark tint across the whole photo.
-    backgroundColor: 'rgba(21,23,20,0.28)',
-  },
-  heroGradient: {
-    // Figma "Scrim": bottom 117px of the 353px hero, transparent → #151714.
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 117,
-  },
-  navRow: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  navRight: { flexDirection: 'row', gap: 8 },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(250,250,250,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(250,250,250,0.6)',
-  },
-  navBtnPressed: { backgroundColor: 'rgba(250,250,250,0.34)' },
-  heroText: { gap: 6 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  heroTitle: {
-    fontFamily: fonts.display,
-    fontSize: 32,
-    lineHeight: 38,
-    color: colors.paper,
-  },
-  heroSubtitle: { fontSize: 16, lineHeight: 22, color: '#DADBDA' },
+    // ── Hero ── (photo treatments are theme-independent)
+    hero: {
+      height: 353,
+      paddingHorizontal: space[16],
+      paddingBottom: 25,
+      justifyContent: 'flex-end',
+      backgroundColor: HERO_FALLBACK,
+    },
+    heroScrim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: HERO_SCRIM,
+    },
+    heroGradient: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 117,
+    },
+    navRow: {
+      position: 'absolute',
+      left: space[16],
+      right: space[16],
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    navRight: { flexDirection: 'row', gap: space[8] },
+    navBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: GLASS,
+      borderWidth: stroke[1],
+      borderColor: GLASS_BORDER,
+    },
+    navBtnPressed: { backgroundColor: GLASS_PRESSED },
+    heroText: { gap: space[4] },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
+    heroTitle: { ...typography.headingLarge, color: OVER_PHOTO_TEXT },
+    heroSubtitle: { ...typography.bodyLarge, color: OVER_PHOTO_SUBTLE },
 
-  // ── Content ──
-  content: { padding: 16, paddingTop: 24, gap: 32 },
-  section: { gap: 16 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  heading: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-    color: '#151515',
-  },
-  bodyText: { fontSize: 14, lineHeight: 20, color: '#404140' },
-  viewAll: { fontSize: 14, fontWeight: '500', color: '#151515' },
+    // ── Content ──
+    content: { padding: space[16], paddingTop: space[24], gap: space[32] },
+    section: { gap: space[16] },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    heading: { ...typography.headingSmallEmphasized, color: t.text.primary },
+    bodyText: { ...typography.bodyMedium, color: t.text.secondary },
+    viewAll: { ...typography.buttonSmall, color: t.text.primary },
 
-  // Owned banner
-  ownedIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    // Owned banner
+    ownedIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      backgroundColor: t.brand.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  // ── Today's tasks ──
-  taskList: { gap: 8 },
-  taskTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  taskGlyph: { fontSize: 20 },
-  segment: { alignSelf: 'stretch' },
-  taskAfter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  doneIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    // ── Today's tasks ──
+    taskList: { gap: space[8] },
+    taskTile: {
+      width: 40,
+      height: 40,
+      borderRadius: radius[8],
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    taskGlyph: { fontSize: 20 },
+    segment: { alignSelf: 'stretch' },
+    taskAfter: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
+    doneIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      backgroundColor: t.brand.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  // ── Care grid ──
-  careGrid: { gap: 12 },
-  careRow: { flexDirection: 'row', gap: 12 },
-  careFact: {
-    flex: 1,
-    padding: 12,
-    gap: 8,
-    borderRadius: radius.card,
-    backgroundColor: '#ECEDEC',
-  },
-  careIcon: { fontSize: 22 },
-  careLabel: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: '#151515' },
-  careValue: { fontSize: 12, lineHeight: 16, color: '#404140' },
+    // ── Care grid ──
+    careGrid: { gap: space[12] },
+    careRow: { flexDirection: 'row', gap: space[12] },
+    careFact: {
+      flex: 1,
+      padding: space[12],
+      gap: space[8],
+      borderRadius: radius[16],
+      backgroundColor: t.surface.primary,
+    },
+    careIcon: { fontSize: 22 },
+    careLabel: { ...typography.bodyLargeEmphasized, color: t.text.primary },
+    careValue: { ...typography.caption, color: t.text.secondary },
 
-  // ── Gallery ──
-  galleryScroller: { gap: 12 },
-  galleryImage: { width: 264, height: 184 },
-  galleryImageRadius: { borderRadius: 12 },
+    // ── Gallery ──
+    galleryScroller: { gap: space[12] },
+    galleryImage: { width: 264, height: 184 },
+    galleryImageRadius: { borderRadius: radius[12] },
 
-  // ── FAQ accordion ──
-  accordionList: { gap: 8 },
-  accordion: {
-    backgroundColor: '#ECEDEC',
-    borderRadius: radius.card,
-    overflow: 'hidden',
-  },
-  accItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-  },
-  accText: { flex: 1, gap: 4 },
-  accQuestion: { fontSize: 16, lineHeight: 22, color: '#151515' },
-  accAnswer: { fontSize: 14, lineHeight: 20, color: '#404140' },
+    // ── FAQ accordion ──
+    accordionList: { gap: space[8] },
+    accordion: {
+      backgroundColor: t.surface.primary,
+      borderRadius: radius[16],
+      overflow: 'hidden',
+    },
+    accItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: space[8],
+      padding: space[12],
+    },
+    accText: { flex: 1, gap: space[4] },
+    accQuestion: { ...typography.bodyLarge, color: t.text.primary },
+    accAnswer: { ...typography.bodyMedium, color: t.text.secondary },
 
-  // ── CTA ──
-  cta: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    backgroundColor: colors.paper,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.hairline,
-  },
+    // ── CTA ──
+    cta: {
+      paddingHorizontal: space[16],
+      paddingTop: space[16],
+      backgroundColor: t.background.primary,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.border.tertiary,
+    },
 
-  // ── Overflow menu ──
-  menuAnchor: { position: 'absolute', right: 16 },
-});
+    // ── Overflow menu ──
+    menuAnchor: { position: 'absolute', right: space[16] },
+  });
