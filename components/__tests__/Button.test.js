@@ -1,13 +1,17 @@
+import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { Text, ActivityIndicator } from 'react-native';
 import Button from '../Button';
 import { Button as BarrelButton } from '../index';
-import { button } from '../../theme/tokens';
+import { ThemeProvider } from '../../theme/ThemeProvider';
+import { colorTokens } from '../../theme/colorTokens';
 
-function create(el) {
+// Render inside a ThemeProvider pinned to a mode so colour assertions are
+// deterministic (default 'light'); pass mode="dark" to check the dark theme.
+function create(el, mode = 'light') {
   let tree;
   act(() => {
-    tree = TestRenderer.create(el);
+    tree = TestRenderer.create(<ThemeProvider initialMode={mode}>{el}</ThemeProvider>);
   });
   return tree;
 }
@@ -28,38 +32,41 @@ test('is exported from the components barrel', () => {
   expect(BarrelButton).toBe(Button);
 });
 
-test('primary enabled is the brand-green pill with dark ink', () => {
+test('primary is the brand-green CTA (brand-primary = primary-500) with dark ink', () => {
   const tree = create(<Button label="Go" />);
-  expect(btnStyle(tree).backgroundColor).toBe(button.primary.bg);
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.brand.primary.light);
+  expect(btnStyle(tree).backgroundColor).toBe('#93EC7C'); // the brand green
   expect(tree.root.findByType(Text).props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ color: button.primary.fg })])
+    expect.arrayContaining([expect.objectContaining({ color: colorTokens.brand.onPrimary.light })])
   );
 });
 
-test('destructive primary uses the red action colour', () => {
-  const tree = create(<Button label="Delete" destructive />);
-  expect(btnStyle(tree).backgroundColor).toBe(button.dangerPrimary.bg);
+test('secondary uses the brand-secondary token', () => {
+  const tree = create(<Button label="More" variant="secondary" />);
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.brand.secondary.light);
+  expect(tree.root.findByType(Text).props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ color: colorTokens.brand.onSecondary.light })])
+  );
 });
 
-test('outline draws a 1px border in the variant border colour', () => {
+test('primary follows the theme: dark mode resolves brand-primary.dark', () => {
+  const tree = create(<Button label="Go" />, 'dark');
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.brand.primary.dark);
+  expect(tree.root.findByType(Text).props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ color: colorTokens.brand.onPrimary.dark })])
+  );
+});
+
+test('destructive primary uses the error-primary token', () => {
+  const tree = create(<Button label="Delete" destructive />);
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.error.primary.light);
+});
+
+test('outline draws a 1px border in the border-primary token colour', () => {
   const tree = create(<Button label="More" variant="outline" />);
   const s = btnStyle(tree);
   expect(s.borderWidth).toBe(1);
-  expect(s.borderColor).toBe(button.outline.border);
-});
-
-test('pressed state follows Figma: filled types swap fill, outline/ghost use a state layer', () => {
-  // Figma State=Pressed models two ways: filled variants have a distinct
-  // bgPressed fill; outline/ghost keep their base fill + a translucent overlay.
-  expect(button.pressedLayer).toBe('rgba(0,0,0,0.08)');
-  for (const v of ['primary', 'secondary', 'dangerPrimary', 'dangerSecondary']) {
-    expect(button[v].bgPressed).toBeDefined();
-    expect(button[v].stateLayer).toBeUndefined();
-  }
-  for (const v of ['outline', 'ghost', 'dangerOutline', 'dangerGhost']) {
-    expect(button[v].stateLayer).toBe(true);
-    expect(button[v].bgPressed).toBeUndefined();
-  }
+  expect(s.borderColor).toBe(colorTokens.border.primary.light);
 });
 
 test('size maps to Figma pill height (lg 56 / md 48 / sm 40)', () => {
@@ -68,12 +75,12 @@ test('size maps to Figma pill height (lg 56 / md 48 / sm 40)', () => {
   expect(btnStyle(create(<Button label="a" size="sm" />)).height).toBe(40);
 });
 
-test('disabled uses the disabled fill + ink and blocks interaction', () => {
+test('disabled uses the disabled surface + ink tokens and blocks interaction', () => {
   const tree = create(<Button label="x" disabled />);
-  expect(btnStyle(tree).backgroundColor).toBe(button.disabledBg);
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.disabled.surface.light);
   expect(btn(tree).props.accessibilityState.disabled).toBe(true);
   expect(tree.root.findByType(Text).props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ color: button.disabledFg })])
+    expect.arrayContaining([expect.objectContaining({ color: colorTokens.disabled.on.light })])
   );
 });
 

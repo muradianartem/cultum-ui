@@ -23,14 +23,13 @@ export const PHOTOS = [
   require('../assets/plant/hero.png'),
 ];
 
-// `icon` is a Cultum icon name where one exists (from the Figma Care Facts:
-// Water → outlined-water, Sun → sun, Humidity → cloude). Temperature uses
-// Material Symbols "thermometer" in Figma, which has no Cultum equivalent, so it
-// falls back to an emoji — CareFact renders any non-icon value as text.
+// `icon` values are Cultum icon names (see components/iconRegistry.js), mapped
+// from the Figma Care Facts: Water → outlined-water, Sun → sun,
+// Temperature → temperature, Humidity → cloude.
 export const CARE_FACTS = [
   { icon: 'outlined-water', label: 'Water', value: 'Every 7–10 days' },
   { icon: 'sun', label: 'Sun', value: 'Bright, indirect' },
-  { icon: '🌡️', label: 'Temperature', value: '18–27℃ / 64–81℉' },
+  { icon: 'temperature', label: 'Temperature', value: '18–27℃ / 64–81℉' },
   { icon: 'cloude', label: 'Humidity', value: 'Average home is fine' },
 ];
 
@@ -46,6 +45,9 @@ export const FAQ = [
 ];
 
 
+// `tone` is a semantic feedback category the screen resolves to theme colours
+// (tile = `<tone>.secondary` tint, icon = `<tone>.primary`) so the tiles follow
+// light/dark instead of hard-coding hex.
 export const TODAYS_TASKS = [
   {
     id: 'water',
@@ -53,8 +55,7 @@ export const TODAYS_TASKS = [
     title: 'Watering',
     subtitle: 'Every 6 days',
     due: 'Today',
-    tint: '#CFE5FF',
-    ink: '#2B6EA6',
+    tone: 'information',
   },
   {
     id: 'fertilize',
@@ -62,8 +63,7 @@ export const TODAYS_TASKS = [
     title: 'Fertilizing',
     subtitle: 'Every 4 weeks',
     due: '3d ago',
-    tint: '#FFDECB',
-    ink: '#A85E08',
+    tone: 'warning',
   },
 ];
 
