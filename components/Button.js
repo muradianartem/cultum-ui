@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { button, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import { usePressScale } from './usePressScale';
 
 /**
@@ -17,20 +18,37 @@ import { usePressScale } from './usePressScale';
  *   Figma Destructive → `destructive`: boolean (red action colours)
  *   Figma Size        → `size`:        lg (56) | md (48) | sm (40)  — pill height
  *   Figma State       → derived:       `disabled`, `loading`, and the pressed
- *                                       colour swap via Pressable
+ *                                       state layer via Pressable
+ *
+ * Colours come from the semantic token layer via useTheme() (so the button
+ * follows light/dark), mapped per variant to the roles authored in Figma's
+ * Color Tokens page. Geometry (pill height, padding, radius) stays in the
+ * mode-independent token exports. `button.sizes` below is geometry only.
  *
  * For low-emphasis, chrome-less inline actions ("Not now", "Undo") use
  * <TextButton>, a separate primitive.
  */
 
-function palette(variant, destructive) {
+// Resolve the variant's { bg, fg, border? } from the active theme (`t`).
+// Pressed is a universal translucent state layer (t.interaction.pressed)
+// laid over the fill, rather than a per-variant fill swap.
+function palette(t, variant, destructive) {
   if (destructive) {
-    return (
-      { primary: button.dangerPrimary, secondary: button.dangerSecondary, outline: button.dangerOutline, ghost: button.dangerGhost }[variant] ||
-      button.dangerPrimary
-    );
+    return {
+      primary: { bg: t.error.primary, fg: t.error.onPrimary },
+      secondary: { bg: t.error.secondary, fg: t.error.onSecondary },
+      outline: { bg: 'transparent', fg: t.error.primary, border: t.error.primary },
+      ghost: { bg: 'transparent', fg: t.error.primary },
+    }[variant] || { bg: t.error.primary, fg: t.error.onPrimary };
   }
-  return button[variant] || button.primary;
+  return {
+    // Primary CTA = brand-primary, which the Figma token page now resolves to the
+    // brand green (primary-500) in light / primary-400 in dark.
+    primary: { bg: t.brand.primary, fg: t.brand.onPrimary },
+    secondary: { bg: t.brand.secondary, fg: t.brand.onSecondary },
+    outline: { bg: 'transparent', fg: t.text.primary, border: t.border.primary },
+    ghost: { bg: 'transparent', fg: t.text.primary },
+  }[variant] || { bg: t.brand.primary, fg: t.brand.onPrimary };
 }
 
 export default function Button({
@@ -50,7 +68,8 @@ export default function Button({
   accessibilityLabel,
   ...rest
 }) {
-  const p = palette(variant, destructive);
+  const t = useTheme();
+  const p = palette(t, variant, destructive);
   const sz = button.sizes[size] || button.sizes.md;
   const isDisabled = disabled || loading;
   const { scale, onPressIn, onPressOut } = usePressScale();
@@ -81,15 +100,11 @@ export default function Button({
           {
             height: sz.height,
             paddingHorizontal: sz.paddingHorizontal,
-            backgroundColor: isDisabled
-              ? button.disabledBg
-              : pressed && !p.stateLayer
-              ? p.bgPressed
-              : p.bg,
+            backgroundColor: isDisabled ? t.disabled.surface : p.bg,
           },
           hasBorder && {
             borderWidth: 1,
-            borderColor: isDisabled ? button.disabledBorder : p.border,
+            borderColor: isDisabled ? t.disabled.border : p.border,
           },
           fullWidth && styles.blockInner,
         ]}
@@ -97,8 +112,11 @@ export default function Button({
       >
         {({ pressed }) => (
           <>
-            {pressed && p.stateLayer && !isDisabled ? (
-              <View pointerEvents="none" style={styles.stateLayer} />
+            {pressed && !isDisabled ? (
+              <View
+                pointerEvents="none"
+                style={[styles.stateLayer, { backgroundColor: t.interaction.pressed }]}
+              />
             ) : null}
             {loading ? (
               <ActivityIndicator color={p.fg} size="small" />
@@ -110,7 +128,7 @@ export default function Button({
                     numberOfLines={1}
                     style={[
                       styles.label,
-                      { color: isDisabled ? button.disabledFg : p.fg, fontSize: sz.fontSize },
+                      { color: isDisabled ? t.disabled.on : p.fg, fontSize: sz.fontSize },
                       textStyle,
                     ]}
                   >
@@ -139,10 +157,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden', // clip the pressed state layer to the pill
   },
-  // Figma outline/ghost State=Pressed: a translucent tint over the base fill.
+  // Pressed State layer: a translucent tint over the base fill (colour comes
+  // from t.interaction.pressed at render so it follows the theme).
   stateLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: button.pressedLayer,
   },
   row: {
     flexDirection: 'row',

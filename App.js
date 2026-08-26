@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
+import { ThemeProvider } from './theme/ThemeProvider';
 import ProductPage from './screens/ProductPage';
 import PremiumGallery from './screens/PremiumGallery';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
@@ -22,16 +23,20 @@ function Locked() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <Router initial="product">
-        <Route name="product" component={ProductPage} />
-        <Route
-          name="premium-gallery"
-          guard={requireSubscription}
-          component={PremiumGallery}
-          fallback={<Locked />}
-        />
-        {/* V2: <Route name="image-viewer" component={ImageViewer} /> */}
-      </Router>
+      {/* ThemeProvider makes the semantic color tokens available via useTheme()
+          and drives light/dark. Follows the OS scheme by default. */}
+      <ThemeProvider>
+        <Router initial="product">
+          <Route name="product" component={ProductPage} />
+          <Route
+            name="premium-gallery"
+            guard={requireSubscription}
+            component={PremiumGallery}
+            fallback={<Locked />}
+          />
+          {/* V2: <Route name="image-viewer" component={ImageViewer} /> */}
+        </Router>
+      </ThemeProvider>
       {/* Light hero photo behind the status bar → light status-bar text. */}
       <StatusBar style="light" />
     </SafeAreaProvider>
