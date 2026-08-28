@@ -24,12 +24,9 @@ import { useRouter } from '../routing';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import {
-  CARE_FACTS,
-  CHIPS,
-  FAQ,
+  DEFAULT_PLANT_VM,
   HERO,
   NEXT_REMINDER,
-  PHOTOS,
   PLANT,
   TODAYS_TASKS,
 } from './plantData';
@@ -145,11 +142,15 @@ function Section({ title, action, children, styles }) {
   );
 }
 
-export default function ProductPage() {
+export default function ProductPage({ plant }) {
   const insets = useSafeAreaInsets();
-  const { navigate } = useRouter();
+  const { navigate, back } = useRouter();
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+
+  // Param-driven: a scan/search tap passes a PlantVM; the standalone `product`
+  // route passes nothing and falls back to the static default.
+  const vm = plant ?? DEFAULT_PLANT_VM;
 
   const [added, setAdded] = useState(false);
   const [tasks, setTasks] = useState(TODAYS_TASKS);
@@ -181,7 +182,11 @@ export default function ProductPage() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <ImageBackground source={HERO} style={styles.hero} resizeMode="cover">
+        <ImageBackground
+          source={vm.heroUri ? { uri: vm.heroUri } : HERO}
+          style={styles.hero}
+          resizeMode="cover"
+        >
           <View style={styles.heroScrim} pointerEvents="none" />
           <LinearGradient
             colors={[HERO_GRADIENT_TOP, HERO_GRADIENT_BOTTOM]}
@@ -190,7 +195,7 @@ export default function ProductPage() {
           />
 
           <View style={[styles.navRow, { top: insets.top + space[8] }]}>
-            <NavButton icon="chevron-left" label="Back" onPress={() => {}} styles={styles} />
+            <NavButton icon="chevron-left" label="Back" onPress={back} styles={styles} />
             <View style={styles.navRight}>
               {added ? (
                 <>
@@ -210,7 +215,7 @@ export default function ProductPage() {
 
           <View style={styles.heroText}>
             <View style={styles.chips}>
-              {CHIPS.map((c) => (
+              {vm.chips.map((c) => (
                 <Badge
                   key={c.label}
                   label={c.label}
@@ -220,8 +225,8 @@ export default function ProductPage() {
                 />
               ))}
             </View>
-            <Text style={styles.heroTitle}>{PLANT.commonName}</Text>
-            <Text style={styles.heroSubtitle}>{PLANT.latinName}</Text>
+            <Text style={styles.heroTitle}>{vm.commonName}</Text>
+            <Text style={styles.heroSubtitle}>{vm.latinName}</Text>
           </View>
         </ImageBackground>
 
@@ -272,7 +277,7 @@ export default function ProductPage() {
                   style={styles.segment}
                 />
                 {segment === 'about' ? (
-                  <Text style={styles.bodyText}>{PLANT.about}</Text>
+                  <Text style={styles.bodyText}>{vm.about}</Text>
                 ) : (
                   <Text style={styles.bodyText}>
                     No journal entries yet. Care you log — waterings, repottings,
@@ -300,7 +305,7 @@ export default function ProductPage() {
 
               {/* About */}
               <View style={styles.section}>
-                <Text style={styles.bodyText}>{PLANT.about}</Text>
+                <Text style={styles.bodyText}>{vm.about}</Text>
               </View>
             </>
           )}
@@ -309,12 +314,12 @@ export default function ProductPage() {
           <Section title="How to care" styles={styles}>
             <View style={styles.careGrid}>
               <View style={styles.careRow}>
-                <CareFact {...CARE_FACTS[0]} styles={styles} t={t} />
-                <CareFact {...CARE_FACTS[1]} styles={styles} t={t} />
+                <CareFact {...vm.careFacts[0]} styles={styles} t={t} />
+                <CareFact {...vm.careFacts[1]} styles={styles} t={t} />
               </View>
               <View style={styles.careRow}>
-                <CareFact {...CARE_FACTS[2]} styles={styles} t={t} />
-                <CareFact {...CARE_FACTS[3]} styles={styles} t={t} />
+                <CareFact {...vm.careFacts[2]} styles={styles} t={t} />
+                <CareFact {...vm.careFacts[3]} styles={styles} t={t} />
               </View>
             </View>
           </Section>
@@ -326,7 +331,7 @@ export default function ProductPage() {
           {/* FAQ */}
           <Section title="FAQ" styles={styles}>
             <View style={styles.accordionList}>
-              {FAQ.map((item, i) => (
+              {vm.faq.map((item, i) => (
                 <View key={i} style={styles.accordion}>
                   <AccordionItem
                     question={item.q}

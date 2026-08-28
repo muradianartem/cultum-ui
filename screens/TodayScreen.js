@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, Icon, List, ListItem, SegmentedControl, State, TabBar } from '../components';
+import { useRouter } from '../routing';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
 import { EMPTY, GREETING, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS } from './todayData';
@@ -57,6 +58,7 @@ function TaskGroup({ group, onComplete, styles, t }) {
 // theme/foundations. Mirrors screens/ProductPage.js.
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
+  const { navigate } = useRouter();
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
 
@@ -173,7 +175,13 @@ export default function TodayScreen() {
             onPress={() => {}}
           />
         </View>
-        <TabBar tabs={tabBarTabs} value="today" onChange={() => {}} />
+        <TabBar
+          tabs={tabBarTabs}
+          value="today"
+          onChange={(value) => {
+            if (value === 'scan') navigate('scan-camera');
+          }}
+        />
       </View>
     </View>
   );

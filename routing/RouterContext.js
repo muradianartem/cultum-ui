@@ -9,6 +9,7 @@ import { createContext, useContext } from 'react';
  *   navigate(name, params?) — push a new route
  *   replace(name, params?)  — swap the current route without growing history
  *   back()                  — pop to the previous route
+ *   reset(name, params?)    — jump to a route and clear all history (pop to root)
  *   canGoBack               — whether there is history to pop
  */
 export const RouterContext = createContext(null);

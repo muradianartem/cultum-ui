@@ -26,13 +26,13 @@ export default function Route({
   guard,
   fallback = null,
 }) {
-  const { route, params, navigate, replace, back } = useRouter();
+  const { route, params, navigate, replace, back, reset } = useRouter();
 
   // Not the active route → render nothing.
   if (route !== name) return null;
 
   const guards = guard ? (Array.isArray(guard) ? guard : [guard]) : [];
-  const context = { route: name, params, navigate, replace, back };
+  const context = { route: name, params, navigate, replace, back, reset };
   const allowed = guards.every((g) => g(context) !== false);
 
   if (!allowed) return fallback;

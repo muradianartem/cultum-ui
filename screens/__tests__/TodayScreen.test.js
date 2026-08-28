@@ -1,6 +1,7 @@
 import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Router, useRouter } from '../../routing';
 import TodayScreen from '../TodayScreen';
 
 // Insets need a provider; feed fixed metrics so useSafeAreaInsets resolves.
@@ -9,11 +10,22 @@ const METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
+let api;
+function Probe() {
+  api = useRouter();
+  return null;
+}
+
 function create(el) {
   let tree;
   act(() => {
     tree = TestRenderer.create(
-      <SafeAreaProvider initialMetrics={METRICS}>{el}</SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <Router initial="today">
+          <Probe />
+          {el}
+        </Router>
+      </SafeAreaProvider>
     );
   });
   return tree;
@@ -121,4 +133,16 @@ test('renders the 5-tab bar with Today active', () => {
   const todayTab = tabs(tree).find((n) => n.props.accessibilityLabel === 'Today');
   expect(todayTab).toBeTruthy();
   expect(todayTab.props.accessibilityState.selected).toBe(true);
+});
+
+test('tapping the Scan/Add tab navigates to the camera route', () => {
+  const tree = create(<TodayScreen />);
+  const scanTab = tree.root.find(
+    (n) =>
+      typeof n.props.onPress === 'function' &&
+      n.props.accessibilityRole === 'tab' &&
+      n.props.accessibilityLabel === 'Scan/Add'
+  );
+  act(() => scanTab.props.onPress());
+  expect(api.route).toBe('scan-camera');
 });

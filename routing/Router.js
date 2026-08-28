@@ -31,6 +31,13 @@ export default function Router({ initial, children }) {
     setState((s) => ({ route, params, stack: s.stack }));
   }, []);
 
+  // Jump to a route and drop all history — a "pop to root". Used by the scan
+  // flow's "close" (→ today) and "Scan it instead" (→ scan-camera) so the
+  // camera never accumulates in the back stack.
+  const reset = useCallback((route, params = {}) => {
+    setState({ route, params, stack: [] });
+  }, []);
+
   const back = useCallback(() => {
     setState((s) => {
       if (s.stack.length === 0) return s;
@@ -48,8 +55,9 @@ export default function Router({ initial, children }) {
       navigate,
       replace,
       back,
+      reset,
     }),
-    [state, navigate, replace, back]
+    [state, navigate, replace, back, reset]
   );
 
   return (
