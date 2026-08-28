@@ -6,6 +6,9 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import PremiumGallery from './screens/PremiumGallery';
+import ScanCameraScreen from './screens/scan/ScanCameraScreen';
+import ScanMatchesScreen from './screens/scan/ScanMatchesScreen';
+import ScanSearchScreen from './screens/scan/ScanSearchScreen';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
 // the V1 flow — re-enable this import and its route below when V2 ships.
 // import ImageViewer from './screens/ImageViewer';
@@ -30,6 +33,9 @@ export default function App() {
         <Router initial="today">
           <Route name="today" component={TodayScreen} />
           <Route name="product" component={ProductPage} />
+          <Route name="scan-camera" component={ScanCameraScreen} />
+          <Route name="scan-matches" component={ScanMatchesScreen} />
+          <Route name="scan-search" component={ScanSearchScreen} />
           <Route
             name="premium-gallery"
             guard={requireSubscription}

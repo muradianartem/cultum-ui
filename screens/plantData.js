@@ -8,6 +8,10 @@ export const PLANT = {
     'fenestrating with enough light and something to climb.',
 };
 
+// Fallback "About" copy for plants whose PlantDetail has no `brief` (used by the
+// api/mapPlant view-models). Kept identical to the static product page.
+export const DEFAULT_ABOUT = PLANT.about;
+
 // `icon` values are Cultum icon names (see components/iconRegistry.js), mapped
 // from the Figma "Product Page" badges: Easy → stickers, Toxic → outlined-paw.
 export const CHIPS = [
@@ -43,6 +47,21 @@ export const FAQ = [
   { q: 'What should I watch for?' },
   { q: 'How fast does it grow?' },
 ];
+
+// The static Product-page view-model (PlantVM shape), used when ProductPage is
+// opened with no `plant` param — i.e. the existing standalone `product` route.
+// `heroUri: null` makes the page fall back to the bundled HERO asset.
+export const DEFAULT_PLANT_VM = {
+  commonName: PLANT.commonName,
+  latinName: PLANT.latinName,
+  about: PLANT.about,
+  heroUri: null,
+  careFacts: CARE_FACTS,
+  chips: CHIPS,
+  faq: FAQ,
+  source: null,
+  sourceId: null,
+};
 
 
 // `tone` is a semantic feedback category the screen resolves to theme colours

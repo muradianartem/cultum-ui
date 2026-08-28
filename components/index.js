@@ -26,3 +26,4 @@ export { default as Avatar, AvatarGroup } from './Avatar';
 export { default as Overlay } from './Overlay';
 export { default as Tabs } from './Tabs';
 export { default as Icon, ICON_NAMES } from './Icon';
+export { default as ConfidenceRing } from './ConfidenceRing';

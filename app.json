@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cultum.ui",
+      "bundleIdentifier": "com.artemmuradan.cultumui",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -24,6 +24,20 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cultum uses your camera to identify plants you photograph."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cultum uses your photos so you can identify a plant from an existing picture."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "4814abf4-2c89-490f-a0f2-c4619d600b82"
