@@ -3,6 +3,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
 import { ThemeProvider } from './theme/ThemeProvider';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
+import LoginScreen from './screens/LoginScreen';
+import { LoadingIndicator } from './components';
 import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import PremiumGallery from './screens/PremiumGallery';
@@ -24,26 +27,51 @@ function Locked() {
   );
 }
 
+// Chooses login vs. the app router based on async auth status. Gating happens
+// here at the root (not via routing/guards, which are pure sync functions with
+// no context access), so the Router only ever mounts once authenticated.
+function AuthGate() {
+  const { status } = useAuth();
+
+  if (status === 'loading') {
+    return (
+      <View style={styles.loading}>
+        <LoadingIndicator />
+      </View>
+    );
+  }
+
+  if (status === 'signedOut') {
+    return <LoginScreen />;
+  }
+
+  return (
+    <Router initial="today">
+      <Route name="today" component={TodayScreen} />
+      <Route name="product" component={ProductPage} />
+      <Route name="scan-camera" component={ScanCameraScreen} />
+      <Route name="scan-matches" component={ScanMatchesScreen} />
+      <Route name="scan-search" component={ScanSearchScreen} />
+      <Route
+        name="premium-gallery"
+        guard={requireSubscription}
+        component={PremiumGallery}
+        fallback={<Locked />}
+      />
+      {/* V2: <Route name="image-viewer" component={ImageViewer} /> */}
+    </Router>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
       {/* ThemeProvider makes the semantic color tokens available via useTheme()
           and drives light/dark. Follows the OS scheme by default. */}
       <ThemeProvider>
-        <Router initial="today">
-          <Route name="today" component={TodayScreen} />
-          <Route name="product" component={ProductPage} />
-          <Route name="scan-camera" component={ScanCameraScreen} />
-          <Route name="scan-matches" component={ScanMatchesScreen} />
-          <Route name="scan-search" component={ScanSearchScreen} />
-          <Route
-            name="premium-gallery"
-            guard={requireSubscription}
-            component={PremiumGallery}
-            fallback={<Locked />}
-          />
-          {/* V2: <Route name="image-viewer" component={ImageViewer} /> */}
-        </Router>
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
       </ThemeProvider>
       {/* Light hero photo behind the status bar → light status-bar text. */}
       <StatusBar style="light" />
@@ -59,4 +87,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   lockedText: { fontSize: 16, color: colors.ink },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.paper,
+  },
 });

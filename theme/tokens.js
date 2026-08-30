@@ -278,11 +278,12 @@ export const list = {
 // while pressed.
 export const menu = {
   bg: '#FAFAFA',
-  radius: 8,
+  border: '#C8CAC8', // 1px hairline around the surface (Figma "Dropdown Menu")
+  radius: 16,
   itemRadius: 12,
   pressed: '#E6E6E6',
-  titleInk: '#151515', // Body Medium 14
-  subtitleInk: '#404140', // Body Small 12
+  titleInk: '#151515', // Body Large 16
+  subtitleInk: '#404140', // Body Medium 14
   width: 208,
 };
 
@@ -392,6 +393,12 @@ export const fontSize = {
 
 // ---- elevation ---- (RN shadow objects; Android uses elevation)
 export const shadow = {
+  // Figma "Elevation/Low" — a soft 3-layer stack (dropdown menus, low popovers).
+  low: {
+    boxShadow:
+      '0px 0px 2px rgba(16,16,16,0.12), 0px 2px 4px rgba(16,16,16,0.11), 0px 4px 8px rgba(16,16,16,0.10)',
+    elevation: 3, // Android fallback (boxShadow is iOS/Fabric)
+  },
   float: {
     shadowColor: 'rgb(25, 27, 21)',
     shadowOffset: { width: 0, height: 2 },

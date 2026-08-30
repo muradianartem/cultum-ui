@@ -1,54 +1,48 @@
 import { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge, Button, Icon, List, ListItem, SegmentedControl, State, TabBar } from '../components';
+import { Button, Dialog, Icon, SegmentedControl, State, TabBar } from '../components';
 import { useRouter } from '../routing';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { EMPTY, GREETING, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS } from './todayData';
+import { EMPTY, GREETING, GROUPINGS, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS } from './todayData';
+import TaskCard from './TaskCard';
+import GroupingButton from './GroupingButton';
 
-// One task row: rounded-square plant photo + title + "plant · room" + a due
-// badge (clock) and a chevron.
-function TaskRow({ task, onComplete, divider, styles, t }) {
-  return (
-    <ListItem
-      onPress={onComplete}
-      divider={divider}
-      before={<Image source={task.photo} style={styles.thumb} />}
-      title={task.title}
-      subtitle={`${task.plant} · ${task.room}`}
-      after={
-        <View style={styles.rowAfter}>
-          <Badge
-            label={task.due}
-            intent="neutral"
-            variant="secondary"
-            leftIcon={<Icon name="clock" size={14} color={t.text.primary} />}
-          />
-          <Icon name="chevron-right" size={20} color={t.text.primary} />
-        </View>
-      }
-    />
-  );
+// Flatten the seed groups into a single task list, tagging each task with its
+// task-type (for "By Task") — room already lives on the task (for "By Room").
+const ALL_TASKS = TODAY_GROUPS.flatMap((g) =>
+  g.tasks.map((task) => ({ ...task, typeKey: g.key, typeHeader: g.header }))
+);
+
+// Bucket the flat task list into display groups for the active grouping,
+// preserving first-seen order. `header: null` renders a headerless flat list.
+function buildGroups(tasks, grouping) {
+  if (tasks.length === 0) return [];
+  if (grouping === 'none') return [{ key: 'all', header: null, tasks }];
+  const keyOf = grouping === 'room' ? (t) => t.room : (t) => t.typeHeader;
+  const order = [];
+  const byKey = new Map();
+  for (const task of tasks) {
+    const k = keyOf(task);
+    if (!byKey.has(k)) {
+      byKey.set(k, []);
+      order.push(k);
+    }
+    byKey.get(k).push(task);
+  }
+  return order.map((k) => ({ key: k, header: k, tasks: byKey.get(k) }));
 }
 
-// One task-type group: a header + a card of task rows.
-function TaskGroup({ group, onComplete, styles, t }) {
+// One display group: an optional header + a stack of individual TaskCards.
+// `header` is null for the "None" grouping, giving a flat headerless list.
+function TaskGroup({ group, onComplete, styles }) {
   return (
     <View style={styles.group}>
-      <Text style={styles.groupHeader}>{group.header}</Text>
-      <List variant="card">
-        {group.tasks.map((task, i) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            divider={i < group.tasks.length - 1}
-            onComplete={() => onComplete(group.key, task.id)}
-            styles={styles}
-            t={t}
-          />
-        ))}
-      </List>
+      {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
+      {group.tasks.map((task) => (
+        <TaskCard key={task.id} task={task} onDone={() => onComplete(task.id)} />
+      ))}
     </View>
   );
 }
@@ -63,19 +57,18 @@ export default function TodayScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
 
   const [segment, setSegment] = useState('today');
-  const [groups, setGroups] = useState(TODAY_GROUPS);
+  const [tasks, setTasks] = useState(ALL_TASKS);
+  const [grouping, setGrouping] = useState('task');
+  const [confirmAll, setConfirmAll] = useState(false);
 
-  // Remove a completed task; drop a group once its last task is done.
-  const completeTask = (groupKey, id) =>
-    setGroups((gs) =>
-      gs
-        .map((g) =>
-          g.key === groupKey
-            ? { ...g, tasks: g.tasks.filter((task) => task.id !== id) }
-            : g
-        )
-        .filter((g) => g.tasks.length > 0)
-    );
+  const taskCount = tasks.length;
+  const groups = useMemo(() => buildGroups(tasks, grouping), [tasks, grouping]);
+
+  const completeTask = (id) => setTasks((ts) => ts.filter((task) => task.id !== id));
+  const completeAll = () => {
+    setTasks([]);
+    setConfirmAll(false);
+  };
 
   // TabBar wants icon nodes; resolve each tab's icon name to an <Icon>.
   const tabBarTabs = TABS.map((tab) => ({
@@ -88,13 +81,16 @@ export default function TodayScreen() {
   const segments = SEGMENTS.map((s) =>
     s.count
       ? {
-          value: s.value,
-          label: (
-            <Text>
-              {s.label} <Text style={styles.segCount}>{String(s.count)}</Text>
-            </Text>
-          ),
-        }
+        value: s.value,
+        label: (
+          <View style={styles.segLabel}>
+            <Text style={styles.segLabelText}>{s.label}</Text>
+            <View style={styles.segCount}>
+              <Text style={styles.segCountText}>{String(s.count)}</Text>
+            </View>
+          </View>
+        ),
+      }
       : { label: s.label, value: s.value }
   );
 
@@ -117,7 +113,7 @@ export default function TodayScreen() {
             style={styles.segment}
           />
 
-          {segment === 'today' ? (
+          {segment === 'today' && (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today’s tasks</Text>
               <Button
@@ -125,12 +121,13 @@ export default function TodayScreen() {
                 variant="outline"
                 size="sm"
                 fullWidth={false}
-                onPress={() => setGroups([])}
+                disabled={taskCount === 0}
+                onPress={() => setConfirmAll(true)}
               />
             </View>
-          ) : null}
+          )}
 
-          {segment === 'today' && groups.length > 0 ? (
+          {segment === 'today' && groups.length > 0 && (
             <View style={styles.groups}>
               {groups.map((group) => (
                 <TaskGroup
@@ -138,13 +135,12 @@ export default function TodayScreen() {
                   group={group}
                   onComplete={completeTask}
                   styles={styles}
-                  t={t}
                 />
               ))}
             </View>
-          ) : null}
+          )}
 
-          {segment === 'today' && groups.length === 0 ? (
+          {segment === 'today' && groups.length === 0 && (
             <View style={styles.empty}>
               <State
                 icon={<Icon name="check-all" size={28} color={t.text.primary} />}
@@ -154,26 +150,17 @@ export default function TodayScreen() {
               />
               <View style={styles.group}>
                 <Text style={styles.nextUpHeader}>Next up</Text>
-                <List variant="card">
-                  <TaskRow task={NEXT_UP} onComplete={() => {}} styles={styles} t={t} />
-                </List>
+                {/* Preview only — no onDone, so it's a plain (non-swipeable) card. */}
+                <TaskCard task={NEXT_UP} />
               </View>
             </View>
-          ) : null}
+          )}
         </View>
       </ScrollView>
 
-      {/* Grouping pill + tab bar, pinned above the safe-area inset. */}
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
         <View style={styles.groupingRow}>
-          <Button
-            label="Grouping: By Task"
-            variant="outline"
-            size="sm"
-            fullWidth={false}
-            rightIcon={<Icon name="outlined-arrow-more" size={16} color={t.text.primary} />}
-            onPress={() => {}}
-          />
+          <GroupingButton value={grouping} onChange={setGrouping} options={GROUPINGS} />
         </View>
         <TabBar
           tabs={tabBarTabs}
@@ -183,6 +170,15 @@ export default function TodayScreen() {
           }}
         />
       </View>
+
+      <Dialog
+        visible={confirmAll}
+        onClose={() => setConfirmAll(false)}
+        title="Complete all?"
+        description={`This action will complete all ${taskCount} today’s tasks.`}
+        primaryAction={{ label: `Complete ${taskCount} tasks`, onPress: completeAll }}
+        secondaryAction={{ label: 'Cancel', onPress: () => setConfirmAll(false) }}
+      />
     </View>
   );
 }
@@ -195,8 +191,9 @@ const makeStyles = (t) =>
       ...typography.headingLarge,
       color: t.text.primary,
       paddingHorizontal: space[16],
+      marginBottom: space[16]
     },
-    content: { paddingHorizontal: space[16], paddingTop: space[24], gap: space[24] },
+    content: { paddingHorizontal: space[16], gap: space[24] },
     segment: { alignSelf: 'stretch' },
     sectionHeader: {
       flexDirection: 'row',
@@ -207,17 +204,22 @@ const makeStyles = (t) =>
     groups: { gap: space[16] },
     group: { gap: space[12] },
     groupHeader: { ...typography.headingSmall, color: t.text.primary },
-    thumb: { width: 56, height: 56, borderRadius: radius[12] },
-    rowAfter: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
     empty: { gap: space[24] },
     nextUpHeader: { ...typography.headingSmallEmphasized, color: t.text.primary },
-    bottom: { backgroundColor: t.background.primary },
+    bottom: { alignItems: 'center', backgroundColor: t.background.primary },
     groupingRow: { alignItems: 'center', paddingVertical: space[8] },
+    // Label for the "Today" segment: text + a count badge, laid out as a row.
+    segLabel: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
+    segLabelText: { fontSize: 14, fontWeight: '500', color: t.text.primary },
+    // The count badge — a View so padding + full radius render as a real pill
+    // (a Text background on iOS hugs the glyphs and ignores padding/radius).
     segCount: {
-      ...typography.captionEmphasized,
-      color: t.brand.onPrimary,
       backgroundColor: t.brand.primary,
       borderRadius: radius.full,
       paddingHorizontal: space[8],
+      paddingVertical: space[2],
+      alignItems: 'center',
+      justifyContent: 'center',
     },
+    segCountText: { ...typography.captionEmphasized, color: t.brand.onPrimary },
   });

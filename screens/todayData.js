@@ -2,7 +2,7 @@
 // these fixtures and completes tasks in local state. Real data is a follow-up
 // behind the same shapes. Photos reuse existing plant art (no new assets).
 
-export const GREETING = { salutation: 'Good afternoon', name: 'Allison' };
+export const GREETING = { salutation: 'Good afternoon', name: 'Allison Allison' };
 
 // Segmented control: Today (with a live count) | Upcoming.
 export const SEGMENTS = [
@@ -57,6 +57,14 @@ export const EMPTY = {
   title: 'All caught up',
   subtitle: 'Your plants are on their own schedule.',
 };
+
+// How the Today list can be grouped. `label` is the button's trailing value
+// ("Grouping: By Task"); `title`/`subtitle` are the menu rows.
+export const GROUPINGS = [
+  { value: 'task', label: 'By Task', title: 'Task', subtitle: 'Grouped by tasks' },
+  { value: 'room', label: 'By Room', title: 'Room', subtitle: 'Grouped by rooms' },
+  { value: 'none', label: 'None', title: 'None', subtitle: 'One list with no grouping' },
+];
 
 // Bottom tab bar. `icon` values are Cultum icon names (components/iconRegistry).
 // Today is the active tab; the others are visual/no-op in V1 (single-screen router).

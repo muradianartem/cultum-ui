@@ -43,7 +43,7 @@ export default function SegmentedControl({
             disabled={disabled}
             accessibilityRole="tab"
             accessibilityState={{ selected: isSelected, disabled }}
-            accessibilityLabel={item.label}
+            accessibilityLabel={typeof item.label === 'string' ? item.label : String(item.value)}
             style={({ pressed }) => [
               styles.segment,
               isSelected && styles.segmentSelected,
@@ -51,12 +51,19 @@ export default function SegmentedControl({
             ]}
           >
             {item.icon ? <View style={styles.icon}>{item.icon}</View> : null}
-            <Text
-              numberOfLines={1}
-              style={[styles.label, disabled && { color: segmented.inkDisabled }]}
-            >
-              {item.label}
-            </Text>
+            {typeof item.label === 'string' ? (
+              <Text
+                numberOfLines={1}
+                style={[styles.label, disabled && { color: segmented.inkDisabled }]}
+              >
+                {item.label}
+              </Text>
+            ) : (
+              // A non-string label (e.g. a text + count-badge row) renders as-is,
+              // NOT wrapped in <Text> — a Text wrapper would trap a View badge as
+              // an inline attachment on iOS instead of laying it out as a row.
+              item.label
+            )}
           </Pressable>
         );
       })}

@@ -4,10 +4,16 @@
   "main": "index.js",
   "dependencies": {
     "expo": "~57.0.9",
+    "expo-auth-session": "~57.0.10",
+    "expo-build-properties": "^57.0.15",
     "expo-camera": "~57.0.4",
+    "expo-constants": "~57.0.16",
+    "expo-crypto": "~57.0.2",
     "expo-image-picker": "~57.0.13",
     "expo-linear-gradient": "~57.0.1",
+    "expo-secure-store": "~57.0.2",
     "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "~57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
@@ -18,7 +24,8 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 expo run:ios",
+    "ios:device": "LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 expo run:ios --device",
     "web": "expo start --web",
     "test": "jest"
   },

@@ -31,14 +31,60 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
+// The Login screen (rendered when signed out) pulls in the SSO edges — stub them.
+jest.mock('expo-auth-session', () => ({
+  __esModule: true,
+  ResponseType: { IdToken: 'id_token' },
+  useAutoDiscovery: () => ({}),
+  makeRedirectUri: () => 'cultum://redirect',
+  useAuthRequest: () => [{}, null, jest.fn()],
+}));
+jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
+jest.mock('expo-linear-gradient', () => {
+  const R = require('react');
+  const RN = require('react-native');
+  return { __esModule: true, LinearGradient: (props) => R.createElement(RN.View, props, props.children) };
+});
+jest.mock('../api/auth', () => ({
+  authApi: { createNonce: jest.fn(async () => ({ nonce: 'srv', expires_in: 300 })) },
+}));
+
+// The AuthGate keys off persisted tokens — control the branch per test.
+jest.mock('../lib/authStorage', () => ({
+  loadTokens: jest.fn(),
+  saveTokens: jest.fn(async () => {}),
+  clearTokens: jest.fn(async () => {}),
+}));
+const { loadTokens } = require('../lib/authStorage');
+
 const texts = (tree) =>
   tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
-test('App boots to the Today screen and wires the Scan/Add tab to the camera', () => {
+async function renderApp() {
   let tree;
-  act(() => {
+  await act(async () => {
     tree = TestRenderer.create(<App />);
   });
+  return tree;
+}
+
+afterEach(() => jest.clearAllMocks());
+
+test('with no stored tokens, App shows the Login screen', async () => {
+  loadTokens.mockResolvedValue(null);
+  const tree = await renderApp();
+  expect(texts(tree)).toContain('Continue with Google');
+  expect(texts(tree)).not.toContain('Good afternoon, Allison');
+});
+
+test('with stored tokens, App boots to Today and wires the Scan/Add tab to the camera', async () => {
+  loadTokens.mockResolvedValue({
+    access_token: 'a',
+    refresh_token: 'r',
+    token_type: 'bearer',
+    expires_in: 3600,
+  });
+  const tree = await renderApp();
   expect(texts(tree)).toContain('Good afternoon, Allison');
 
   const scanTab = tree.root.find(

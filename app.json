@@ -3,6 +3,7 @@
     "name": "cultum-ui",
     "slug": "cultum-ui",
     "version": "1.0.0",
+    "scheme": "cultum",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -36,12 +37,26 @@
         {
           "photosPermission": "Cultum uses your photos so you can identify a plant from an existing picture."
         }
+      ],
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "usePrecompiledModules": false
+          }
+        }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "4814abf4-2c89-490f-a0f2-c4619d600b82"
-      }
+      },
+      "apiBaseUrl": "https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io",
+      "googleWebClientId": "553596767618-qj7m5suqujvgskhsjdsjms3ibfdbbg5d.apps.googleusercontent.com",
+      "googleIosClientId": "553596767618-2asg25029b51i4i7337c38ubgeq3d46d.apps.googleusercontent.com",
+      "googleAndroidClientId": "REPLACE_WITH_ANDROID_CLIENT_ID.apps.googleusercontent.com"
     }
   }
 }

@@ -37,15 +37,20 @@ export default function ListItem({
       }
     : {};
 
+  // Pressable evaluates a function style (for the pressed state); a plain View
+  // does NOT — handing it a function silently drops all styling. So build the
+  // style as a function for Pressable and a resolved array for View.
+  const rowStyle = ({ pressed } = {}) => [
+    styles.row,
+    isCard ? styles.padCard : styles.padList,
+    pressed && { backgroundColor: pressedColor, borderRadius: list.rowRadius },
+    style,
+  ];
+
   return (
     <Row
       {...rowProps}
-      style={({ pressed } = {}) => [
-        styles.row,
-        isCard ? styles.padCard : styles.padList,
-        pressed && { backgroundColor: pressedColor, borderRadius: list.rowRadius },
-        style,
-      ]}
+      style={onPress ? rowStyle : rowStyle()}
       {...rest}
     >
       {before ? <View style={styles.before}>{before}</View> : null}
