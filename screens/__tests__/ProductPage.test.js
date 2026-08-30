@@ -1,9 +1,15 @@
 import TestRenderer, { act } from 'react-test-renderer';
 import { ImageBackground, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Router } from '../../routing';
+import { Router, useRouter } from '../../routing';
 import ProductPage from '../ProductPage';
 import { CARE_FACTS, CHIPS, FAQ, PLANT } from '../plantData';
+
+let api;
+function Probe() {
+  api = useRouter();
+  return null;
+}
 
 const METRICS = {
   frame: { x: 0, y: 0, width: 375, height: 812 },
@@ -15,7 +21,10 @@ function create(el) {
   act(() => {
     tree = TestRenderer.create(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <Router initial="product">{el}</Router>
+        <Router initial="product">
+          <Probe />
+          {el}
+        </Router>
       </SafeAreaProvider>
     );
   });
@@ -49,4 +58,25 @@ test('with no plant prop renders the static default and the bundled hero asset',
   expect(texts(tree)).toContain(PLANT.commonName);
   // Bundled asset resolves to a number (require id), never a { uri } object.
   expect(hero(tree).props.source).not.toHaveProperty('uri');
+});
+
+// Fire the deepest onPress for the button whose accessible label matches.
+const pressButton = (tree, label) => {
+  const node = tree.root.find(
+    (n) =>
+      typeof n.props.onPress === 'function' &&
+      n.props.accessibilityRole === 'button' &&
+      n.props.accessibilityLabel === label
+  );
+  act(() => node.props.onPress());
+};
+
+test('adding the plant then Settings navigates to the reminders route with the plant name', () => {
+  const tree = create(<ProductPage plant={VM} />);
+  // Settings only appears once the plant is added.
+  pressButton(tree, 'Add to my plants');
+  pressButton(tree, 'Settings');
+
+  expect(api.route).toBe('reminders');
+  expect(api.params).toEqual({ plantName: 'Snake plant' });
 });

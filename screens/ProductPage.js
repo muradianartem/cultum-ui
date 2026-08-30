@@ -163,7 +163,13 @@ export default function ProductPage({ plant }) {
   const overflowItems = [
     { title: 'Rename plant', onPress: () => setMenuOpen(false) },
     { title: 'Move to another room', onPress: () => setMenuOpen(false) },
-    { title: 'Notification settings', onPress: () => setMenuOpen(false) },
+    {
+      title: 'Notification settings',
+      onPress: () => {
+        setMenuOpen(false);
+        navigate('reminders', { plantName: vm.commonName });
+      },
+    },
     {
       title: 'Remove from my plants',
       onPress: () => {
@@ -199,7 +205,12 @@ export default function ProductPage({ plant }) {
             <View style={styles.navRight}>
               {added ? (
                 <>
-                  <NavButton icon="settings" label="Settings" onPress={() => {}} styles={styles} />
+                  <NavButton
+                    icon="settings"
+                    label="Settings"
+                    onPress={() => navigate('reminders', { plantName: vm.commonName })}
+                    styles={styles}
+                  />
                   <NavButton
                     icon="more-horizontal"
                     label="More options"

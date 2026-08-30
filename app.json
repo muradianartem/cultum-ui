@@ -55,7 +55,7 @@
       },
       "apiBaseUrl": "https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io",
       "googleWebClientId": "553596767618-qj7m5suqujvgskhsjdsjms3ibfdbbg5d.apps.googleusercontent.com",
-      "googleIosClientId": "553596767618-2asg25029b51i4i7337c38ubgeq3d46d.apps.googleusercontent.com",
+      "googleIosClientId": "43108753457-9iio5bhp2gaqotg1jk0ualc4hg9teua7.apps.googleusercontent.com",
       "googleAndroidClientId": "REPLACE_WITH_ANDROID_CLIENT_ID.apps.googleusercontent.com"
     }
   }
