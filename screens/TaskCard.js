@@ -45,13 +45,14 @@ function TaskActions({ close, onAdjust, onSnooze, onDone, styles, t }) {
   );
 }
 
-export default function TaskCard({ task, onDone, onAdjust, onSnooze }) {
+export default function TaskCard({ task, onPress, onDone, onAdjust, onSnooze }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
 
   const card = (
     <List variant="card">
       <ListItem
+        onPress={onPress}
         before={<Image source={task.photo} style={styles.thumb} />}
         title={task.title}
         subtitle={`${task.plant} · ${task.room}`}

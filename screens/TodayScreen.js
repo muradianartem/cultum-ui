@@ -7,6 +7,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
 import { EMPTY, GREETING, GROUPINGS, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS, UPCOMING_TASKS } from './todayData';
 import TaskCard from './TaskCard';
+import TaskSheet from './TaskSheet';
 import GroupingButton from './GroupingButton';
 
 // Flatten the seed groups into a single task list, tagging each task with its
@@ -62,7 +63,7 @@ function buildUpcomingGroups(tasks) {
 
 // One display group: an optional header + a stack of individual TaskCards.
 // `header` is null for the "None" grouping, giving a flat headerless list.
-function TaskGroup({ group, onComplete, styles }) {
+function TaskGroup({ group, onComplete, onOpen, styles }) {
   return (
     <View style={styles.group}>
       {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
@@ -70,6 +71,7 @@ function TaskGroup({ group, onComplete, styles }) {
         <TaskCard
           key={task.id}
           task={task}
+          onPress={onOpen ? () => onOpen(task) : undefined}
           onDone={onComplete ? () => onComplete(task.id) : undefined}
         />
       ))}
@@ -90,6 +92,15 @@ export default function TodayScreen() {
   const [tasks, setTasks] = useState(ALL_TASKS);
   const [grouping, setGrouping] = useState('task');
   const [confirmAll, setConfirmAll] = useState(false);
+  // Task detail sheet: `sheetTask` persists through the slide-out (kept while
+  // `sheetOpen` is false) so the content doesn't blank mid-animation.
+  const [sheetTask, setSheetTask] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const openSheet = (task) => {
+    setSheetTask(task);
+    setSheetOpen(true);
+  };
+  const closeSheet = () => setSheetOpen(false);
 
   const taskCount = tasks.length;
   const groups = useMemo(() => buildGroups(tasks, grouping), [tasks, grouping]);
@@ -165,6 +176,7 @@ export default function TodayScreen() {
                   key={group.key}
                   group={group}
                   onComplete={completeTask}
+                  onOpen={openSheet}
                   styles={styles}
                 />
               ))}
@@ -188,11 +200,17 @@ export default function TodayScreen() {
           )}
 
           {/* Upcoming: future tasks grouped by due day (date headers), no
-              section header / complete-all / grouping — plain cards. */}
+              section header / complete-all / grouping — plain cards. Tapping a
+              card jumps straight to the plant page (no task detail sheet). */}
           {segment === 'upcoming' && (
             <View style={styles.groups}>
               {upcomingGroups.map((group) => (
-                <TaskGroup key={group.key} group={group} styles={styles} />
+                <TaskGroup
+                  key={group.key}
+                  group={group}
+                  onOpen={() => navigate('product')}
+                  styles={styles}
+                />
               ))}
             </View>
           )}
@@ -222,6 +240,26 @@ export default function TodayScreen() {
         description={`This action will complete all ${taskCount} today’s tasks.`}
         primaryAction={{ label: `Complete ${taskCount} tasks`, onPress: completeAll }}
         secondaryAction={{ label: 'Cancel', onPress: () => setConfirmAll(false) }}
+      />
+
+      <TaskSheet
+        task={sheetTask}
+        visible={sheetOpen}
+        onClose={closeSheet}
+        onMarkDone={() => {
+          if (sheetTask) completeTask(sheetTask.id);
+          closeSheet();
+        }}
+        onSnoozeConfirm={() => {
+          // Mock: a snoozed task leaves today's list (no real reschedule yet).
+          if (sheetTask) completeTask(sheetTask.id);
+          closeSheet();
+        }}
+        onOpenPlant={() => {
+          closeSheet();
+          navigate('product');
+        }}
+        onSettings={closeSheet}
       />
     </View>
   );

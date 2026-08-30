@@ -15,6 +15,7 @@ export { default as State } from './State';
 export { default as Snackbar } from './Snackbar';
 export { default as SegmentedControl } from './SegmentedControl';
 export { default as SwipeableRow } from './SwipeableRow';
+export { default as WheelPicker } from './WheelPicker';
 export { default as SearchBar } from './SearchBar';
 export { default as TextInput } from './TextInput';
 export { default as Card } from './Card';
