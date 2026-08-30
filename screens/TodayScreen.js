@@ -5,7 +5,7 @@ import { Button, Dialog, Icon, SegmentedControl, State, TabBar } from '../compon
 import { useRouter } from '../routing';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { EMPTY, GREETING, GROUPINGS, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS } from './todayData';
+import { EMPTY, GREETING, GROUPINGS, NEXT_UP, SEGMENTS, TABS, TODAY_GROUPS, UPCOMING_TASKS } from './todayData';
 import TaskCard from './TaskCard';
 import GroupingButton from './GroupingButton';
 
@@ -34,6 +34,32 @@ function buildGroups(tasks, grouping) {
   return order.map((k) => ({ key: k, header: k, tasks: byKey.get(k) }));
 }
 
+// "Fri, Aug 21" — formatted by hand rather than via Intl/toLocaleDateString,
+// whose options aren't reliably honored on Hermes across platforms.
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const formatDayHeader = (date) =>
+  `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+
+// Bucket the Upcoming tasks by due day, sorted soonest-first. Each group's
+// header is the real calendar date (today + inDays), and each card's due badge
+// reads "In Nd".
+function buildUpcomingGroups(tasks) {
+  const now = new Date();
+  const order = [];
+  const byDay = new Map();
+  for (const task of tasks) {
+    if (!byDay.has(task.inDays)) {
+      const date = new Date(now);
+      date.setDate(now.getDate() + task.inDays);
+      byDay.set(task.inDays, { key: String(task.inDays), header: formatDayHeader(date), tasks: [] });
+      order.push(task.inDays);
+    }
+    byDay.get(task.inDays).tasks.push({ ...task, due: `In ${task.inDays}d` });
+  }
+  return order.sort((a, b) => a - b).map((k) => byDay.get(k));
+}
+
 // One display group: an optional header + a stack of individual TaskCards.
 // `header` is null for the "None" grouping, giving a flat headerless list.
 function TaskGroup({ group, onComplete, styles }) {
@@ -41,7 +67,11 @@ function TaskGroup({ group, onComplete, styles }) {
     <View style={styles.group}>
       {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
       {group.tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onDone={() => onComplete(task.id)} />
+        <TaskCard
+          key={task.id}
+          task={task}
+          onDone={onComplete ? () => onComplete(task.id) : undefined}
+        />
       ))}
     </View>
   );
@@ -63,6 +93,7 @@ export default function TodayScreen() {
 
   const taskCount = tasks.length;
   const groups = useMemo(() => buildGroups(tasks, grouping), [tasks, grouping]);
+  const upcomingGroups = useMemo(() => buildUpcomingGroups(UPCOMING_TASKS), []);
 
   const completeTask = (id) => setTasks((ts) => ts.filter((task) => task.id !== id));
   const completeAll = () => {
@@ -155,13 +186,26 @@ export default function TodayScreen() {
               </View>
             </View>
           )}
+
+          {/* Upcoming: future tasks grouped by due day (date headers), no
+              section header / complete-all / grouping — plain cards. */}
+          {segment === 'upcoming' && (
+            <View style={styles.groups}>
+              {upcomingGroups.map((group) => (
+                <TaskGroup key={group.key} group={group} styles={styles} />
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
-        <View style={styles.groupingRow}>
-          <GroupingButton value={grouping} onChange={setGrouping} options={GROUPINGS} />
-        </View>
+        {/* Grouping control is a Today-only affordance; Upcoming groups by day. */}
+        {segment === 'today' ? (
+          <View style={styles.groupingRow}>
+            <GroupingButton value={grouping} onChange={setGrouping} options={GROUPINGS} />
+          </View>
+        ) : null}
         <TabBar
           tabs={tabBarTabs}
           value="today"

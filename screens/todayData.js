@@ -52,6 +52,18 @@ export const NEXT_UP = {
   photo: GALLERY_2,
 };
 
+// Upcoming (future) tasks for the "Upcoming" segment. `inDays` is the offset
+// from today — it drives both the day-group header ("Fri, Aug 21", computed
+// against the real current date) and the "In Nd" due badge. Figma seeds three
+// day-buckets (2 / 2 / 1 tasks at In 2d / In 6d / In 12d).
+export const UPCOMING_TASKS = [
+  { id: 'u1', title: 'Water', plant: 'Monstera', room: 'Kitchen', inDays: 2, photo: MONSTERA },
+  { id: 'u2', title: 'Rotate', plant: 'Fiddle Leaf Fig', room: 'Living room', inDays: 2, photo: GALLERY_1 },
+  { id: 'u3', title: 'Feed', plant: 'Snake Plant', room: 'Bedroom', inDays: 6, photo: GALLERY_2 },
+  { id: 'u4', title: 'Mist leaves', plant: 'Fern', room: 'Bathroom', inDays: 6, photo: GALLERY_1 },
+  { id: 'u5', title: 'Move this plant', plant: 'Pothos', room: 'Office', inDays: 12, photo: GALLERY_2 },
+];
+
 // Copy for the empty state.
 export const EMPTY = {
   title: 'All caught up',
