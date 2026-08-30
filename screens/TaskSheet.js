@@ -20,6 +20,7 @@ const CAPTION = 'You can edit reminders anytime from a plant settings.';
 export default function TaskSheet({
   task,
   visible,
+  initialStep = 'detail',
   onClose,
   onMarkDone,
   onSnoozeConfirm,
@@ -29,7 +30,7 @@ export default function TaskSheet({
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
-  const [step, setStep] = useState('detail'); // 'detail' | 'snooze'
+  const [step, setStep] = useState(initialStep); // 'detail' | 'snooze'
 
   useEffect(() => {
     Animated.timing(translateY, {
@@ -37,9 +38,10 @@ export default function TaskSheet({
       duration: visible ? motion.dur : motion.durFast,
       useNativeDriver: true,
     }).start();
-    // Reset to the detail page whenever the sheet is dismissed.
-    if (!visible) setStep('detail');
-  }, [visible, translateY]);
+    // Open on the requested page (the swipe "Snooze" action opens on 'snooze');
+    // reset to 'detail' whenever the sheet is dismissed.
+    setStep(visible ? initialStep : 'detail');
+  }, [visible, initialStep, translateY]);
 
   const snoozing = step === 'snooze';
 

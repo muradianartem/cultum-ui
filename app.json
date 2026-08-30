@@ -11,7 +11,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.artemmuradan.cultumui",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.43108753457-1mjaknk760fk9k6uaamve042tr2oibnl"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -54,8 +61,8 @@
         "projectId": "4814abf4-2c89-490f-a0f2-c4619d600b82"
       },
       "apiBaseUrl": "https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io",
-      "googleWebClientId": "553596767618-qj7m5suqujvgskhsjdsjms3ibfdbbg5d.apps.googleusercontent.com",
-      "googleIosClientId": "43108753457-9iio5bhp2gaqotg1jk0ualc4hg9teua7.apps.googleusercontent.com",
+      "googleWebClientId": "43108753457-9iio5bhp2gaqotg1jk0ualc4hg9teua7.apps.googleusercontent.com",
+      "googleIosClientId": "43108753457-1mjaknk760fk9k6uaamve042tr2oibnl.apps.googleusercontent.com",
       "googleAndroidClientId": "REPLACE_WITH_ANDROID_CLIENT_ID.apps.googleusercontent.com"
     }
   }

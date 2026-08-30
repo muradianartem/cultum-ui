@@ -3,10 +3,10 @@
 // Apple is deferred with a "coming soon" snackbar this pass.
 
 import { useEffect, useMemo, useState } from 'react';
-import { ImageBackground, Platform, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as AuthSession from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Button, Icon, Snackbar } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
@@ -31,37 +31,24 @@ export default function LoginScreen() {
   const [snack, setSnack] = useState(null);
 
   const auth = useAuth();
-  const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'cultum' });
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: Platform.select({
-        web: GOOGLE_CLIENT_IDS.web,
-        ios: GOOGLE_CLIENT_IDS.ios,
-        android: GOOGLE_CLIENT_IDS.android,
-        default: GOOGLE_CLIENT_IDS.web,
-      }),
-      redirectUri,
-      responseType: AuthSession.ResponseType.IdToken,
-      // PKCE (code_challenge) belongs to the auth-code flow only. With the
-      // implicit id_token flow Google rejects it: "Parameter not allowed for
-      // this message type: code_challenge_method". expo-auth-session defaults
-      // usePKCE to true, so it must be turned off explicitly here.
-      usePKCE: false,
-      // openid→sub, profile→name, email→email + email_verified: the four claims
-      // the backend's get_or_create_user() reads off the id_token.
-      scopes: ['openid', 'profile', 'email'],
-      // The server-minted nonce is the replay defense — it must be the OIDC nonce
-      // Google bakes into the id_token, so the backend's value has to win.
-      // Verified against expo-auth-session@57: the generic AuthRequest copies
-      // extraParams into the auth URL verbatim with NO nonce auto-generation
-      // (only the built-in Google provider self-generates, and even it defers to
-      // a supplied extraParams.nonce), so this value reaches Google unchanged.
-      extraParams: nonce ? { nonce } : undefined,
-    },
-    discovery
-  );
+  // Google's own auth-session provider: it selects the right client ID per
+  // platform and uses the matching redirect (the iOS client's reversed-scheme,
+  // not a custom `cultum://` — which is why the raw Web-client + custom-scheme
+  // request was rejected as invalid_request). `webClientId` is the backend's
+  // audience: it becomes the id_token `aud` the server verifies in /auth/google.
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: GOOGLE_CLIENT_IDS.ios,
+    androidClientId: GOOGLE_CLIENT_IDS.android,
+    webClientId: GOOGLE_CLIENT_IDS.web,
+    // openid→sub, profile→name, email→email + email_verified: the four claims
+    // the backend's get_or_create_user() reads off the id_token.
+    scopes: ['openid', 'profile', 'email'],
+    // The server-minted nonce is the replay defense — Google bakes it into the
+    // id_token and the backend verifies it. The Google provider defers to a
+    // supplied extraParams.nonce rather than generating its own.
+    extraParams: nonce ? { nonce } : undefined,
+  });
 
   // Nonce is single-use/expiring — mint a fresh one on mount and after each try.
   async function refreshNonce() {
@@ -81,13 +68,18 @@ export default function LoginScreen() {
   useEffect(() => {
     if (!response) return;
     if (response.type === 'success') {
-      const idToken = response.params?.id_token;
+      const idToken = response.params?.id_token ?? response.authentication?.idToken;
+      if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
       setBusy(true);
       auth
         .completeGoogleLogin(idToken)
-        .catch(() => setSnack({ label: SIGN_IN_FAILED }))
+        .catch((err) => {
+          if (__DEV__) console.warn('[login] /auth/google exchange failed:', err?.message ?? err);
+          setSnack({ label: SIGN_IN_FAILED });
+        })
         .finally(() => setBusy(false));
     } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
+      if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
       // The old nonce may be spent — re-arm for the next attempt.
       setBusy(false);
       refreshNonce();

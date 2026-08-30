@@ -63,7 +63,7 @@ function buildUpcomingGroups(tasks) {
 
 // One display group: an optional header + a stack of individual TaskCards.
 // `header` is null for the "None" grouping, giving a flat headerless list.
-function TaskGroup({ group, onComplete, onOpen, styles }) {
+function TaskGroup({ group, onComplete, onOpen, onAdjust, onSnooze, styles }) {
   return (
     <View style={styles.group}>
       {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
@@ -73,6 +73,8 @@ function TaskGroup({ group, onComplete, onOpen, styles }) {
           task={task}
           onPress={onOpen ? () => onOpen(task) : undefined}
           onDone={onComplete ? () => onComplete(task.id) : undefined}
+          onAdjust={onAdjust ? () => onAdjust(task) : undefined}
+          onSnooze={onSnooze ? () => onSnooze(task) : undefined}
         />
       ))}
     </View>
@@ -96,11 +98,23 @@ export default function TodayScreen() {
   // `sheetOpen` is false) so the content doesn't blank mid-animation.
   const [sheetTask, setSheetTask] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Which page the sheet opens on: tapping a card lands on 'detail', the swipe
+  // "Snooze" action opens straight on the 'snooze' step.
+  const [sheetStep, setSheetStep] = useState('detail');
   const openSheet = (task) => {
     setSheetTask(task);
+    setSheetStep('detail');
+    setSheetOpen(true);
+  };
+  const openSnooze = (task) => {
+    setSheetTask(task);
+    setSheetStep('snooze');
     setSheetOpen(true);
   };
   const closeSheet = () => setSheetOpen(false);
+  // A task's "Adjust" (swipe action) and the sheet's "Reminder settings" gear
+  // both jump to that plant's notification settings (the Edit Reminders screen).
+  const openReminders = (task) => navigate('reminders', { plantName: task?.plant });
 
   const taskCount = tasks.length;
   const groups = useMemo(() => buildGroups(tasks, grouping), [tasks, grouping]);
@@ -177,6 +191,8 @@ export default function TodayScreen() {
                   group={group}
                   onComplete={completeTask}
                   onOpen={openSheet}
+                  onAdjust={openReminders}
+                  onSnooze={openSnooze}
                   styles={styles}
                 />
               ))}
@@ -245,6 +261,7 @@ export default function TodayScreen() {
       <TaskSheet
         task={sheetTask}
         visible={sheetOpen}
+        initialStep={sheetStep}
         onClose={closeSheet}
         onMarkDone={() => {
           if (sheetTask) completeTask(sheetTask.id);
@@ -259,7 +276,11 @@ export default function TodayScreen() {
           closeSheet();
           navigate('product');
         }}
-        onSettings={closeSheet}
+        onSettings={() => {
+          const task = sheetTask;
+          closeSheet();
+          openReminders(task);
+        }}
       />
     </View>
   );
