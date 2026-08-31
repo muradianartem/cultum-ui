@@ -55,6 +55,7 @@ export function AuthProvider({ children }) {
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
     const minted = await authApi.loginGoogle(idToken);
+    console.log(minted)
     await saveTokens(minted);
     setTokens(minted);
     setStatus('signedIn');

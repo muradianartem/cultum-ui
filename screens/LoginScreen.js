@@ -32,23 +32,20 @@ export default function LoginScreen() {
 
   const auth = useAuth();
 
-  // Google's own auth-session provider: it selects the right client ID per
-  // platform and uses the matching redirect (the iOS client's reversed-scheme,
-  // not a custom `cultum://` — which is why the raw Web-client + custom-scheme
-  // request was rejected as invalid_request). `webClientId` is the backend's
-  // audience: it becomes the id_token `aud` the server verifies in /auth/google.
-  const [request, response, promptAsync] = Google.useAuthRequest({
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: GOOGLE_CLIENT_IDS.ios,
-    androidClientId: GOOGLE_CLIENT_IDS.android,
     webClientId: GOOGLE_CLIENT_IDS.web,
-    // openid→sub, profile→name, email→email + email_verified: the four claims
-    // the backend's get_or_create_user() reads off the id_token.
     scopes: ['openid', 'profile', 'email'],
-    // The server-minted nonce is the replay defense — Google bakes it into the
-    // id_token and the backend verifies it. The Google provider defers to a
-    // supplied extraParams.nonce rather than generating its own.
     extraParams: nonce ? { nonce } : undefined,
   });
+
+  useEffect(() => {
+    if (__DEV__ && request?.redirectUri) {
+      console.log('[login] redirectUri =', request.redirectUri);
+      console.log('[login] clientId    =', request.clientId);
+    }
+  }, [request?.redirectUri, request?.clientId]);
 
   // Nonce is single-use/expiring — mint a fresh one on mount and after each try.
   async function refreshNonce() {
