@@ -32,12 +32,12 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 // The Login screen (rendered when signed out) pulls in the SSO edges — stub them.
-jest.mock('expo-auth-session', () => ({
+// It imports the Google *provider* entry point, so that is the path to mock;
+// stubbing 'expo-auth-session' alone leaves the real provider running and it
+// throws on the missing iosClientId under jest.
+jest.mock('expo-auth-session/providers/google', () => ({
   __esModule: true,
-  ResponseType: { IdToken: 'id_token' },
-  useAutoDiscovery: () => ({}),
-  makeRedirectUri: () => 'cultum://redirect',
-  useAuthRequest: () => [{}, null, jest.fn()],
+  useIdTokenAuthRequest: () => [{}, null, jest.fn()],
 }));
 jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
 jest.mock('expo-linear-gradient', () => {

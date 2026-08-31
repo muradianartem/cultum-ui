@@ -50,6 +50,10 @@ priority. Node ids are stable handles for `get_figma_data`.
 
 **🎉 The full component library is complete — every Figma component (P1 + P2 + P3) is imported, tested, and rendering.**
 
+Screens assembled from these primitives live in their own design notes — see
+[auth-paywall-design.md](auth-paywall-design.md) for the Authorization & Paywall
+section, which comes from a *different* Figma file (`4jmjNlaM7IRpCOogYRJMks`).
+
 Foundation pages (`Colors – P0`, `Typography – P0`, `Radius – P0`,
 `Spacing – P0`, `Stroke`, etc.) feed `theme/tokens.js` — reconcile those first
 if a component needs a token that doesn't exist yet.
@@ -78,9 +82,15 @@ if a component needs a token that doesn't exist yet.
    the barrel export, each variant's resolved colour, each size, and
    accessibility. Run `npx jest components/__tests__/<Name>.test.js`.
 7. **Icons/vectors**, if any, come via `download_figma_images` (SVG) into
-   `assets/`; pass them as React nodes (`leftIcon`/`rightIcon`), don't inline.
-   The project has **no `react-native-svg`**, so a glyph that Figma ships as an
-   SVG (checkbox tick, radio dot) is drawn with Views + a text glyph instead.
+   `assets/icons/`, then `node scripts/gen-icon-registry.js` to regenerate
+   `components/iconRegistry.js`; render them with `<Icon name="…">` and pass
+   them as React nodes (`leftIcon`/`rightIcon`), don't inline.
+   Figma sometimes exports art with `feTurbulence` noise filters —
+   react-native-svg cannot render those, so strip them and keep the shapes.
+
+   > **Note:** `react-native-svg` **is** a dependency (15.15.4). Older components
+   > (checkbox tick, radio dot) predate it and draw their glyphs with Views +
+   > a text glyph; that is history, not a constraint on new work.
 
 ## jest-expo test gotchas (learned the hard way)
 

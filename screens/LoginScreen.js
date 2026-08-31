@@ -1,16 +1,21 @@
-// Pre-auth entry screen: full-bleed hero photo + scrim, brand block, and the two
-// SSO buttons. Google is fully wired (nonce-bound OIDC id_token → /auth/google);
-// Apple is deferred with a "coming soon" snackbar this pass.
+// Pre-auth entry screen — Figma "Auth / Welcome" (file 4jmjNlaM7IRpCOogYRJMks,
+// node 250:8): a three-column photo mosaic bleeding off the bottom, a dark
+// gradient scrim, the Cultum lockup, and the SSO buttons.
+//
+// Google is fully wired (nonce-bound OIDC id_token → /auth/google); Apple is
+// deferred with a "coming soon" snackbar. The design's third provider,
+// "Continue with email", is omitted until the backend grows an email/OTP
+// endpoint — api/auth.js only speaks nonce/google/refresh/logout today.
 
 import { useEffect, useMemo, useState } from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Button, Icon, Snackbar } from '../components';
-import { useTheme } from '../theme/ThemeProvider';
-import { space, typography } from '../theme/foundations';
+import { ThemeProvider, useTheme } from '../theme/ThemeProvider';
+import { radius, space, typography } from '../theme/foundations';
 import { GOOGLE_CLIENT_IDS } from '../lib/config';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
@@ -21,7 +26,50 @@ WebBrowser.maybeCompleteAuthSession();
 const APPLE_COMING_SOON = 'Apple Sign In is coming soon';
 const SIGN_IN_FAILED = "Couldn't sign in. Try again.";
 
+const TAGLINE = 'Better plant-care reminders, so you never forget your plants again.';
+
+// Mosaic geometry (Figma: 3 columns, 5px gutters, 218px photos, 14px radius).
+// The columns are 900 tall against an 812 frame — the grid is meant to bleed
+// past the bottom edge, so nothing here clamps to the screen height.
+const PHOTO_H = 218;
+const PHOTO_GAP = 5;
+
+// Figma slots 1–12; slot 12 repeats slot 1's image (one shared imageRef).
+const MOSAIC = [
+  [
+    require('../assets/auth/mosaic-01.png'),
+    require('../assets/auth/mosaic-02.png'),
+    require('../assets/auth/mosaic-03.png'),
+    require('../assets/auth/mosaic-04.png'),
+  ],
+  [
+    require('../assets/auth/mosaic-05.png'),
+    require('../assets/auth/mosaic-06.png'),
+    require('../assets/auth/mosaic-07.png'),
+    require('../assets/auth/mosaic-08.png'),
+  ],
+  [
+    require('../assets/auth/mosaic-09.png'),
+    require('../assets/auth/mosaic-10.png'),
+    require('../assets/auth/mosaic-11.png'),
+    require('../assets/auth/mosaic-01.png'),
+  ],
+];
+
+// The Welcome screen is dark whatever the OS scheme is — it sits on photography.
+// ThemeProvider is a plain context provider, so nesting one pins the dark tokens
+// for this subtree and every colour in the Figma frame resolves from them:
+//   #151515 background.primary · #606160 border.primary
+//   #FAFAFA text.primary       · #DADBDA text.secondary
 export default function LoginScreen() {
+  return (
+    <ThemeProvider initialMode="dark">
+      <WelcomeScreen />
+    </ThemeProvider>
+  );
+}
+
+function WelcomeScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
@@ -31,7 +79,6 @@ export default function LoginScreen() {
   const [snack, setSnack] = useState(null);
 
   const auth = useAuth();
-
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     iosClientId: GOOGLE_CLIENT_IDS.ios,
@@ -100,37 +147,69 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <ImageBackground
-        source={require('../assets/plant/hero.png')}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.85)']}
-          style={StyleSheet.absoluteFill}
-        />
-      </ImageBackground>
+      <View style={styles.mosaic}>
+        {MOSAIC.map((column, ci) => (
+          <View key={`col-${ci}`} style={styles.column}>
+            {column.map((source, pi) => (
+              <Image
+                key={`photo-${ci}-${pi}`}
+                source={source}
+                style={styles.photo}
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+                testID="welcome-mosaic-photo"
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+
+      <LinearGradient
+        colors={[
+          // Figma "Scrim" — a translucent stack with no token equivalent, same
+          // as BottomSheet's backdrop and colorTokens' interaction layers.
+          'rgba(13,15,10,0.5)',
+          'rgba(13,15,10,0.32)',
+          'rgba(13,15,10,0.9)',
+          'rgba(13,15,10,1)',
+        ]}
+        locations={[0, 0.3, 0.46, 1]}
+        style={[StyleSheet.absoluteFill, styles.nonInteractive]}
+      />
 
       <View style={styles.content}>
-        <View style={styles.brand}>
-          <Text style={styles.title}>Cultum</Text>
-          <Text style={styles.tagline}>Know every plant you meet.</Text>
+        <View style={styles.lockup}>
+          <Icon name="cultum-logo" size={48} />
+          <View style={styles.wordmark}>
+            <Text style={styles.title}>Cultum.app</Text>
+            <Text style={styles.tagline}>{TAGLINE}</Text>
+          </View>
         </View>
 
         <View style={styles.actions}>
           <Button
+            size="lg"
+            variant="outline"
             label="Continue with Google"
-            leftIcon={<Icon name="google" size={20} />}
+            leftIcon={<Icon name="google" size={24} />}
             onPress={onGooglePress}
             loading={busy}
             disabled={!request || !nonce}
           />
           <Button
-            variant="secondary"
+            size="lg"
+            variant="outline"
             label="Continue with Apple"
-            leftIcon={<Icon name="apple" size={20} />}
+            leftIcon={<Icon name="apple" size={24} />}
             onPress={showAppleComingSoon}
           />
+          {/* TODO: link the two spans to the real Terms/Privacy URLs via
+              WebBrowser.openBrowserAsync once they exist. */}
+          <Text style={styles.legal}>
+            By continuing you agree to the{' '}
+            <Text style={styles.legalLink}>Terms of Use</Text> and{' '}
+            <Text style={styles.legalLink}>Privacy Policy</Text>.
+          </Text>
         </View>
       </View>
 
@@ -145,19 +224,39 @@ export default function LoginScreen() {
 
 function makeStyles(t, insets) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#000' },
+    root: { flex: 1, backgroundColor: t.background.primary },
+    // The mosaic and scrim are decoration — taps fall through to the content.
+    nonInteractive: { pointerEvents: 'none' },
+    mosaic: {
+      ...StyleSheet.absoluteFillObject,
+      flexDirection: 'row',
+      gap: PHOTO_GAP,
+      pointerEvents: 'none',
+    },
+    column: { flex: 1, gap: PHOTO_GAP },
+    // Figma's 14px corner has no step on the foundations radius scale.
+    photo: { width: '100%', height: PHOTO_H, borderRadius: radius[16] },
     content: {
       flex: 1,
-      justifyContent: 'flex-end',
-      paddingHorizontal: space[24],
-      paddingTop: insets.top + space[48],
-      paddingBottom: insets.bottom + space[24],
+      paddingHorizontal: space[16],
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom + space[8],
+      gap: space[24],
     },
-    brand: { marginBottom: space[48] },
-    // Light text on the photo scrim — a fixed light value is intentional here.
-    title: { ...typography.display, color: '#FFFFFF' },
-    tagline: { ...typography.bodyLarge, color: 'rgba(255,255,255,0.85)', marginTop: space[8] },
+    lockup: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', gap: space[12] },
+    wordmark: { alignSelf: 'stretch', gap: space[16] },
+    title: { ...typography.headingLargeEmphasized, color: t.text.primary, textAlign: 'center' },
+    tagline: { ...typography.bodyLarge, color: t.text.secondary, textAlign: 'center' },
     actions: { gap: space[12] },
+    // Figma's "Caption Emphasized" is Inter Medium; foundations' emphasized
+    // caption is bold, so the weight is pinned back to 500 here.
+    legal: {
+      ...typography.captionEmphasized,
+      fontWeight: '500',
+      color: t.text.secondary,
+      textAlign: 'center',
+    },
+    legalLink: { textDecorationLine: 'underline' },
     snackHost: {
       position: 'absolute',
       left: space[16],

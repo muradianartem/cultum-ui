@@ -40,6 +40,6 @@ yarn-error.*
 /ios
 /android
 
-# Local iOS signing credentials — never commit
-certs/
+# iOS signing (local credentials)
 credentials.json
+/certs

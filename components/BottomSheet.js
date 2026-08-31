@@ -21,6 +21,10 @@ import Button from './Button';
  * Interaction (Modal host, backdrop-to-dismiss, slide-in) is reconstructed for
  * RN — Figma only specifies the resting visual.
  *
+ * `sheetStyle` / `bodyStyle` restyle the surface and its content padding for
+ * sheets the design gives a different ground or rhythm (the paywall's
+ * "Choose a plan" sheet is #FAFAFA with a 24px top radius).
+ *
  * Slots (Figma → prop): Title→title, Description→description, Caption→caption,
  * Status icon→statusIcon, Close→onClose/showClose, Primary/Secondary action→
  * primaryAction/secondaryAction ({ label, onPress, ...buttonProps }).
@@ -37,6 +41,8 @@ export default function BottomSheet({
   secondaryAction,
   showClose = true,
   children,
+  sheetStyle,
+  bodyStyle,
   testID,
   ...rest
 }) {
@@ -82,6 +88,7 @@ export default function BottomSheet({
                 },
               ],
             },
+            sheetStyle,
           ]}
           accessibilityViewIsModal
         >
@@ -102,7 +109,7 @@ export default function BottomSheet({
             </Pressable>
           ) : null}
 
-          <View style={styles.body}>
+          <View style={[styles.body, bodyStyle]}>
             <View style={styles.textBlock}>
               {statusIcon ? <View style={styles.statusIcon}>{statusIcon}</View> : null}
               {title ? <Text style={styles.title}>{title}</Text> : null}

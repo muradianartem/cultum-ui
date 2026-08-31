@@ -69,6 +69,13 @@ test('outline draws a 1px border in the border-primary token colour', () => {
   expect(s.borderColor).toBe(colorTokens.border.primary.light);
 });
 
+// Figma's Type=Outlined is an opaque pill (tokens.js button.outline.bg), not a
+// see-through one — it has to cover photography on the auth Welcome screen.
+test('outline fills with background-primary rather than staying transparent', () => {
+  const tree = create(<Button label="More" variant="outline" />);
+  expect(btnStyle(tree).backgroundColor).toBe(colorTokens.background.primary.light);
+});
+
 test('size maps to Figma pill height (lg 56 / md 48 / sm 40)', () => {
   expect(btnStyle(create(<Button label="a" size="lg" />)).height).toBe(56);
   expect(btnStyle(create(<Button label="a" size="md" />)).height).toBe(48);

@@ -81,3 +81,29 @@ test('backdrop and close both call onClose', () => {
   act(() => byTestID(tree, 'bottomsheet-backdrop')[0].props.onPress?.());
   expect(onClose).toHaveBeenCalled();
 });
+
+// Figma gives some sheets their own ground and rhythm (the paywall's "Choose a
+// plan" sheet is #FAFAFA with a 24px top radius, not the default surface).
+test('sheetStyle and bodyStyle override the surface and its padding', () => {
+  const tree = create(
+    <BottomSheet
+      visible
+      onClose={() => {}}
+      title="X"
+      sheetStyle={{ backgroundColor: '#FAFAFA', borderTopLeftRadius: 24 }}
+      bodyStyle={{ paddingTop: 8 }}
+    />
+  );
+  const flat = (node) => Object.assign({}, ...[].concat(node.props.style).filter(Boolean));
+
+  const surface = tree.root.find(
+    (n) => typeof n.type === 'string' && flat(n).borderTopLeftRadius != null
+  );
+  expect(flat(surface).backgroundColor).toBe('#FAFAFA');
+  expect(flat(surface).borderTopLeftRadius).toBe(24);
+
+  const body = tree.root.find(
+    (n) => typeof n.type === 'string' && flat(n).paddingTop === 8 && flat(n).paddingBottom === 24
+  );
+  expect(body).toBeTruthy();
+});
