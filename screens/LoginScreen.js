@@ -1,12 +1,3 @@
-// Pre-auth entry screen — Figma "Auth / Welcome" (file 4jmjNlaM7IRpCOogYRJMks,
-// node 250:8): a three-column photo mosaic bleeding off the bottom, a dark
-// gradient scrim, the Cultum lockup, and the SSO buttons.
-//
-// Google is fully wired (nonce-bound OIDC id_token → /auth/google); Apple is
-// deferred with a "coming soon" snackbar. The design's third provider,
-// "Continue with email", is omitted until the backend grows an email/OTP
-// endpoint — api/auth.js only speaks nonce/google/refresh/logout today.
-
 import { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -146,28 +137,28 @@ function WelcomeScreen() {
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.mosaic}>
-        {MOSAIC.map((column, ci) => (
-          <View key={`col-${ci}`} style={styles.column}>
-            {column.map((source, pi) => (
-              <Image
-                key={`photo-${ci}-${pi}`}
-                source={source}
-                style={styles.photo}
-                resizeMode="cover"
-                accessibilityIgnoresInvertColors
-                testID="welcome-mosaic-photo"
-              />
-            ))}
-          </View>
-        ))}
+    <>
+      <View style={styles.root}>
+        <View style={styles.mosaic}>
+          {MOSAIC.map((column, ci) => (
+            <View key={`col-${ci}`} style={styles.column}>
+              {column.map((source, pi) => (
+                <Image
+                  key={`photo-${ci}-${pi}`}
+                  source={source}
+                  style={styles.photo}
+                  resizeMode="cover"
+                  accessibilityIgnoresInvertColors
+                  testID="welcome-mosaic-photo"
+                />
+              ))}
+            </View>
+          ))}
+        </View>
       </View>
 
       <LinearGradient
         colors={[
-          // Figma "Scrim" — a translucent stack with no token equivalent, same
-          // as BottomSheet's backdrop and colorTokens' interaction layers.
           'rgba(13,15,10,0.5)',
           'rgba(13,15,10,0.32)',
           'rgba(13,15,10,0.9)',
@@ -176,7 +167,6 @@ function WelcomeScreen() {
         locations={[0, 0.3, 0.46, 1]}
         style={[StyleSheet.absoluteFill, styles.nonInteractive]}
       />
-
       <View style={styles.content}>
         <View style={styles.lockup}>
           <Icon name="cultum-logo" size={48} />
@@ -218,7 +208,7 @@ function WelcomeScreen() {
           <Snackbar label={snack.label} onDismiss={() => setSnack(null)} />
         </View>
       ) : null}
-    </View>
+    </>
   );
 }
 
