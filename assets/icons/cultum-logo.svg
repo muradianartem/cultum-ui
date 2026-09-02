@@ -1,0 +1,13 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="48" height="48" rx="14.4" fill="#ABF097"/>
+<g clip-path="url(#clip0_cultum_logo)">
+<path d="M14.9481 20.5877L21.8857 27.9777L36.364 13.7004" stroke="#0C100A" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M29.806 39.328C29.4239 35.0141 31.3516 26.3862 42.1192 26.3862C42.8957 30.7002 41.5202 39.328 29.806 39.328Z" stroke="#0C100A" stroke-width="3.36" stroke-linecap="round"/>
+<path d="M29.7618 8.67212H15.4047C11.1632 8.67212 7.7247 12.1106 7.7247 16.3521L7.7247 31.648C7.7247 35.8895 11.1632 39.328 15.4047 39.328H23.8613" stroke="#0C100A" stroke-width="3.36" stroke-linecap="round"/>
+</g>
+<defs>
+<clipPath id="clip0_cultum_logo">
+<rect width="48" height="48" rx="14.4" fill="white"/>
+</clipPath>
+</defs>
+</svg>

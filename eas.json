@@ -12,13 +12,17 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "credentialsSource": "local"
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6804433119"
+        "ascAppId": "6804433119",
+        "ascApiKeyPath": "./certs/AuthKey_APYMBNBK27.p8",
+        "ascApiKeyId": "APYMBNBK27",
+        "ascApiKeyIssuerId": "82444200-95c7-413e-a4c2-480a45e73e48"
       }
     }
   }

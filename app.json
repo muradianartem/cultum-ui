@@ -9,13 +9,13 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.artemmuradan.cultumui",
+      "bundleIdentifier": "com.cultum.ui",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "com.artemmuradan.cultumui"
+              "com.cultum.ui"
             ]
           }
         ]

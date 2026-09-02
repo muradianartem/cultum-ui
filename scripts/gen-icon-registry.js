@@ -5,7 +5,7 @@ const SRC = path.join(process.cwd(), 'assets/icons');
 const OUT = path.join(process.cwd(), 'components/iconRegistry.js');
 
 // Multicolor brand logos — keep their original fills, don't recolor.
-const BRAND = new Set(['apple', 'facebook', 'google', 'x']);
+const BRAND = new Set(['apple', 'cultum-logo', 'facebook', 'google', 'x']);
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.svg')).sort();
 
