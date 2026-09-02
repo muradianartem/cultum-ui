@@ -245,6 +245,7 @@ export default function TodayScreen() {
           value="today"
           onChange={(value) => {
             if (value === 'scan') navigate('scan-camera');
+            if (value === 'settings') navigate('settings');
           }}
         />
       </View>

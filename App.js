@@ -10,6 +10,7 @@ import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
 import PremiumGallery from './screens/PremiumGallery';
+import SettingsScreen from './screens/SettingsScreen';
 import ScanCameraScreen from './screens/scan/ScanCameraScreen';
 import ScanMatchesScreen from './screens/scan/ScanMatchesScreen';
 import ScanSearchScreen from './screens/scan/ScanSearchScreen';
@@ -51,6 +52,7 @@ function AuthGate() {
       <Route name="today" component={TodayScreen} />
       <Route name="product" component={ProductPage} />
       <Route name="reminders" component={RemindersScreen} />
+      <Route name="settings" component={SettingsScreen} />
       <Route name="scan-camera" component={ScanCameraScreen} />
       <Route name="scan-matches" component={ScanMatchesScreen} />
       <Route name="scan-search" component={ScanSearchScreen} />

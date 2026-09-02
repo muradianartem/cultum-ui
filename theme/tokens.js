@@ -104,20 +104,10 @@ export const divider = {
   labelInk: '#404140',
 };
 
-// ---- toggle (Figma: "Toggle – P1", node 26744:5118) ----
-// 60×28 pill track; a wide 34×22 thumb slides left↔right (3↔23) and shifts
-// grey→green with the on/off state. Track darkens while pressed.
-export const toggle = {
-  track: '#ECEDEC',
-  trackPressed: '#D9DAD9',
-  thumbOff: '#B6B9B6',
-  thumbOn: colors.green,
-  width: 60,
-  height: 28,
-  thumbW: 34,
-  thumbH: 22,
-  pad: 3,
-};
+// ---- toggle (Figma: "Toggle", node 27383:1945) ----
+// 60×28 pill track; a wide 34×22 thumb slides left↔right (3↔23). Geometry only —
+// colours come from the semantic tokens via useTheme() (see Toggle.js).
+export const toggle = { width: 60, height: 28, thumbW: 34, thumbH: 22, pad: 3 };
 
 // ---- checkbox (Figma: "Checkbox – P1", node 26744:5102) ----
 // 22px box: grey outline when off, green fill + glyph when checked/indeterminate.
