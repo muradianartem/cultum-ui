@@ -12,7 +12,7 @@ const AuthContext = createContext(null);
 // the app with a fake session — lets you debug the UI/screens without OAuth
 // credentials. Gated by __DEV__ so it can NEVER take effect in a release build.
 // Turn this back to false once the real Google client IDs are wired in.
-const DEV_BYPASS_AUTH = false;
+const DEV_BYPASS_AUTH = true;
 
 const DEV_FAKE_TOKENS = {
   access_token: 'dev-access',

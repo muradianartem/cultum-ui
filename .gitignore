@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local iOS signing credentials — never commit
+certs/
+credentials.json

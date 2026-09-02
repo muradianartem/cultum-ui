@@ -29,7 +29,7 @@ priority. Node ids are stable handles for `get_figma_data`.
 | P1 | Chip | `26744:6933` | ✅ done |
 | P1 | Divider | `26744:5104` | ✅ done |
 | P1 | Radio Button | `26744:5111` | ✅ done |
-| P1 | Toggle | `26744:5118` | ✅ done |
+| P1 | Toggle | `27383:1945` | ✅ done |
 | P2 | **Badge** | `26744:5100` | ✅ done |
 | P2 | Bottom Sheet | `26744:6931` | ✅ done (Figma) |
 | P2 | Card | `26744:5101` | ✅ done |

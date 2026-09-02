@@ -1,13 +1,18 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { toggle, radius, motion } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
- * Toggle — binary on/off switch, imported from Figma "Toggle – P1".
+ * Toggle — binary on/off switch, imported from Figma "Toggle" (node 27383:1945).
  *
  * Figma axes → state: Selected → `value`, State (Pressed) → the Pressable's
- * pressed feedback. The wide 34×22 thumb slides 3↔23 and shifts grey→green
- * between off and on; the track darkens while pressed.
+ * pressed feedback. The wide 34×22 thumb slides 3↔23; the *track* carries the
+ * brand green when on, with a near-white thumb over it, and both tracks darken
+ * under a translucent state layer while pressed (the thumb does not).
+ *
+ * Colours come from the semantic token layer via useTheme() (so the toggle
+ * follows light/dark); `toggle` below is geometry only.
  *
  * Controlled: pass `value` + `onValueChange`.
  */
@@ -19,6 +24,7 @@ export default function Toggle({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   useEffect(() => {
@@ -33,7 +39,11 @@ export default function Toggle({
     inputRange: [0, 1],
     outputRange: [toggle.pad, toggle.width - toggle.thumbW - toggle.pad],
   });
-  const thumbColor = value ? toggle.thumbOn : toggle.thumbOff;
+
+  // Discrete colour swaps straight off the prop — never interpolated (see
+  // docs/figma-import.md); only `transform` is native-driven.
+  const trackColor = value ? t.brand.primary : t.surface.secondary;
+  const thumbColor = value ? t.background.primary : t.border.primary;
 
   return (
     <Pressable
@@ -42,20 +52,26 @@ export default function Toggle({
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.track,
-        { backgroundColor: pressed && !disabled ? toggle.trackPressed : toggle.track },
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.track, { backgroundColor: trackColor }, disabled && styles.disabled, style]}
       {...rest}
     >
-      <Animated.View
-        style={[
-          styles.thumb,
-          { backgroundColor: thumbColor, transform: [{ translateX }] },
-        ]}
-      />
+      {({ pressed }) => (
+        <>
+          {/* Under the thumb: Figma darkens the track only, not the thumb. */}
+          {pressed && !disabled ? (
+            <View
+              pointerEvents="none"
+              style={[styles.stateLayer, { backgroundColor: t.interaction.pressed }]}
+            />
+          ) : null}
+          <Animated.View
+            style={[
+              styles.thumb,
+              { backgroundColor: thumbColor, transform: [{ translateX }] },
+            ]}
+          />
+        </>
+      )}
     </Pressable>
   );
 }
@@ -66,6 +82,12 @@ const styles = StyleSheet.create({
     height: toggle.height,
     borderRadius: radius.pill,
     justifyContent: 'center',
+    overflow: 'hidden', // clip the pressed state layer to the pill
+  },
+  // Pressed state layer: a translucent tint over the track fill (colour comes
+  // from t.interaction.pressed at render so it follows the theme).
+  stateLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   thumb: {
     position: 'absolute',
