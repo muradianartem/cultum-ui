@@ -11,7 +11,9 @@ import { searchBar, radius } from '../theme/tokens';
  *   Disabled → `editable={false}` + greyed fill
  *
  * Controlled: `value` + `onChangeText`. `onClear` (defaults to clearing via
- * onChangeText). `leftIcon` overrides the default 🔍 glyph (no react-native-svg).
+ * onChangeText). `leftIcon` / `clearIcon` override the default 🔍 and ✕ text
+ * glyphs, so callers can pass real <Icon>s without this primitive depending on
+ * react-native-svg.
  */
 export default function SearchBar({
   value = '',
@@ -19,6 +21,7 @@ export default function SearchBar({
   placeholder = 'Search',
   onClear,
   leftIcon,
+  clearIcon,
   disabled = false,
   style,
   inputStyle,
@@ -65,7 +68,7 @@ export default function SearchBar({
           accessibilityLabel="Clear search"
           style={styles.clear}
         >
-          <Text style={styles.clearGlyph}>✕</Text>
+          {clearIcon ?? <Text style={styles.clearGlyph}>✕</Text>}
         </Pressable>
       ) : null}
     </View>
@@ -91,8 +94,8 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   clear: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: 9999,
     backgroundColor: searchBar.clearBg,
     alignItems: 'center',

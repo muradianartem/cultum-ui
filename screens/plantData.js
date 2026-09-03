@@ -59,8 +59,7 @@ export const DEFAULT_PLANT_VM = {
   careFacts: CARE_FACTS,
   chips: CHIPS,
   faq: FAQ,
-  source: null,
-  sourceId: null,
+  speciesKey: null,
 };
 
 

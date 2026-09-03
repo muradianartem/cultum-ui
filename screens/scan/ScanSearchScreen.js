@@ -11,6 +11,7 @@ import {
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
+import { searchBar } from '../../theme/tokens';
 import { searchPlants } from '../../api/plants';
 import { summaryToCard } from '../../api/mapPlant';
 import SpeciesCard from './SpeciesCard';
@@ -87,6 +88,8 @@ export default function ScanSearchScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="e.g Monstera"
+          leftIcon={<Icon name="search" size={20} color={searchBar.placeholder} />}
+          clearIcon={<Icon name="close" size={20} color={searchBar.ink} />}
         />
 
         {loading ? (
@@ -96,20 +99,24 @@ export default function ScanSearchScreen() {
         ) : error ? (
           <Text style={styles.error}>Couldn’t search right now. Check your connection and try again.</Text>
         ) : noResults ? (
-          <State
-            icon={<Icon name="search" size={28} color={t.text.primary} />}
-            title="No species by that name"
-            subtitle="Try the Latin name, or scan the plant instead."
-            primaryAction={{
-              label: 'Scan it instead',
-              onPress: () => reset('scan-camera'),
-            }}
-          />
+          <View style={styles.emptyWrap}>
+            <State
+              icon={<Icon name="search" size={24} color={t.text.primary} />}
+              iconVariant="secondary"
+              title="No results found"
+              subtitle="Please try another name, or scan the plant instead."
+              primaryAction={{
+                label: 'Scan it instead',
+                leftIcon: <Icon name="outlined-scan" size={16} color={t.brand.onPrimary} />,
+                onPress: () => reset('scan-camera'),
+              }}
+            />
+          </View>
         ) : (
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
             {results.map((card, i) => (
               <SpeciesCard
-                key={card.sourceId ?? i}
+                key={card.speciesKey ?? i}
                 card={card}
                 showConfidence={false}
                 onPress={() => openPlant(card, navigate)}
@@ -125,8 +132,15 @@ export default function ScanSearchScreen() {
 const makeStyles = (t) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background.primary },
-    body: { flex: 1, padding: space[16], gap: space[16] },
-    list: { gap: space[8] },
+    body: {
+      flex: 1,
+      paddingTop: space[8],
+      paddingHorizontal: space[16],
+      paddingBottom: space[16],
+      gap: space[16],
+    },
+    list: { gap: space[12] },
     center: { paddingTop: space[24], alignItems: 'center' },
+    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: space[48] },
     error: { ...typography.bodyMedium, color: t.error.primary },
   });

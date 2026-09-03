@@ -2,9 +2,10 @@
 // ID-token acquisition (the useAuthRequest hook) lives in the Login screen, not
 // here — this provider only owns exchange + storage.
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { loadTokens, saveTokens, clearTokens } from '../lib/authStorage';
 import { authApi } from '../api/auth';
+import { setAuthTokenProvider, setUnauthorizedHandler } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -26,12 +27,31 @@ export function AuthProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [tokens, setTokens] = useState(null);
 
+  // apiFetch reads the access token through a registered provider rather than
+  // importing this context (it isn't a component). The ref keeps that provider
+  // reading current tokens without re-registering on every rotation.
+  const tokensRef = useRef(null);
+  tokensRef.current = tokens;
+
+  // Write the ref synchronously alongside the state: after a refresh, apiFetch
+  // reads the token back through the provider on the very next line, long
+  // before React re-renders this provider.
+  function applyTokens(next) {
+    tokensRef.current = next;
+    setTokens(next);
+  }
+
+  useEffect(() => {
+    setAuthTokenProvider(() => tokensRef.current?.access_token ?? null);
+    setUnauthorizedHandler(refreshSession);
+  }, []);
+
   useEffect(() => {
     // Dev escape hatch: pretend we have a session so AuthGate renders the app.
     // Note: any real authenticated backend call would 401 with these fake
     // tokens (none exist today — main screens use local/mock data).
     if (__DEV__ && DEV_BYPASS_AUTH) {
-      setTokens(DEV_FAKE_TOKENS);
+      applyTokens(DEV_FAKE_TOKENS);
       setStatus('signedIn');
       return;
     }
@@ -40,7 +60,7 @@ export function AuthProvider({ children }) {
     loadTokens().then((stored) => {
       if (cancelled) return;
       if (stored) {
-        setTokens(stored);
+        applyTokens(stored);
         setStatus('signedIn');
       } else {
         setStatus('signedOut');
@@ -55,26 +75,26 @@ export function AuthProvider({ children }) {
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
     const minted = await authApi.loginGoogle(idToken);
-    console.log(minted)
     await saveTokens(minted);
-    setTokens(minted);
+    applyTokens(minted);
     setStatus('signedIn');
   }
 
   // Rotate the session with the stored refresh token (backend rotates it too).
   // Persists the whole new token set and returns it; on rejection (expired /
-  // reused refresh token) the session is cleared. Not auto-triggered on 401 yet
-  // — no authenticated feature call exists to drive that retry.
+  // reused refresh token) the session is cleared. Registered above as apiFetch's
+  // 401 handler, so any authenticated call (scans, garden, reminders) rotates
+  // and replays once through this.
   async function refreshSession() {
     try {
-      const rotated = await authApi.refresh(tokens?.refresh_token);
+      const rotated = await authApi.refresh(tokensRef.current?.refresh_token);
       await saveTokens(rotated);
-      setTokens(rotated);
+      applyTokens(rotated);
       setStatus('signedIn');
       return rotated;
     } catch (e) {
       await clearTokens();
-      setTokens(null);
+      applyTokens(null);
       setStatus('signedOut');
       throw e;
     }
@@ -84,10 +104,11 @@ export function AuthProvider({ children }) {
   // flip to signedOut. Not wired to any UI control yet (out of scope this pass).
   async function signOut() {
     try {
-      if (tokens?.refresh_token) await authApi.logout(tokens.refresh_token);
+      const refresh = tokensRef.current?.refresh_token;
+      if (refresh) await authApi.logout(refresh);
     } catch { }
     await clearTokens();
-    setTokens(null);
+    applyTokens(null);
     setStatus('signedOut');
   }
 

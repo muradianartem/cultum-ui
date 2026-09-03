@@ -61,12 +61,14 @@ const texts = (tree) =>
 
 beforeEach(() => jest.clearAllMocks());
 
-test('the ungranted state renders the "Identify by photo" rationale', () => {
+test('the ungranted state renders the "Camera Access" rationale', () => {
   mockPermissionState = { granted: false, canAskAgain: true };
   const tree = create(<ScanCameraScreen />);
   const t = texts(tree);
-  expect(t).toContain('Identify by photo');
-  expect(t).toContain('Allow camera access');
+  expect(t).toContain('Camera Access');
+  expect(t).toContain('To scan a plant, you need to allow camera access.');
+  expect(t).toContain('Allow Camera Access');
+  expect(t).toContain('Search by Name Instead');
 });
 
 const press = async (tree, label) => {
