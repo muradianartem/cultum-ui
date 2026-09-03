@@ -5,6 +5,7 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, space, typography } from '../../theme/foundations';
 import { candidateToCard, matchesCaption } from '../../api/mapPlant';
+import { confirmScan } from '../../api/scans';
 import SpeciesCard from './SpeciesCard';
 import { openPlant } from './openPlant';
 
@@ -13,7 +14,12 @@ import { openPlant } from './openPlant';
  *
  * Params: { photoUri, scan }. Shows the captured photo, the honest design
  * caption (top candidate's %), one SpeciesCard per candidate (with confidence),
- * and a "Search manually" escape hatch. Tapping a card opens the Product page.
+ * and a "Search manually" escape hatch.
+ *
+ * Every exit records a label via POST /scans/{id}/confirm — the tapped candidate,
+ * or null for "none of these". That feedback is the reason the candidate list is
+ * a list rather than an auto-picked top result, so it fires on both paths. It is
+ * fire-and-forget: a failed confirm must never block the user's navigation.
  */
 export default function ScanMatchesScreen({ photoUri, scan }) {
   const insets = useSafeAreaInsets();
@@ -22,6 +28,21 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
   const styles = makeStyles(t);
 
   const cards = (scan?.candidates ?? []).map(candidateToCard);
+
+  const label = (candidateId) => {
+    if (!scan?.id) return;
+    confirmScan(scan.id, candidateId).catch(() => {});
+  };
+
+  const onPick = (card) => {
+    label(card.candidateId);
+    openPlant(card, navigate, { care: scan?.care });
+  };
+
+  const onNoneOfThese = () => {
+    label(null);
+    navigate('scan-search');
+  };
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + space[8] }]}>
@@ -47,7 +68,7 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
             title="No plant found"
             subtitle="Try a clearer, closer photo."
             primaryAction={{ label: 'Retake', onPress: back }}
-            secondaryAction={{ label: 'Search manually', onPress: () => navigate('scan-search') }}
+            secondaryAction={{ label: 'Search manually', onPress: onNoneOfThese }}
           />
         </View>
       </View>
@@ -64,10 +85,10 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
         <View style={styles.list}>
           {cards.map((card, i) => (
             <SpeciesCard
-              key={card.sourceId ?? i}
+              key={card.candidateId ?? i}
               card={card}
               showConfidence
-              onPress={() => openPlant(card, navigate)}
+              onPress={() => onPick(card)}
             />
           ))}
         </View>
@@ -78,7 +99,7 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
             label="Search manually"
             variant="secondary"
             size="md"
-            onPress={() => navigate('scan-search')}
+            onPress={onNoneOfThese}
           />
         </View>
       </ScrollView>
@@ -100,7 +121,7 @@ const makeStyles = (t) =>
     content: { padding: space[16], gap: space[20], alignItems: 'stretch' },
     photo: { width: 168, height: 168, borderRadius: radius[16], alignSelf: 'center' },
     caption: { ...typography.bodyLarge, color: t.text.secondary, textAlign: 'center' },
-    list: { gap: space[8] },
+    list: { gap: space[12] },
     footer: { alignItems: 'center', gap: space[8] },
     noneText: { ...typography.bodyMedium, color: t.text.secondary },
     emptyWrap: { flex: 1, justifyContent: 'center', padding: space[16] },

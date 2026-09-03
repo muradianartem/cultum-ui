@@ -34,7 +34,7 @@ export default function SpeciesCard({ card, showConfidence = false, onPress }) {
         after={
           <View style={styles.after}>
             {ring ? <ConfidenceRing percent={card.percent} /> : null}
-            <Icon name="chevron-right" size={20} color={t.text.primary} />
+            <Icon name="chevron-right" size={24} color={t.text.primary} />
           </View>
         }
       />

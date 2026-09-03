@@ -18,8 +18,8 @@ const CARD = {
   subtitle: 'Monstera deliciosa',
   thumbUri: 'https://img/monstera.jpg',
   percent: 52,
-  sourceId: '2868',
-  source: 'perenual',
+  candidateId: '00000000-0000-0000-0000-0000000000a1',
+  speciesKey: 'monstera-deliciosa',
 };
 
 test('renders the title, subtitle and confidence percent when showConfidence', () => {

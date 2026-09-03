@@ -8,7 +8,7 @@ import { MOCK_SEARCH } from '../../../api/__mocks__/scanFixtures';
 
 jest.mock('../../../api/plants', () => ({
   searchPlants: jest.fn(),
-  getPlantDetail: jest.fn(),
+  getSpecies: jest.fn(),
 }));
 
 const METRICS = {
@@ -65,16 +65,18 @@ test('typing two or more characters searches and renders result cards', async ()
   expect(searchPlants).toHaveBeenCalledWith('monstera');
   const t = texts(tree);
   expect(t).toContain('Monstera');
-  expect(t).toContain('Monstera adansonii');
+  expect(t).toContain('Swiss cheese vine');
 });
 
-test('a query with no results shows the "No species by that name" state', async () => {
+test('a query with no results shows the "No results found" state', async () => {
   searchPlants.mockResolvedValueOnce([]);
   const tree = create(<ScanSearchScreen />);
 
   await type(tree, 'zzzzz');
 
-  expect(texts(tree)).toContain('No species by that name');
+  const t = texts(tree);
+  expect(t).toContain('No results found');
+  expect(t).toContain('Please try another name, or scan the plant instead.');
 });
 
 test('"Scan it instead" resets to the camera route', async () => {

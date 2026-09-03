@@ -122,3 +122,69 @@ test('refreshSession signs out when the refresh token is rejected', async () => 
   expect(ref.current.status).toBe('signedOut');
   expect(ref.current.tokens).toBeNull();
 });
+
+// ---------------------------------------------------------------------------
+// apiFetch wiring. Nothing registered these before, so every authenticated
+// request went out with no Authorization header and 401'd.
+// ---------------------------------------------------------------------------
+describe('apiFetch registration', () => {
+  const client = require('../../api/client');
+
+  test('registers a token provider that reports the stored access token', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce({
+      access_token: 'stored-access',
+      refresh_token: 'stored-refresh',
+    });
+
+    await renderAuth();
+
+    await expect(client.getAuthToken()).resolves.toBe('stored-access');
+  });
+
+  test('reports null rather than undefined when signed out', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(null);
+
+    await renderAuth();
+
+    await expect(client.getAuthToken()).resolves.toBeNull();
+  });
+
+  test('the token provider sees a rotated token immediately, before any re-render', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce({
+      access_token: 'expired',
+      refresh_token: 'r1',
+    });
+    authApi.refresh.mockResolvedValueOnce({
+      access_token: 'rotated',
+      refresh_token: 'r2',
+    });
+
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.refreshSession();
+    });
+
+    // apiFetch reads the token back on the next line of its retry, so the
+    // provider must not wait for React to re-render the provider.
+    await expect(client.getAuthToken()).resolves.toBe('rotated');
+  });
+
+  test('refreshes with the current refresh token, not the one captured at mount', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(null); // starts signed out
+    authApi.loginGoogle.mockResolvedValueOnce({
+      access_token: 'a1',
+      refresh_token: 'r1',
+    });
+    authApi.refresh.mockResolvedValueOnce({ access_token: 'a2', refresh_token: 'r2' });
+
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.completeGoogleLogin('google-id-token');
+    });
+    await act(async () => {
+      await ref.current.refreshSession();
+    });
+
+    expect(authApi.refresh).toHaveBeenCalledWith('r1');
+  });
+});

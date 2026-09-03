@@ -1,5 +1,12 @@
 import { useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -7,31 +14,77 @@ import * as ImagePicker from 'expo-image-picker';
 import { ButtonIcon, Icon, LoadingIndicator, State } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, space, typography } from '../../theme/foundations';
+import { space, typography } from '../../theme/foundations';
 import { createScan } from '../../api/scans';
+import Viewfinder from './Viewfinder';
 
-// Camera chrome sits over a live preview, so these are theme-independent.
+// Camera chrome sits over a live preview, so these are fixed rather than themed:
+// the Figma frame's controls are the dark pill regardless of light/dark mode.
 const CAMERA_BG = '#0E120B';
-const GLASS = 'rgba(250,250,250,0.18)';
-const GLASS_BORDER = 'rgba(250,250,250,0.6)';
-const SCRIM_TOP = 'rgba(14,18,11,0.55)';
-const SCRIM_TOP_FADE = 'rgba(14,18,11,0)';
-const SCRIM_BOTTOM = 'rgba(14,18,11,0.8)';
-const OVER_TEXT = '#FFFFFF';
+const PILL_BG = '#151515';
+const PILL_BORDER = '#606160';
+const OVER_TEXT = '#FAFAFA';
+const SHUTTER = '#FFFFFF';
+const SCRIM = 'rgba(0,0,0,0.55)';
+const SCRIM_FADE = 'rgba(0,0,0,0)';
+
+// Geometry of the punched-out viewfinder square.
+const VIEWFINDER_MAX = 288;
+const VIEWFINDER_INSET = 40;
 
 const ERROR_COPY = {
-  unauthorized: { title: 'Sign-in required to scan.', subtitle: 'Search by name instead for now.' },
+  unauthorized: {
+    title: 'Your session expired.',
+    subtitle: 'Sign in again to identify plants by photo.',
+  },
   network: { title: 'You’re offline.', subtitle: 'Check your connection and try again.' },
   http: { title: 'Something went wrong.', subtitle: 'Try again in a moment.' },
 };
 
+// The 40px dark pill every camera control is built from (Figma's
+// _Navigation Bar Button / Button Icon over the preview).
+function CameraPill({ icon, size = 24, label, onPress, styles }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.pill}
+    >
+      <Icon name={icon} size={size} color={OVER_TEXT} />
+    </Pressable>
+  );
+}
+
+// A pill with its label underneath — the Upload / Search controls flanking the
+// shutter.
+function SideControl({ icon, label, onPress, styles }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.sideControl}
+    >
+      <View style={styles.pill}>
+        <Icon name={icon} size={16} color={OVER_TEXT} />
+      </View>
+      <Text style={styles.sideLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /**
  * ScanCameraScreen — live camera + the camera-permission rationale (merged into
- * this one route). phase: 'permission' | 'ready' | 'analyzing' | 'error'.
+ * this one route). phase: 'ready' | 'analyzing' | 'error'.
  * Capture (expo-camera) or Upload (expo-image-picker) → POST /scans → Matches.
+ *
+ * Figma: "Scan / Camera access" (158:10369) and "Scan / Camera" (158:10382).
+ * The analyzing and error overlays have no Figma frame — the upload needs them.
  */
 export default function ScanCameraScreen() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const { navigate, reset } = useRouter();
   const t = useTheme();
   const styles = makeStyles(t);
@@ -44,13 +97,14 @@ export default function ScanCameraScreen() {
   const cameraRef = useRef(null);
 
   const granted = !!permission?.granted;
+  const busy = phase !== 'ready';
 
   async function runScan(uri) {
     setPhase('analyzing');
     try {
       const scan = await createScan(uri);
-      navigate('scan-matches', { photoUri: uri, scan });
       setPhase('ready');
+      navigate('scan-matches', { photoUri: uri, scan });
     } catch (e) {
       setErrorCode(e?.code ?? 'http');
       setPhase('error');
@@ -58,12 +112,18 @@ export default function ScanCameraScreen() {
   }
 
   async function onCapture() {
-    if (!cameraRef.current) return;
-    const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-    await runScan(photo.uri);
+    if (busy || !cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      await runScan(photo.uri);
+    } catch {
+      setErrorCode('http');
+      setPhase('error');
+    }
   }
 
   async function onUpload() {
+    if (busy) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -73,31 +133,34 @@ export default function ScanCameraScreen() {
     if (!result.canceled) await runScan(result.assets[0].uri);
   }
 
-  // ── Permission rationale (Figma "Camera access") ──────────────────────────
+  // ── Permission rationale — Figma "Scan / Camera access" ───────────────────
   if (!granted) {
     const canAsk = permission?.canAskAgain !== false;
     return (
       <View style={[styles.permissionScreen, { paddingTop: insets.top }]}>
         <View style={styles.permHeader}>
           <ButtonIcon
-            variant="ghost"
+            variant="outline"
             size="md"
-            icon={<Icon name="close" size={24} color={OVER_TEXT} />}
+            icon={<Icon name="close" size={24} color={t.text.primary} />}
             onPress={() => reset('today')}
             accessibilityLabel="Close"
           />
         </View>
         <View style={styles.permBody}>
           <State
-            icon={<Icon name="camera" size={28} color={t.text.primary} />}
-            title="Identify by photo"
-            subtitle="Point the camera at a plant and Cultum names it with an honest confidence score."
+            icon={<Icon name="camera" size={24} color={t.text.primary} />}
+            iconVariant="secondary"
+            title="Camera Access"
+            subtitle="To scan a plant, you need to allow camera access."
             primaryAction={{
-              label: 'Allow camera access',
+              label: 'Allow Camera Access',
+              leftIcon: <Icon name="camera" size={16} color={t.brand.onPrimary} />,
               onPress: canAsk ? requestPermission : () => Linking.openSettings(),
             }}
             secondaryAction={{
-              label: 'Search by name instead',
+              label: 'Search by Name Instead',
+              leftIcon: <Icon name="search" size={16} color={t.text.primary} />,
               onPress: () => navigate('scan-search'),
             }}
           />
@@ -105,6 +168,9 @@ export default function ScanCameraScreen() {
       </View>
     );
   }
+
+  const vfSize = Math.min(width - VIEWFINDER_INSET * 2, VIEWFINDER_MAX);
+  const vfTop = Math.max(insets.top + 96, (height - vfSize) / 2 - 64);
 
   return (
     <View style={styles.screen}>
@@ -117,80 +183,68 @@ export default function ScanCameraScreen() {
 
       {/* Scrims */}
       <LinearGradient
-        colors={[SCRIM_TOP, SCRIM_TOP_FADE]}
+        colors={[SCRIM, SCRIM_FADE]}
         style={styles.topScrim}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={[SCRIM_TOP_FADE, SCRIM_BOTTOM]}
+        colors={[SCRIM_FADE, SCRIM]}
         style={styles.bottomScrim}
         pointerEvents="none"
       />
 
+      {/* Dimming mask + corner brackets */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Viewfinder width={width} height={height} size={vfSize} top={vfTop} />
+      </View>
+
       {/* Top controls */}
       <View style={[styles.topBar, { top: insets.top + space[8] }]}>
-        <ButtonIcon
-          variant="ghost"
-          size="md"
-          icon={<Icon name="close" size={22} color={OVER_TEXT} />}
+        <CameraPill
+          icon="close"
+          label="Close"
           onPress={() => reset('today')}
-          accessibilityLabel="Close"
+          styles={styles}
         />
         <View style={styles.topRight}>
-          <ButtonIcon
-            variant="ghost"
-            size="md"
-            icon={<Icon name={torch ? 'flash' : 'flash-off'} size={22} color={OVER_TEXT} />}
+          <CameraPill
+            icon={torch ? 'flash' : 'flash-off'}
+            label="Toggle flash"
             onPress={() => setTorch((v) => !v)}
-            accessibilityLabel="Toggle flash"
+            styles={styles}
           />
-          <ButtonIcon
-            variant="ghost"
-            size="md"
-            icon={<Icon name="flip-camera" size={22} color={OVER_TEXT} />}
+          <CameraPill
+            icon="flip-camera"
+            label="Flip camera"
             onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
-            accessibilityLabel="Flip camera"
+            styles={styles}
           />
         </View>
       </View>
 
-      {/* Viewfinder */}
-      <View style={styles.viewfinderWrap} pointerEvents="none">
-        <View style={styles.viewfinder} />
-      </View>
-
       {/* Capture block */}
-      <View style={[styles.captureBlock, { paddingBottom: insets.bottom + space[16] }]}>
+      <View style={[styles.captureBlock, { paddingBottom: insets.bottom + space[12] }]}>
         <Text style={styles.captureCaption}>Frame the plant, a leaf, or its label</Text>
         <View style={styles.shutterRow}>
-          <Pressable
-            onPress={onUpload}
-            accessibilityRole="button"
-            accessibilityLabel="Upload"
-            style={styles.sideControl}
-          >
-            <Icon name="image" size={24} color={OVER_TEXT} />
-            <Text style={styles.sideLabel}>Upload</Text>
-          </Pressable>
+          <SideControl icon="image" label="Upload" onPress={onUpload} styles={styles} />
 
           <Pressable
             onPress={onCapture}
+            disabled={busy}
             accessibilityRole="button"
             accessibilityLabel="Shutter"
+            accessibilityState={{ disabled: busy }}
             style={styles.shutter}
           >
             <View style={styles.shutterInner} />
           </Pressable>
 
-          <Pressable
+          <SideControl
+            icon="search"
+            label="Search"
             onPress={() => navigate('scan-search')}
-            accessibilityRole="button"
-            accessibilityLabel="Search"
-            style={styles.sideControl}
-          >
-            <Icon name="search" size={24} color={OVER_TEXT} />
-            <Text style={styles.sideLabel}>Search</Text>
-          </Pressable>
+            styles={styles}
+          />
         </View>
       </View>
 
@@ -206,11 +260,15 @@ export default function ScanCameraScreen() {
       {phase === 'error' ? (
         <View style={styles.errorOverlay}>
           <State
-            icon={<Icon name="camera" size={28} color={t.text.primary} />}
+            icon={<Icon name="camera" size={24} color={t.text.primary} />}
+            iconVariant="secondary"
             title={(ERROR_COPY[errorCode] ?? ERROR_COPY.http).title}
             subtitle={(ERROR_COPY[errorCode] ?? ERROR_COPY.http).subtitle}
             primaryAction={{ label: 'Try again', onPress: () => setPhase('ready') }}
-            secondaryAction={{ label: 'Search by name', onPress: () => navigate('scan-search') }}
+            secondaryAction={{
+              label: 'Search by Name Instead',
+              onPress: () => navigate('scan-search'),
+            }}
           />
         </View>
       ) : null}
@@ -221,11 +279,19 @@ export default function ScanCameraScreen() {
 const makeStyles = (t) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: CAMERA_BG },
-    permissionScreen: { flex: 1, backgroundColor: CAMERA_BG },
-    permHeader: { paddingHorizontal: space[8] },
-    permBody: { flex: 1, justifyContent: 'center', padding: space[16] },
 
-    topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 140 },
+    // Camera access — a light screen (Figma 158:10369), not camera chrome.
+    permissionScreen: { flex: 1, backgroundColor: t.background.primary },
+    permHeader: { paddingHorizontal: space[16], paddingTop: space[8] },
+    permBody: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: space[32],
+      paddingVertical: space[24],
+    },
+
+    topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 180 },
     bottomScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 260 },
 
     topBar: {
@@ -236,14 +302,15 @@ const makeStyles = (t) =>
       justifyContent: 'space-between',
     },
     topRight: { flexDirection: 'row', gap: space[8] },
-
-    viewfinderWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-    viewfinder: {
-      width: 240,
-      height: 240,
-      borderRadius: radius[24] ?? 24,
-      borderWidth: 2,
-      borderColor: GLASS_BORDER,
+    pill: {
+      width: 40,
+      height: 40,
+      borderRadius: 9999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: PILL_BG,
+      borderWidth: 1,
+      borderColor: PILL_BORDER,
     },
 
     captureBlock: {
@@ -251,30 +318,31 @@ const makeStyles = (t) =>
       left: 0,
       right: 0,
       bottom: 0,
-      paddingHorizontal: space[16],
-      gap: space[16],
-      alignItems: 'center',
+      paddingHorizontal: space[24],
+      paddingTop: space[12],
+      gap: space[24],
+      alignItems: 'stretch',
     },
-    captureCaption: { ...typography.bodyMedium, color: OVER_TEXT, textAlign: 'center' },
+    captureCaption: { ...typography.bodyLarge, color: OVER_TEXT, textAlign: 'center' },
     shutterRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       alignSelf: 'stretch',
-      paddingHorizontal: space[16],
+      paddingHorizontal: space[20],
     },
-    sideControl: { alignItems: 'center', gap: space[4], width: 64 },
-    sideLabel: { ...typography.caption, color: OVER_TEXT },
+    sideControl: { alignItems: 'center', gap: space[8], width: 72 },
+    sideLabel: { ...typography.captionEmphasized, color: OVER_TEXT },
     shutter: {
       width: 72,
       height: 72,
       borderRadius: 36,
       borderWidth: 3,
-      borderColor: OVER_TEXT,
+      borderColor: SHUTTER,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: OVER_TEXT },
+    shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: SHUTTER },
 
     analyzing: {
       ...StyleSheet.absoluteFillObject,
@@ -288,7 +356,8 @@ const makeStyles = (t) =>
     errorOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: t.background.primary,
+      alignItems: 'center',
       justifyContent: 'center',
-      padding: space[16],
+      paddingHorizontal: space[32],
     },
   });
