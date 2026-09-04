@@ -2,7 +2,7 @@
   "expo": {
     "name": "cultum-ui",
     "slug": "cultum-ui",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "scheme": "cultum",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
