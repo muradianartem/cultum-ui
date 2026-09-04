@@ -2,7 +2,10 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { AuthProvider, useAuth } from '../AuthProvider';
 
+// Persistence is mocked, but withExpiry is kept real — the expiry stamp is what
+// the proactive-refresh tests below are actually about.
 jest.mock('../../lib/authStorage', () => ({
+  ...jest.requireActual('../../lib/authStorage'),
   loadTokens: jest.fn(),
   saveTokens: jest.fn(async () => {}),
   clearTokens: jest.fn(async () => {}),
@@ -66,9 +69,11 @@ test('completeGoogleLogin exchanges the id token, persists, and flips to signedI
   });
 
   expect(authApi.loginGoogle).toHaveBeenCalledWith('the-id-token');
-  expect(authStorage.saveTokens).toHaveBeenCalledWith(minted);
+  expect(authStorage.saveTokens).toHaveBeenCalledWith(expect.objectContaining(minted));
   expect(ref.current.status).toBe('signedIn');
-  expect(ref.current.tokens).toEqual(minted);
+  expect(ref.current.tokens).toMatchObject(minted);
+  // Stamped on the way in, so a later read can tell the token is stale.
+  expect(ref.current.tokens.expires_at).toEqual(expect.any(Number));
 });
 
 test('signOut clears storage and flips to signedOut even if the logout call fails', async () => {
@@ -102,8 +107,8 @@ test('refreshSession rotates the refresh token and persists the new token set', 
   });
 
   expect(authApi.refresh).toHaveBeenCalledWith('r1');
-  expect(authStorage.saveTokens).toHaveBeenCalledWith(rotated);
-  expect(ref.current.tokens).toEqual(rotated);
+  expect(authStorage.saveTokens).toHaveBeenCalledWith(expect.objectContaining(rotated));
+  expect(ref.current.tokens).toMatchObject(rotated);
   expect(ref.current.status).toBe('signedIn');
 });
 
@@ -186,5 +191,78 @@ describe('apiFetch registration', () => {
     });
 
     expect(authApi.refresh).toHaveBeenCalledWith('r1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Proactive rotation. Waiting for a 401 means the request is sent twice — and
+// for a scan, "the request" is the user's photo.
+// ---------------------------------------------------------------------------
+describe('proactive refresh', () => {
+  const client = require('../../api/client');
+
+  const expiring = (msFromNow) => ({
+    access_token: 'about-to-expire',
+    refresh_token: 'r1',
+    expires_at: Date.now() + msFromNow,
+  });
+
+  test('rotates before a request when the access token is within the skew window', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(expiring(30000)); // < 60s left
+    authApi.refresh.mockResolvedValueOnce({ access_token: 'fresh', refresh_token: 'r2' });
+
+    await renderAuth();
+
+    await act(async () => {
+      await expect(client.getAuthToken()).resolves.toBe('fresh');
+    });
+    expect(authApi.refresh).toHaveBeenCalledWith('r1');
+  });
+
+  test('leaves a token with time left alone', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(expiring(3600000));
+
+    await renderAuth();
+
+    await expect(client.getAuthToken()).resolves.toBe('about-to-expire');
+    expect(authApi.refresh).not.toHaveBeenCalled();
+  });
+
+  test('treats a session with no recorded expiry as usable', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce({ access_token: 'legacy', refresh_token: 'r' });
+
+    await renderAuth();
+
+    await expect(client.getAuthToken()).resolves.toBe('legacy');
+    expect(authApi.refresh).not.toHaveBeenCalled();
+  });
+
+  test('reports null instead of throwing when the rotation fails', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(expiring(-1000)); // already expired
+    authApi.refresh.mockRejectedValueOnce(new Error('refresh token reused'));
+
+    const { ref } = await renderAuth();
+
+    await act(async () => {
+      await expect(client.getAuthToken()).resolves.toBeNull();
+    });
+    expect(ref.current.status).toBe('signedOut');
+  });
+
+  test('collapses concurrent rotations into one — a spent refresh token is rejected', async () => {
+    authStorage.loadTokens.mockResolvedValueOnce(expiring(-1000));
+    authApi.refresh.mockResolvedValueOnce({ access_token: 'fresh', refresh_token: 'r2' });
+
+    const { ref } = await renderAuth();
+
+    await act(async () => {
+      await Promise.all([
+        client.getAuthToken(),
+        client.getAuthToken(),
+        ref.current.refreshSession(),
+      ]);
+    });
+
+    expect(authApi.refresh).toHaveBeenCalledTimes(1);
   });
 });

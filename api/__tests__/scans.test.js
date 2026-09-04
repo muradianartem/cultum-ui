@@ -1,4 +1,4 @@
-import { createScan, confirmScan } from '../scans';
+import { createScan, confirmScan, SCAN_TIMEOUT_MS } from '../scans';
 import { apiFetch } from '../client';
 
 jest.mock('../client', () => ({ apiFetch: jest.fn() }));
@@ -18,11 +18,16 @@ afterEach(() => jest.restoreAllMocks());
 const imagePart = () => appended.find(([k]) => k === 'image')?.[1];
 
 describe('createScan', () => {
-  const upload = async (uri) => {
+  const upload = async (image) => {
     apiFetch.mockResolvedValueOnce({ id: 's1', candidates: [] });
-    await createScan(uri);
+    await createScan(image);
     const [path, opts] = apiFetch.mock.calls[0];
     return { path, opts, image: imagePart() };
+  };
+
+  const reset = () => {
+    jest.clearAllMocks();
+    appended = [];
   };
 
   test('POSTs multipart to /scans with the image under the field the API expects', async () => {
@@ -37,22 +42,38 @@ describe('createScan', () => {
     });
   });
 
-  test('names the part after the real extension — the picker is not always JPEG', async () => {
+  test('gives the upload its own deadline and one automatic retry', async () => {
+    const { opts } = await upload('file://a.jpg');
+    // iOS would otherwise abort a cold-started backend at ~60s and report it as
+    // a lost connection.
+    expect(opts.timeoutMs).toBe(SCAN_TIMEOUT_MS);
+    expect(SCAN_TIMEOUT_MS).toBeGreaterThan(60000);
+    expect(opts.retries).toBe(1);
+  });
+
+  test('accepts a prepared file and trusts its mimeType over the URI', async () => {
+    // The manipulator writes JPEG to a cache path that carries no extension we
+    // should be guessing from.
+    const { image } = await upload({
+      uri: 'file:///cache/ImageManipulator/abc',
+      mimeType: 'image/jpeg',
+    });
+    expect(image).toEqual({
+      uri: 'file:///cache/ImageManipulator/abc',
+      name: 'scan.jpg',
+      type: 'image/jpeg',
+    });
+  });
+
+  test('names the part after the real extension when there is no mimeType', async () => {
     expect((await upload('file://a.png')).image).toMatchObject({
       name: 'scan.png',
       type: 'image/png',
     });
-    jest.clearAllMocks();
-    appended = [];
+    reset();
     expect((await upload('file://a.WEBP')).image).toMatchObject({
       name: 'scan.webp',
       type: 'image/webp',
-    });
-    jest.clearAllMocks();
-    appended = [];
-    expect((await upload('file://a.heic')).image).toMatchObject({
-      name: 'scan.heic',
-      type: 'image/heic',
     });
   });
 
@@ -60,9 +81,15 @@ describe('createScan', () => {
     expect((await upload('file://a.jpeg?width=100')).image).toMatchObject({
       type: 'image/jpeg',
     });
-    jest.clearAllMocks();
-    appended = [];
+    reset();
     expect((await upload('file://photo')).image).toMatchObject({
+      name: 'scan.jpg',
+      type: 'image/jpeg',
+    });
+  });
+
+  test('never claims HEIC — the API rejects it, and prepareScanImage re-encodes first', async () => {
+    expect((await upload('file://a.heic')).image).toMatchObject({
       name: 'scan.jpg',
       type: 'image/jpeg',
     });

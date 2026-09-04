@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Linking,
   Pressable,
@@ -16,6 +16,8 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { createScan } from '../../api/scans';
+import { warmUp } from '../../api/health';
+import { prepareScanImage } from '../../lib/prepareImage';
 import Viewfinder from './Viewfinder';
 
 // Camera chrome sits over a live preview, so these are fixed rather than themed:
@@ -32,14 +34,35 @@ const SCRIM_FADE = 'rgba(0,0,0,0)';
 const VIEWFINDER_MAX = 288;
 const VIEWFINDER_INSET = 40;
 
+// One line per ApiError code. 'offline' is the only one that blames the user's
+// connection, and it is only ever set when the OS confirmed there isn't one —
+// a request we simply couldn't complete says so instead of sending someone to
+// go restart their router.
 const ERROR_COPY = {
   unauthorized: {
     title: 'Your session expired.',
     subtitle: 'Sign in again to identify plants by photo.',
   },
-  network: { title: 'You’re offline.', subtitle: 'Check your connection and try again.' },
+  offline: { title: 'You’re offline.', subtitle: 'Check your connection and try again.' },
+  network: {
+    title: 'Couldn’t reach Cultum.',
+    subtitle: 'The upload didn’t get through. Try again.',
+  },
+  timeout: {
+    title: 'That took too long.',
+    subtitle: 'The server didn’t answer in time. Try again in a moment.',
+  },
+  camera: {
+    title: 'Couldn’t take the photo.',
+    subtitle: 'Try again, or pick an existing picture.',
+  },
   http: { title: 'Something went wrong.', subtitle: 'Try again in a moment.' },
 };
+
+// How long identification may run before the overlay admits it's slow. The
+// request itself has a much longer deadline (SCAN_TIMEOUT_MS) — this only stops
+// a cold backend from looking like a frozen screen.
+const SLOW_SCAN_MS = 10000;
 
 // The 40px dark pill every camera control is built from (Figma's
 // _Navigation Bar Button / Button Icon over the preview).
@@ -94,32 +117,62 @@ export default function ScanCameraScreen() {
   const [torch, setTorch] = useState(false);
   const [phase, setPhase] = useState('ready');
   const [errorCode, setErrorCode] = useState('http');
+  const [errorDetail, setErrorDetail] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [slow, setSlow] = useState(false);
   const cameraRef = useRef(null);
 
   const granted = !!permission?.granted;
   const busy = phase !== 'ready';
 
-  async function runScan(uri) {
+  // Wake the backend while the user is still framing their shot. It scales to
+  // zero, and a cold start is long enough to eat into the scan's own deadline.
+  useEffect(() => {
+    if (granted) warmUp();
+  }, [granted]);
+
+  // "Identifying…" → "Still working…" so a slow scan reads as slow, not stuck.
+  useEffect(() => {
+    if (phase !== 'analyzing') {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), SLOW_SCAN_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  function fail(code, detail) {
+    setErrorCode(code);
+    setErrorDetail(detail ?? null);
+    setShowDetail(false);
+    setPhase('error');
+  }
+
+  async function runScan(uri, dimensions) {
     setPhase('analyzing');
     try {
-      const scan = await createScan(uri);
+      // Shrink and normalise first: full-resolution captures are what make an
+      // upload slow enough to drop, and the picker's HEIC isn't accepted at all.
+      const prepared = await prepareScanImage(uri, dimensions);
+      const scan = await createScan(prepared ?? uri);
       setPhase('ready');
+      // Show the original, not the downscaled copy that went to the server.
       navigate('scan-matches', { photoUri: uri, scan });
     } catch (e) {
-      setErrorCode(e?.code ?? 'http');
-      setPhase('error');
+      fail(e?.code ?? 'http', e?.detail ?? e?.message);
     }
   }
 
   async function onCapture() {
     if (busy || !cameraRef.current) return;
+    let photo;
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      await runScan(photo.uri);
-    } catch {
-      setErrorCode('http');
-      setPhase('error');
+      photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+    } catch (e) {
+      fail('camera', e?.message);
+      return;
     }
+    await runScan(photo.uri, { width: photo.width, height: photo.height });
   }
 
   async function onUpload() {
@@ -130,7 +183,9 @@ export default function ScanCameraScreen() {
       mediaTypes: ['images'],
       quality: 0.7,
     });
-    if (!result.canceled) await runScan(result.assets[0].uri);
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    await runScan(asset.uri, { width: asset.width, height: asset.height });
   }
 
   // ── Permission rationale — Figma "Scan / Camera access" ───────────────────
@@ -252,7 +307,9 @@ export default function ScanCameraScreen() {
       {phase === 'analyzing' ? (
         <View style={styles.analyzing}>
           <LoadingIndicator color={OVER_TEXT} />
-          <Text style={styles.analyzingText}>Identifying your plant…</Text>
+          <Text style={styles.analyzingText}>
+            {slow ? 'Still working — this one’s taking a moment…' : 'Identifying your plant…'}
+          </Text>
         </View>
       ) : null}
 
@@ -270,6 +327,25 @@ export default function ScanCameraScreen() {
               onPress: () => navigate('scan-search'),
             }}
           />
+          {/* What actually went wrong, one tap away. Tucked under the copy so it
+              never competes with it, but reachable — a bug report that quotes
+              this is diagnosable; "it says I'm offline" is not. */}
+          <Pressable
+            onPress={() => setShowDetail((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel="Error details"
+            style={styles.detailToggle}
+          >
+            <Text style={styles.detailToggleText}>
+              {showDetail ? 'Hide details' : 'Details'}
+            </Text>
+          </Pressable>
+          {showDetail ? (
+            <Text style={styles.detailText} selectable>
+              {errorCode}
+              {errorDetail ? `: ${errorDetail}` : ''}
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -359,5 +435,13 @@ const makeStyles = (t) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: space[32],
+    },
+    detailToggle: { marginTop: space[16], padding: space[8] },
+    detailToggleText: { ...typography.caption, color: t.text.secondary },
+    detailText: {
+      ...typography.caption,
+      color: t.text.secondary,
+      textAlign: 'center',
+      marginTop: space[4],
     },
   });
