@@ -3,11 +3,24 @@
 // here — this provider only owns exchange + storage.
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { loadTokens, saveTokens, clearTokens } from '../lib/authStorage';
+import { loadTokens, saveTokens, clearTokens, withExpiry } from '../lib/authStorage';
 import { authApi } from '../api/auth';
 import { setAuthTokenProvider, setUnauthorizedHandler } from '../api/client';
 
 const AuthContext = createContext(null);
+
+// Rotate this far before the access token actually expires. Refreshing after
+// the fact costs a wasted round trip — and for a scan that round trip is the
+// whole photo, uploaded twice.
+const REFRESH_SKEW_MS = 60000;
+
+function isUsable(tokens, now = Date.now()) {
+  if (!tokens?.access_token) return false;
+  // No recorded deadline (a session stored before we tracked one) — assume it's
+  // good and let a 401 correct us.
+  if (typeof tokens.expires_at !== 'number') return true;
+  return now < tokens.expires_at - REFRESH_SKEW_MS;
+}
 
 // DEV ONLY. When true (and running a dev build), skip Google sign-in and enter
 // the app with a fake session — lets you debug the UI/screens without OAuth
@@ -41,10 +54,32 @@ export function AuthProvider({ children }) {
     setTokens(next);
   }
 
+  // One rotation at a time. The proactive path below and apiFetch's 401 handler
+  // can both ask at once; without this they'd race and the loser would spend an
+  // already-rotated refresh token, which the backend rejects.
+  const rotationRef = useRef(null);
+
   useEffect(() => {
-    setAuthTokenProvider(() => tokensRef.current?.access_token ?? null);
+    setAuthTokenProvider(currentAccessToken);
     setUnauthorizedHandler(refreshSession);
   }, []);
+
+  // apiFetch awaits this before every request, so a token that is about to
+  // expire is rotated *here* rather than surfacing as a 401 and forcing the
+  // whole request — a multi-megabyte photo included — to be sent twice.
+  async function currentAccessToken() {
+    const current = tokensRef.current;
+    if (!current?.access_token) return null;
+    if (isUsable(current)) return current.access_token;
+    try {
+      const rotated = await refreshSession();
+      return rotated?.access_token ?? null;
+    } catch {
+      // The session is gone; refreshSession has already cleared it. Let the
+      // request go out unauthenticated and report the 401 it earns.
+      return null;
+    }
+  }
 
   useEffect(() => {
     // Dev escape hatch: pretend we have a session so AuthGate renders the app.
@@ -74,7 +109,7 @@ export function AuthProvider({ children }) {
   // Exchange a Google ID token for app tokens, persist, and flip to signedIn.
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
-    const minted = await authApi.loginGoogle(idToken);
+    const minted = withExpiry(await authApi.loginGoogle(idToken));
     await saveTokens(minted);
     applyTokens(minted);
     setStatus('signedIn');
@@ -85,9 +120,18 @@ export function AuthProvider({ children }) {
   // reused refresh token) the session is cleared. Registered above as apiFetch's
   // 401 handler, so any authenticated call (scans, garden, reminders) rotates
   // and replays once through this.
-  async function refreshSession() {
+  function refreshSession() {
+    if (!rotationRef.current) {
+      rotationRef.current = rotate().finally(() => {
+        rotationRef.current = null;
+      });
+    }
+    return rotationRef.current;
+  }
+
+  async function rotate() {
     try {
-      const rotated = await authApi.refresh(tokensRef.current?.refresh_token);
+      const rotated = withExpiry(await authApi.refresh(tokensRef.current?.refresh_token));
       await saveTokens(rotated);
       applyTokens(rotated);
       setStatus('signedIn');

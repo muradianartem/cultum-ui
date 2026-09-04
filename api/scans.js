@@ -1,21 +1,39 @@
 import { apiFetch } from './client';
 
-// The API accepts JPEG, PNG or WebP. The camera hands back .jpg, but the image
-// picker can return .png (and on iOS occasionally .heic), so name the part after
-// what we actually have rather than claiming everything is a JPEG.
+// Identification runs a provider call behind the API, and the dev backend
+// scales to zero — a cold container alone has been measured at ~30s. Give the
+// upload a deadline that reflects that instead of inheriting iOS's ~60s, which
+// aborts a working request and reports it as a lost connection.
+export const SCAN_TIMEOUT_MS = 120000;
+
+// The API accepts JPEG, PNG or WebP — nothing else, so HEIC is deliberately
+// absent here (prepareScanImage re-encodes it before we ever get this far).
+// Uploads normally arrive already normalised to JPEG; this map only matters for
+// the fallback path where preparation failed and we send the original file.
 const MIME_BY_EXT = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
-  heic: 'image/heic',
 };
 
-function filePart(uri) {
+const EXT_BY_MIME = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+function filePart({ uri, mimeType }) {
+  // The picker reports a mimeType, which beats guessing from the URI; fall back
+  // to the extension, then to JPEG.
+  const fromMime = EXT_BY_MIME[mimeType];
   const ext = (uri.split('?')[0].split('.').pop() || '').toLowerCase();
-  const type = MIME_BY_EXT[ext] ?? 'image/jpeg';
-  const name = `scan.${MIME_BY_EXT[ext] ? ext : 'jpg'}`;
-  return { uri, name, type };
+  const known = fromMime ?? (MIME_BY_EXT[ext] ? ext : null);
+  return {
+    uri,
+    name: `scan.${known ?? 'jpg'}`,
+    type: known ? MIME_BY_EXT[known] : 'image/jpeg',
+  };
 }
 
 /**
@@ -24,13 +42,22 @@ function filePart(uri) {
  * POST /scans — multipart/form-data, field `image`. Bearer-gated: with no token
  * the endpoint 401s (surfaced as ApiError code 'unauthorized').
  *
- * @param {string} imageUri  local file URI from the camera or image picker
+ * @param {string|{uri: string, mimeType?: string}} image
+ *        local file URI, or the prepared file descriptor from prepareScanImage
  * @returns {Promise<object>} ScanResult { id, status, created_at, candidates[], care? }
  */
-export async function createScan(imageUri) {
+export async function createScan(image) {
+  const file = typeof image === 'string' ? { uri: image } : image;
   const form = new FormData();
-  form.append('image', filePart(imageUri));
-  return apiFetch('/scans', { method: 'POST', body: form });
+  form.append('image', filePart(file));
+  return apiFetch('/scans', {
+    method: 'POST',
+    body: form,
+    timeoutMs: SCAN_TIMEOUT_MS,
+    // A dropped upload never reaches the server; one automatic re-send saves
+    // the user from re-taking the photo.
+    retries: 1,
+  });
 }
 
 /**
