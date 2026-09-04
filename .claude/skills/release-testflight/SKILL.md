@@ -1,12 +1,13 @@
 ---
 name: release-testflight
-description: Bump the app's version and ship a new iOS build to TestFlight via EAS Build. Use this whenever the user wants to cut a release, bump the version, ship, deploy, or push a build to TestFlight/App Store Connect for cultum-ui — including phrasings like "release a new version", "ship this to testflight", "bump to 1.1.0 and deploy", "cut a patch release", or a bare "/release-testflight". Also use it when the user asks why a build did not reach TestFlight, since the diagnosis notes here cover EAS's misleading submit errors.
+description: Bump the app's version and ship a new iOS build to TestFlight via EAS Build. Use this whenever the user wants to cut a release, bump the version, ship, deploy, or push a build to TestFlight/App Store Connect for cultum-ui — including phrasings like "release a new version", "ship this to testflight", "bump to 1.1.0 and deploy", "cut a patch release", or a bare "/release-testflight". Also use it when the user asks why a build did not reach TestFlight, since the diagnosis notes here cover how to confirm what Apple actually received.
 ---
 
 # Release to TestFlight
 
 Bump the marketing version, commit it, and kick off a production EAS build that
-auto-submits to TestFlight. Returns the build URL; it does not wait for the build.
+submits to TestFlight when it finishes. Returns the build URL; it does not wait for
+the build.
 
 ## The version model — read this first
 
@@ -75,7 +76,7 @@ No git tag — this repo does not tag releases.
 
 ```bash
 eas build --platform ios --profile production --non-interactive --no-wait \
-  --message "v<NEW_VERSION>"
+  --auto-submit --message "v<NEW_VERSION>"
 ```
 
 Why these flags:
@@ -86,14 +87,24 @@ Why these flags:
   silent hang. It is safe here specifically because the production profile uses
   `credentialsSource: "local"` — with EAS-managed credentials, non-interactive builds
   fail when a distribution certificate needs minting.
-- **Do not pass `--auto-submit`, and do not run `eas submit` afterwards.** Auto-submit
-  is already enabled server-side on this EAS project; a finished build goes to Apple on
-  its own. A redundant submit fails with a generic error that is really Apple's
-  duplicate-build-version rejection, which reads like the release broke when it did not.
+- `--auto-submit` is what actually carries the build to Apple. **Nothing submits on
+  its own.** There is no server-side auto-submit on this project: `eas.json` defines a
+  `submit.production.ios` profile, but a profile only says *how* to submit if asked, it
+  never triggers one. A build run without this flag finishes green on EAS and simply
+  sits there, never reaching App Store Connect. It pairs fine with `--no-wait` — EAS
+  queues the submission server-side and runs it when the build completes.
 
 Capture the build URL from the command output (`https://expo.dev/accounts/.../builds/...`).
 
-### 5. Report back
+### 5. Confirm the submission was queued
+
+The build output ends with the build URL and, when `--auto-submit` took effect, a note
+that a submission will follow. Check that it is there. If the output mentions no
+submission at all, the flag did not take — say so in the report rather than promising
+TestFlight delivery, and follow the manual `eas submit` path below once the build
+finishes.
+
+### 6. Report back
 
 Give the user, in a few lines:
 
@@ -102,22 +113,48 @@ Give the user, in a few lines:
 - that the commit is local only, and offer to push it — do not push unless they say
   yes. EAS uploads the working copy, so the build is already running with these
   changes; pushing is about the repo's history, not the build.
-- that auto-submit will carry the finished build to TestFlight with no further action
+- that `--auto-submit` will carry the finished build to TestFlight once the build
+  completes — and that this is worth *verifying* rather than assuming (see below).
+  Do not tell the user the release reached TestFlight; you have only queued it.
 
 ## When something goes wrong
 
 **The build fails on EAS.** Open the build URL for logs. Re-running does not need a new
 version bump — EAS assigns a fresh build number automatically.
 
-**The build succeeds but nothing appears in TestFlight.** Resist re-submitting; check
-first, because a duplicate submit produces a misleading error. `eas build:list --platform ios
---limit 5` shows build state, and Apple's real rejection reason is visible by validating
-the IPA directly:
+**The build succeeds but nothing appears in TestFlight.** By far the most likely cause
+is that the build was started without `--auto-submit`, so no submission was ever
+created. A green build on EAS says nothing about Apple having received it — the two are
+separate steps.
+
+Ask Apple what it actually has, rather than inferring from EAS:
 
 ```bash
-xcrun altool --validate-app -f <build>.ipa -t ios \
-  --apiKey APYMBNBK27 --apiIssuer 82444200-95c7-413e-a4c2-480a45e73e48
+eas build:list --platform ios --limit 5
 ```
+
+That shows build state and build numbers. To see what reached App Store Connect,
+open the TestFlight page for the app (`https://appstoreconnect.apple.com/apps/6804433119/testflight/ios`),
+or query the API directly with the ASC key in `certs/` — the builds endpoint lists
+every binary Apple has, keyed by `CFBundleVersion` (the build number, not the marketing
+version).
+
+If the build is missing from Apple, submit it explicitly by EAS build id:
+
+```bash
+eas submit --platform ios --profile production --id <BUILD_ID> --non-interactive --wait
+```
+
+`--wait` blocks until the binary is uploaded, so a failure is visible immediately
+instead of silently. After it returns, the build still takes ~2-10 minutes to appear in
+App Store Connect while Apple processes it; it lands in state `VALID`. This path is
+verified working — it is how v1.0.4 / build 13 was shipped on 2026-09-04 after builds
+12 and 13 both stalled from a missing `--auto-submit`.
+
+A duplicate submit — resubmitting a (version, buildNumber) pair Apple already has —
+fails with a generic error that is really Apple's duplicate rejection, and reads like
+the release broke when it did not. So check what Apple has *before* submitting, not as
+a reason to avoid submitting.
 
 **Credentials errors.** The production profile reads `certs/dist.p12` and
 `credentials.json`, both gitignored and local-only. If they are missing on this machine
