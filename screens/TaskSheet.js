@@ -144,7 +144,7 @@ export default function TaskSheet({
                   variant="secondary"
                   size="lg"
                   label="Snooze for"
-                  leftIcon={<Icon name="clock" size={20} color={t.text.primary} />}
+                  leftIcon={<Icon name="snooze" size={20} color={t.text.primary} />}
                   onPress={() => setStep('snooze')}
                 />
                 <Button

@@ -26,7 +26,7 @@ function TaskActions({ close, onAdjust, onSnooze, onDone, styles, t }) {
           size="lg"
           variant="outline"
           accessibilityLabel="Snooze task"
-          icon={<Icon name="clock" size={20} color={t.text.primary} />}
+          icon={<Icon name="snooze" size={20} color={t.text.primary} />}
           onPress={act(onSnooze)}
         />
         <Text style={styles.actionLabel}>Snooze</Text>

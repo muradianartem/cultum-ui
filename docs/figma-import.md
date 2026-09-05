@@ -11,6 +11,22 @@ This is the repeatable recipe; `Badge` is the worked example that proves it.
 - A URL like `figma.com/design/<fileKey>/…?node-id=26744-5099` gives you both
   the `fileKey` and the `nodeId` (convert the `-` to `:` → `26744:5099`).
 
+### The icon foundation
+
+- **Page:** "☼ Icons" — node `27338:14830`. Every glyph in `assets/icons/` comes
+  from here; it is the list to diff against when icons look out of date.
+- Figma names are **not** the filenames. Flatten to kebab-case:
+  `icons/mail` → `mail.svg`, `icons/outlined/cut` → `outlined-cut.svg`,
+  `icon/living_room` → `living-room.svg`. Pass `fileName` explicitly to
+  `download_figma_images` — it will not do this for you.
+- **Check the exported fill.** The `currentColor` rewrite in
+  `scripts/gen-icon-registry.js` only matches `fill="#151515"`. Figma sometimes
+  exports `fill="black"` instead (as `icon/snooze` did); normalise it to
+  `#151515` or the icon renders hard black and silently ignores `<Icon color>`.
+- Known local-only names, not drift: `flash.svg` is Figma's `icon/flash_on`,
+  `cultum-logo.svg` comes from the auth/paywall file, `star-filled.svg` has no
+  Figma counterpart.
+
 ### Connection is verified ✅
 
 `get_figma_data` returns structured layout/variant/token data for this file, so

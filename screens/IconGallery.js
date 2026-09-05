@@ -5,7 +5,7 @@ import { colors } from '../theme/tokens';
 
 /**
  * IconGallery — a catalog of every icon in the Cultum set. Not part of the app
- * flow; a reference/QA screen for browsing the 142 glyphs and their names.
+ * flow; a reference/QA screen for browsing the 158 glyphs and their names.
  */
 export default function IconGallery() {
   return (
