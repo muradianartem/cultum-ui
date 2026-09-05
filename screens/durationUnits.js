@@ -37,5 +37,8 @@ export const MONTHS_SHORT = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
+// Sunday-first, matching Calendar's WEEKDAY_INITIALS.
+export const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 // "1 day" / "2 days" — singular only at exactly 1.
 export const unitLabel = (u, n) => (n === 1 ? u.singular : u.plural);

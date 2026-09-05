@@ -9,6 +9,7 @@ import { LoadingIndicator } from './components';
 import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
+import AddPlantScreen from './screens/addPlant/AddPlantScreen';
 import PremiumGallery from './screens/PremiumGallery';
 import SettingsScreen from './screens/SettingsScreen';
 import PaywallScreen from './screens/PaywallScreen';
@@ -42,6 +43,7 @@ function AuthGate() {
     <Router initial="today">
       <Route name="today" component={TodayScreen} />
       <Route name="product" component={ProductPage} />
+      <Route name="add-plant" component={AddPlantScreen} />
       <Route name="reminders" component={RemindersScreen} />
       <Route name="settings" component={SettingsScreen} />
       <Route name="scan-camera" component={ScanCameraScreen} />
