@@ -69,9 +69,10 @@ export default function SettingsScreen() {
           value="settings"
           onChange={(value) => {
             // Today is the router's root — reset so Settings doesn't pile up
-            // in the back stack. Discover/Rooms are inert (as on TodayScreen).
+            // in the back stack. Discover is inert (as on TodayScreen).
             if (value === 'today') reset('today');
             if (value === 'scan') navigate('scan-camera');
+            if (value === 'rooms') navigate('rooms');
           }}
         />
       </View>

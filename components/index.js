@@ -20,6 +20,8 @@ export { default as SearchBar } from './SearchBar';
 export { default as TextInput } from './TextInput';
 export { default as Calendar } from './Calendar';
 export { default as Card } from './Card';
+export { default as RoomCard } from './RoomCard';
+export { default as PlantCard } from './PlantCard';
 export { default as List } from './List';
 export { default as ListItem } from './ListItem';
 export { default as Dropdown } from './Dropdown';
