@@ -18,6 +18,7 @@ export { default as SwipeableRow } from './SwipeableRow';
 export { default as WheelPicker } from './WheelPicker';
 export { default as SearchBar } from './SearchBar';
 export { default as TextInput } from './TextInput';
+export { default as Calendar } from './Calendar';
 export { default as Card } from './Card';
 export { default as List } from './List';
 export { default as ListItem } from './ListItem';

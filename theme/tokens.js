@@ -344,6 +344,25 @@ export const sheet = {
   bodyInk: '#404140', // description 16/24, caption 12/16
 };
 
+// ---- calendar (Figma: "Calendar", node 360:29 / "Calendar Day", node 359:39) ----
+// Month header + weekday row + a 6x7 day grid, optionally over a suggestions
+// chip strip. Day states map to the Figma "Calendar Day" variants:
+// Default / Selected / Today / Muted / Empty.
+export const calendar = {
+  bg: '#FAFAFA',
+  radius: 16,
+  cardBorder: '#B6B9B6', // the bordered wrap the sheet draws around the card
+  cardRadius: 20,
+  monthInk: '#151515',
+  weekdayInk: '#404140',
+  dayInk: '#151515',
+  dayInkMuted: '#404140',
+  daySelectedBg: '#93EC7C',
+  daySelectedInk: '#0C100A',
+  dayTodayBg: '#DADBDA',
+  daySize: 32,
+};
+
 // ---- geometry ----
 export const radius = {
   card: 16,
@@ -435,4 +454,4 @@ export const motion = {
   durSlow: 440,
 };
 
-export default { colors, badge, button, card, chip, menu, navbar, tabBar, tabs, avatar, overlay, sheet, divider, toggle, checkbox, radio, loading, emptyState, snackbar, segmented, searchBar, textInput, list, radius, spacing, fonts, fontSize, shadow, controls, motion };
+export default { colors, badge, button, calendar, card, chip, menu, navbar, tabBar, tabs, avatar, overlay, sheet, divider, toggle, checkbox, radio, loading, emptyState, snackbar, segmented, searchBar, textInput, list, radius, spacing, fonts, fontSize, shadow, controls, motion };

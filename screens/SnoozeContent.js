@@ -8,24 +8,23 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, WheelPicker } from '../components';
 import { sheet, fonts } from '../theme/tokens';
+import {
+  DEFAULT_FREQUENCY_UNIT_INDEX,
+  FREQUENCY_UNITS as UNITS,
+  SNOOZE_NUMBERS as NUMBERS,
+  unitLabel,
+} from './durationUnits';
 
 const ITEM_H = 44;
 const WHEEL_H = 176;
-const NUMBERS = Array.from({ length: 12 }, (_, i) => i + 1); // 1–12
-const UNITS = [
-  { plural: 'hours', singular: 'hour' },
-  { plural: 'days', singular: 'day' },
-  { plural: 'weeks', singular: 'week' },
-];
 
 export default function SnoozeContent({ onConfirm }) {
   // Default to "2 days", matching the Figma.
   const [numberIndex, setNumberIndex] = useState(1);
-  const [unitIndex, setUnitIndex] = useState(1);
+  const [unitIndex, setUnitIndex] = useState(DEFAULT_FREQUENCY_UNIT_INDEX);
 
   const number = NUMBERS[numberIndex];
-  const unit = UNITS[unitIndex];
-  const unitLabel = number === 1 ? unit.singular : unit.plural;
+  const label = unitLabel(UNITS[unitIndex], number);
 
   return (
     <View style={styles.wrap}>
@@ -62,8 +61,8 @@ export default function SnoozeContent({ onConfirm }) {
       <Button
         variant="primary"
         size="lg"
-        label={`Snooze for ${number} ${unitLabel}`}
-        onPress={() => onConfirm?.(number, unitLabel)}
+        label={`Snooze for ${number} ${label}`}
+        onPress={() => onConfirm?.(number, label)}
       />
     </View>
   );
