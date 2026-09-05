@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { navbar, fonts, divider as dividerToken } from '../theme/tokens';
 import ButtonIcon from './ButtonIcon';
+import Icon from './Icon';
 
 /**
  * NavigationBar — top-of-screen bar, imported from Figma "Navigation bar – P2".
@@ -11,16 +12,22 @@ import ButtonIcon from './ButtonIcon';
  *   Size (Small / Large)              → `size` ('sm' centres the title; 'lg' stacks a big serif title)
  *   Show title / subtitle / Divider   → `title` / `subtitle` / `divider`
  *
- * Leading + actions render as ghost <ButtonIcon>s.
+ * Leading + actions render as <ButtonIcon>s — ghost by default, or filled grey
+ * circles with `buttonVariant="secondary"` (what the add-a-plant flow's bars
+ * use in Figma).
  */
-function LeadingButton({ leading, onPress }) {
+function LeadingButton({ leading, onPress, variant }) {
   if (!leading) return null;
-  const glyph =
-    leading === 'back' ? '‹' : leading === 'close' ? '✕' : null;
-  const icon = glyph ? <Text style={styles.navGlyph}>{glyph}</Text> : leading;
+  const name =
+    leading === 'back' ? 'chevron-left' : leading === 'close' ? 'close' : null;
+  const icon = name ? (
+    <Icon name={name} size={20} color={navbar.titleInk} />
+  ) : (
+    leading
+  );
   return (
     <ButtonIcon
-      variant="ghost"
+      variant={variant}
       size="md"
       icon={icon}
       onPress={onPress}
@@ -29,13 +36,13 @@ function LeadingButton({ leading, onPress }) {
   );
 }
 
-function Actions({ actions = [] }) {
+function Actions({ actions = [], variant }) {
   return (
     <View style={styles.actions}>
       {actions.slice(0, 2).map((a, i) => (
         <ButtonIcon
           key={i}
-          variant="ghost"
+          variant={variant}
           size="md"
           icon={a.icon}
           onPress={a.onPress}
@@ -53,6 +60,7 @@ export default function NavigationBar({
   onLeadingPress,
   actions,
   size = 'sm',
+  buttonVariant = 'ghost',
   divider = true,
   style,
   ...rest
@@ -68,9 +76,9 @@ export default function NavigationBar({
       {isLarge ? (
         <>
           <View style={styles.rowLarge}>
-            <LeadingButton leading={leading} onPress={onLeadingPress} />
+            <LeadingButton leading={leading} onPress={onLeadingPress} variant={buttonVariant} />
             <View style={styles.spacer} />
-            <Actions actions={actions} />
+            <Actions actions={actions} variant={buttonVariant} />
           </View>
           <View style={styles.largeTitleRow}>
             {title ? <Text style={styles.largeTitle}>{title}</Text> : null}
@@ -79,7 +87,7 @@ export default function NavigationBar({
       ) : (
         <View style={styles.rowSmall}>
           <View style={styles.side}>
-            <LeadingButton leading={leading} onPress={onLeadingPress} />
+            <LeadingButton leading={leading} onPress={onLeadingPress} variant={buttonVariant} />
           </View>
           <View style={styles.center}>
             {title ? (
@@ -94,7 +102,7 @@ export default function NavigationBar({
             ) : null}
           </View>
           <View style={[styles.side, styles.sideRight]}>
-            <Actions actions={actions} />
+            <Actions actions={actions} variant={buttonVariant} />
           </View>
         </View>
       )}
@@ -139,5 +147,4 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     color: navbar.titleInk,
   },
-  navGlyph: { fontSize: 22, color: navbar.titleInk, lineHeight: 24 },
 });

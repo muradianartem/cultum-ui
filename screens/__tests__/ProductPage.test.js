@@ -71,10 +71,33 @@ const pressButton = (tree, label) => {
   act(() => node.props.onPress());
 };
 
-test('adding the plant then Settings navigates to the reminders route with the plant name', () => {
+test('Add to my plants opens the add-a-plant flow with the view-model', () => {
   const tree = create(<ProductPage plant={VM} />);
-  // Settings only appears once the plant is added.
   pressButton(tree, 'Add to my plants');
+
+  expect(api.route).toBe('add-plant');
+  expect(api.params).toEqual({ plant: VM });
+});
+
+test('an owned plant renders the added layout under the name it was given', () => {
+  const tree = create(<ProductPage plant={VM} owned nickname="Mo" room="Kitchen" />);
+  const t = texts(tree);
+  // The CTA is gone, and the hero goes by the nickname over species · room.
+  expect(t).not.toContain('Add to my plants');
+  expect(t).toContain('Mo');
+  expect(t).toContain('Snake plant · Kitchen');
+});
+
+test('an owned plant with no nickname keeps the species name in the hero', () => {
+  const tree = create(<ProductPage plant={VM} owned />);
+  const t = texts(tree);
+  expect(t).toContain('Snake plant');
+  expect(t).toContain('Dracaena trifasciata');
+});
+
+test('Settings on an owned plant navigates to the reminders route with the plant name', () => {
+  const tree = create(<ProductPage plant={VM} owned />);
+  // Settings only appears once the plant is added.
   pressButton(tree, 'Settings');
 
   expect(api.route).toBe('reminders');

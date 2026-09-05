@@ -142,7 +142,7 @@ function Section({ title, action, children, styles }) {
   );
 }
 
-export default function ProductPage({ plant }) {
+export default function ProductPage({ plant, owned = false, nickname, room }) {
   const insets = useSafeAreaInsets();
   const { navigate, back } = useRouter();
   const t = useTheme();
@@ -152,7 +152,10 @@ export default function ProductPage({ plant }) {
   // route passes nothing and falls back to the static default.
   const vm = plant ?? DEFAULT_PLANT_VM;
 
-  const [added, setAdded] = useState(false);
+  // `owned` comes back from the add-a-plant flow, which re-enters this route
+  // with replace() rather than calling back into it — the page is unmounted for
+  // the duration of the flow, so there is no state here to update in place.
+  const [added, setAdded] = useState(owned);
   const [tasks, setTasks] = useState(TODAYS_TASKS);
   const [segment, setSegment] = useState('about');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -236,8 +239,14 @@ export default function ProductPage({ plant }) {
                 />
               ))}
             </View>
-            <Text style={styles.heroTitle}>{vm.commonName}</Text>
-            <Text style={styles.heroSubtitle}>{vm.latinName}</Text>
+            {/* Once it's yours it goes by the name you gave it, and the
+                species drops to the line below. */}
+            <Text style={styles.heroTitle}>{added && nickname ? nickname : vm.commonName}</Text>
+            <Text style={styles.heroSubtitle}>
+              {added && nickname
+                ? [vm.commonName, room].filter(Boolean).join(' · ')
+                : vm.latinName}
+            </Text>
           </View>
         </ImageBackground>
 
@@ -365,7 +374,7 @@ export default function ProductPage({ plant }) {
           <Button
             label="Add to my plants"
             size="lg"
-            onPress={() => setAdded(true)}
+            onPress={() => navigate('add-plant', { plant: vm })}
             leftIcon={<Icon name="add" size={20} color={t.brand.onPrimary} />}
           />
         </View>
