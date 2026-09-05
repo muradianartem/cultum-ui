@@ -15,6 +15,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
 import { KIND_META, PLANT_NAME, REMINDERS } from './reminderData';
 import ReminderValueSheet from './ReminderValueSheet';
+import AddReminderSheet from './AddReminderSheet';
 
 // Coloured icon chip — a 40×40 rounded-full tinted square holding a 20px icon.
 // Resolves the reminder's `kind` to an icon + semantic tone (copying the
@@ -128,15 +129,27 @@ export default function RemindersScreen({ plantName }) {
   const [editor, setEditor] = useState(null);
   // Keep the last-edited target while the sheet slides out, so it doesn't blank.
   const [editorOpen, setEditorOpen] = useState(false);
+  // The three-step "Add new reminder" flow (nav + and the bottom row).
+  const [addOpen, setAddOpen] = useState(false);
 
   const toggle = (id) =>
     setReminders((rs) =>
       rs.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
     );
 
+  const addReminder = (reminder) => setReminders((rs) => [...rs, reminder]);
+
+  // Both sheets are Modals on this one screen, and iOS won't stack two — the UI
+  // already makes them mutually exclusive (whichever is open covers the other's
+  // trigger), but close the sibling explicitly so that stays true by construction.
   const openEditField = (id, field) => {
+    setAddOpen(false);
     setEditor({ id, field });
     setEditorOpen(true);
+  };
+  const openAdd = () => {
+    setEditorOpen(false);
+    setAddOpen(true);
   };
   const closeEditor = () => setEditorOpen(false);
   const applyEdit = (value) => {
@@ -166,6 +179,13 @@ export default function RemindersScreen({ plantName }) {
           leading="back"
           onLeadingPress={back}
           divider={false}
+          actions={[
+            {
+              icon: <Icon name="add" size={20} color={t.text.primary} />,
+              onPress: openAdd,
+              accessibilityLabel: 'Add reminder',
+            },
+          ]}
         />
       </View>
 
@@ -190,7 +210,7 @@ export default function RemindersScreen({ plantName }) {
         ))}
 
         <List variant="card">
-          <ListItem title="Add Reminder" onPress={() => {}} />
+          <ListItem title="Add new reminder" onPress={openAdd} />
         </List>
       </ScrollView>
 
@@ -218,6 +238,12 @@ export default function RemindersScreen({ plantName }) {
         reminder={editing}
         onClose={closeEditor}
         onConfirm={applyEdit}
+      />
+
+      <AddReminderSheet
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        onConfirm={addReminder}
       />
     </View>
   );

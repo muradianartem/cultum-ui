@@ -1,14 +1,30 @@
 import { buildResult, parseValue } from '../ReminderValueSheet';
+import { DEFAULT_FREQUENCY_UNIT_INDEX } from '../durationUnits';
+
+// buildResult/parseValue cover the amount fields only — `date` is picked on a
+// <Calendar> now, and formats via shortDate()/parseShortDate() in
+// screens/addReminderData.js, which addReminderData.test.js covers.
+//
+// Frequency and snooze both read their units from screens/durationUnits.js:
+// FREQUENCY_UNITS is [hours, days, weeks, months] and SNOOZE_UNITS prepends
+// "None" to it. So the unit index for "days" is 1 on the frequency wheel and 2
+// on the snooze wheel.
+const DAYS_UNIT = DEFAULT_FREQUENCY_UNIT_INDEX; // 1
 
 describe('buildResult', () => {
   test('frequency formats number + plural unit', () => {
-    // FREQ numbers are 1..30 (index 6 → 7); units [days, weeks, months].
-    expect(buildResult('frequency', 6, 0)).toBe('7 days');
-    expect(buildResult('frequency', 1, 1)).toBe('2 weeks');
+    // FREQ numbers are 1..30 (index 6 → 7); units [hours, days, weeks, months].
+    expect(buildResult('frequency', 6, DAYS_UNIT)).toBe('7 days');
+    expect(buildResult('frequency', 1, 2)).toBe('2 weeks');
+  });
+
+  test('frequency offers the units shared with the create flow', () => {
+    expect(buildResult('frequency', 5, 0)).toBe('6 hours');
+    expect(buildResult('frequency', 2, 3)).toBe('3 months');
   });
 
   test('frequency uses the singular unit for a value of 1', () => {
-    expect(buildResult('frequency', 0, 0)).toBe('1 day');
+    expect(buildResult('frequency', 0, DAYS_UNIT)).toBe('1 day');
   });
 
   test('snooze returns "None" for the None unit regardless of number', () => {
@@ -16,14 +32,9 @@ describe('buildResult', () => {
   });
 
   test('snooze formats number + unit for a real unit', () => {
-    // SNOOZE numbers 1..12; units [None, hours, days, weeks].
+    // SNOOZE numbers 1..12; units [None, hours, days, weeks, months].
     expect(buildResult('snooze', 1, 2)).toBe('2 days');
     expect(buildResult('snooze', 0, 1)).toBe('1 hour');
-  });
-
-  test('date formats as "{day} {Mon}"', () => {
-    // months index 7 → Aug, days index 20 → 21.
-    expect(buildResult('date', 7, 20)).toBe('21 Aug');
   });
 });
 
@@ -43,13 +54,11 @@ describe('parseValue', () => {
     expect(b).toBe(0);
   });
 
-  test('date round-trips through buildResult', () => {
-    const { a, b } = parseValue('date', '21 Aug');
-    expect(buildResult('date', a, b)).toBe('21 Aug');
-  });
-
   test('falls back to defaults for unparseable input', () => {
-    expect(parseValue('frequency', 'garbage')).toEqual({ a: 0, b: 0 });
-    expect(parseValue('frequency', undefined)).toEqual({ a: 0, b: 0 });
+    // Unparseable frequency lands on "1 day" — 'days', not the list's leading
+    // 'hours', via FIELD.frequency.defaultUnitIndex.
+    expect(parseValue('frequency', 'garbage')).toEqual({ a: 0, b: DAYS_UNIT });
+    expect(parseValue('frequency', undefined)).toEqual({ a: 0, b: DAYS_UNIT });
+    expect(buildResult('frequency', 0, DAYS_UNIT)).toBe('1 day');
   });
 });
