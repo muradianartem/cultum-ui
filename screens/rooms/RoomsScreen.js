@@ -13,10 +13,10 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { searchBar } from '../../theme/tokens';
-import { TABS } from '../todayData';
-import { openPlant } from '../scan/openPlant';
+import { useGarden } from '../../store/GardenProvider';
+import { roomCards, searchGarden } from '../../store/views';
+import { TABS } from '../navConfig';
 import PlantGrid from './PlantGrid';
-import { ROOMS, roomMeta, searchRooms } from './roomsData';
 
 /**
  * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8 and "Rooms / Search"
@@ -36,9 +36,18 @@ export default function RoomsScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
 
+  const garden = useGarden();
   const [query, setQuery] = useState('');
   const searching = query.trim().length > 0;
-  const results = useMemo(() => searchRooms(ROOMS, query), [query]);
+
+  const rooms = useMemo(
+    () => roomCards(garden.state, garden.now),
+    [garden.state, garden.now],
+  );
+  const results = useMemo(
+    () => searchGarden(garden.state, query, garden.now),
+    [garden.state, query, garden.now],
+  );
 
   const bothKinds = results.rooms.length > 0 && results.plants.length > 0;
   const noResults = searching && results.rooms.length === 0 && results.plants.length === 0;
@@ -50,7 +59,10 @@ export default function RoomsScreen() {
     icon: <Icon name={tab.icon} size={24} color={t.text.primary} />,
   }));
 
-  const openRoom = (room) => navigate('room', { room });
+  // By id, not by value: a room passed as a param would be a snapshot, and
+  // renaming it on the detail screen would leave this list showing the old name.
+  const openRoom = (room) => navigate('room', { roomId: room.id });
+  const openPlant = (plant) => navigate('product', { plantId: plant.id });
 
   return (
     <View style={styles.screen}>
@@ -95,7 +107,7 @@ export default function RoomsScreen() {
                         <RoomCard
                           key={room.id}
                           name={room.name}
-                          meta={roomMeta(room)}
+                          meta={room.meta}
                           photos={room.photos}
                           onPress={() => openRoom(room)}
                         />
@@ -107,23 +119,36 @@ export default function RoomsScreen() {
                 {results.plants.length > 0 ? (
                   <View style={styles.section}>
                     {bothKinds ? <Text style={styles.sectionHeader}>Plants</Text> : null}
-                    <PlantGrid
-                      plants={results.plants}
-                      onPress={(p) => openPlant(p, navigate)}
-                    />
+                    <PlantGrid plants={results.plants} onPress={openPlant} />
                   </View>
                 ) : null}
               </>
-            ) : (
-              ROOMS.map((room) => (
+            ) : rooms.length > 0 ? (
+              rooms.map((room) => (
                 <RoomCard
                   key={room.id}
                   name={room.name}
-                  meta={roomMeta(room)}
+                  meta={room.meta}
                   photos={room.photos}
                   onPress={() => openRoom(room)}
                 />
               ))
+            ) : (
+              // A room only exists once a plant lives in it, so an empty
+              // garden has nothing to list — point at the way in instead.
+              <View style={styles.emptyWrap}>
+                <State
+                  icon={<Icon name="plant" size={24} color={t.text.primary} />}
+                  iconVariant="secondary"
+                  title="No rooms yet"
+                  subtitle="Add your first plant and its room appears here."
+                  primaryAction={{
+                    label: 'Add a plant',
+                    leftIcon: <Icon name="outlined-scan" size={16} color={t.brand.onPrimary} />,
+                    onPress: () => navigate('scan-camera'),
+                  }}
+                />
+              </View>
             )}
           </ScrollView>
         )}

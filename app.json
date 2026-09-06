@@ -48,6 +48,12 @@
       "expo-web-browser",
       "expo-secure-store",
       [
+        "expo-notifications",
+        {
+          "color": "#93EC7C"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {

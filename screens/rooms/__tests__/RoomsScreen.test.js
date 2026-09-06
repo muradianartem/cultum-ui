@@ -1,68 +1,67 @@
-import TestRenderer, { act } from 'react-test-renderer';
-import { Text, TextInput as RNTextInput } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Router, useRouter } from '../../../routing';
+import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import RoomsScreen from '../RoomsScreen';
 import RoomScreen from '../RoomScreen';
-import { ROOMS } from '../roomsData';
 
-const METRICS = {
-  frame: { x: 0, y: 0, width: 375, height: 812 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
+const NOW = new Date(2026, 8, 5, 15, 0, 0);
 
-let api;
-function Probe() {
-  api = useRouter();
-  return null;
-}
-
-function create(node, initial = 'rooms') {
-  let tree;
-  act(() => {
-    tree = TestRenderer.create(
-      <SafeAreaProvider initialMetrics={METRICS}>
-        <Router initial={initial}>
-          <Probe />
-          {node}
-        </Router>
-      </SafeAreaProvider>
-    );
+// Two rooms with plants and one (Bathroom, from the default catalog) without —
+// a room exists for this screen only once something lives in it.
+const garden = () =>
+  seedGarden({
+    now: NOW,
+    plants: [
+      {
+        nickname: 'Penny',
+        speciesKey: 'pilea-peperomioides',
+        care: { scientific_name: 'Pilea peperomioides' },
+        room: 'Living Room',
+        reminders: [{ action: 'water', intervalDays: 7, dueInDays: 0 }],
+      },
+      {
+        nickname: 'Figgy',
+        speciesKey: 'ficus-lyrata',
+        care: { scientific_name: 'Ficus lyrata' },
+        room: 'Living Room',
+        reminders: [{ action: 'water', intervalDays: 7, dueInDays: -1 }],
+      },
+      {
+        nickname: 'Kitchen Monstera',
+        speciesKey: 'monstera-deliciosa',
+        care: { scientific_name: 'Monstera deliciosa' },
+        room: 'Kitchen',
+        reminders: [{ action: 'water', intervalDays: 7, dueInDays: 5 }],
+      },
+    ],
   });
-  return tree;
-}
 
-const texts = (tree) =>
-  tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
+const render = (node, { state = garden(), initial = 'rooms' } = {}) =>
+  renderWithGarden(node, { state, initial, clock: NOW });
 
-const type = (tree, value) =>
-  act(() => tree.root.findAllByType(RNTextInput)[0].props.onChangeText(value));
-
-// Press the deepest node carrying this label — the host Pressable, not the
-// component element that also holds the prop.
-const press = (tree, label) => {
-  const nodes = tree.root.findAll(
-    (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === label
-  );
-  act(() => nodes[nodes.length - 1].props.onPress());
-};
+afterEach(cleanupTrees);
 
 describe('RoomsScreen', () => {
-  test('idle lists every room with its meta line', () => {
-    const t = texts(create(<RoomsScreen />));
+  test('lists only rooms that hold plants, with their meta lines', () => {
+    const t = render(<RoomsScreen />).texts();
     expect(t).toContain('Rooms');
     expect(t).toContain('Living Room');
     expect(t).toContain('Kitchen');
-    expect(t).toContain('Bedroom');
-    expect(t).toContain('3 plants · 2 to check');
+    expect(t).toContain('2 plants · 2 to check'); // both Living Room plants are due
+    expect(t).toContain('1 plant'); // Kitchen has nothing due
+    expect(t).not.toContain('Bathroom'); // in the catalog, but empty
+  });
+
+  test('an empty garden points at the way in rather than an empty list', () => {
+    const t = render(<RoomsScreen />, { state: seedGarden({ now: NOW }) }).texts();
+    expect(t).toContain('No rooms yet');
+    expect(t).toContain('Add a plant');
   });
 
   test('a plant-only query shows the plant cards and no rooms or headers', () => {
-    const tree = create(<RoomsScreen />);
-    type(tree, 'monstera');
-    const t = texts(tree);
-    expect(t).toContain('Kitchen Monstera');
-    expect(t).toContain('Mo');
+    const r = render(<RoomsScreen />);
+    r.type('pilea');
+    const t = r.texts();
+    expect(t).toContain('Penny');
+    expect(t).toContain('Pilea peperomioides');
     expect(t).not.toContain('Living Room');
     // "Rooms" is still the nav title, but no "Plants" section header appears
     // when only one kind matched.
@@ -70,63 +69,77 @@ describe('RoomsScreen', () => {
   });
 
   test('a query hitting both kinds renders both sections, with headers', () => {
-    const tree = create(<RoomsScreen />);
-    type(tree, 'kitchen');
-    const t = texts(tree);
+    const r = render(<RoomsScreen />);
+    r.type('kitchen');
+    const t = r.texts();
     expect(t).toContain('Plants'); // section header
     expect(t).toContain('Kitchen'); // the room card
     expect(t).toContain('Kitchen Monstera'); // the plant card
-    expect(t).not.toContain('Bedroom');
-  });
-
-  test('a miss shows the empty state', () => {
-    const tree = create(<RoomsScreen />);
-    type(tree, 'zzzz');
-    const t = texts(tree);
-    expect(t).toContain('No results found');
     expect(t).not.toContain('Living Room');
   });
 
-  test('clearing the query goes back to the full list', () => {
-    const tree = create(<RoomsScreen />);
-    type(tree, 'zzzz');
-    type(tree, '');
-    expect(texts(tree)).toContain('Living Room');
+  test('search reaches the species as well as the nickname', () => {
+    const r = render(<RoomsScreen />);
+    r.type('ficus');
+    expect(r.texts()).toContain('Figgy');
   });
 
-  test('tapping a room navigates to it with the room as a param', () => {
-    const tree = create(<RoomsScreen />);
-    press(tree, 'Living Room, 3 plants · 2 to check');
-    expect(api.route).toBe('room');
-    expect(api.params.room.id).toBe('living-room');
+  test('a miss shows the empty state', () => {
+    const r = render(<RoomsScreen />);
+    r.type('zzzz');
+    expect(r.texts()).toContain('No results found');
+    expect(r.texts()).not.toContain('Living Room');
+  });
+
+  test('clearing the query goes back to the full list', () => {
+    const r = render(<RoomsScreen />);
+    r.type('zzzz');
+    r.type('');
+    expect(r.texts()).toContain('Living Room');
+  });
+
+  test('tapping a room navigates to it by id, not by value', () => {
+    const state = garden();
+    const r = render(<RoomsScreen />, { state });
+    r.press('Living Room, 2 plants · 2 to check');
+    expect(r.router.route).toBe('room');
+    expect(r.router.params.roomId).toBe('living-room');
+  });
+
+  test('tapping a plant opens that plant', () => {
+    const state = garden();
+    const r = render(<RoomsScreen />, { state });
+    r.type('pilea');
+    r.press('Penny, Pilea peperomioides');
+    expect(r.router.route).toBe('product');
+    expect(r.router.params.plantId).toBe(state.plants[0].id);
   });
 });
 
 describe('RoomScreen', () => {
-  const LIVING = ROOMS[0];
-
   test('renders the room name, plant count and its plants', () => {
-    const t = texts(create(<RoomScreen room={LIVING} />, 'room'));
+    const t = render(<RoomScreen roomId="living-room" />, { initial: 'room' }).texts();
     expect(t).toContain('Living Room');
-    expect(t).toContain('3 plants');
+    expect(t).toContain('2 plants');
     expect(t).toContain('Penny');
     expect(t).toContain('Figgy');
-    expect(t).toContain('Lily');
   });
 
   test('an empty room falls back to the empty state', () => {
-    const t = texts(create(<RoomScreen room={{ ...LIVING, plants: [] }} />, 'room'));
+    const t = render(<RoomScreen roomId="bathroom" />, { initial: 'room' }).texts();
     expect(t).toContain('No plants here yet');
   });
 
-  test('the pen opens the rename sheet, and saving updates the title', () => {
-    const tree = create(<RoomScreen room={LIVING} />, 'room');
-    press(tree, 'Rename room');
-    expect(texts(tree)).toContain('Rename room');
+  // The mock version kept the new name in local state, so navigating back
+  // discarded it. It goes to the store now, which is the point.
+  test('the pen opens the rename sheet, and the new name persists in the store', () => {
+    const r = render(<RoomScreen roomId="living-room" />, { initial: 'room' });
+    r.press('Rename room');
+    expect(r.texts()).toContain('Rename room');
 
-    type(tree, 'Lounge');
-    press(tree, 'Save');
-    expect(texts(tree)).toContain('Lounge');
-    expect(texts(tree)).not.toContain('Living Room');
+    r.type('Lounge');
+    r.press('Save');
+    expect(r.texts()).toContain('Lounge');
+    expect(r.texts()).not.toContain('Living Room');
   });
 });

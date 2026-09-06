@@ -1,27 +1,43 @@
+// Edit Reminders — one plant's care schedule (Figma node 1:7889).
+//
+// Every row is a real reminder from the store, and every edit is written
+// straight back: a toggle, a new frequency, a moved start date and a removal
+// all persist and all re-derive the plant's next due date (store/schedule.js)
+// and its notifications.
+//
+// The sheets still speak in display strings ("7 days", "21 Aug", "None") —
+// that is the wheel's own vocabulary — so store/format.js owns the pair of
+// formatter and parser at that boundary rather than either sheet knowing about
+// interval days.
+
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Button,
-  Dialog,
-  Icon,
-  List,
-  ListItem,
-  NavigationBar,
-  Toggle,
-} from '../components';
+import { Button, Dialog, Icon, List, ListItem, NavigationBar, State, Toggle } from '../components';
 import { useRouter } from '../routing';
+import { useGarden } from '../store/GardenProvider';
+import { actionMeta } from '../store/model';
+import {
+  dateLabelFor,
+  durationMs,
+  frequencyValue,
+  longDate,
+  parseFrequency,
+  reminderDateValue,
+  shortDate,
+} from '../store/format';
+import { nextDueAt } from '../store/schedule';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { KIND_META, PLANT_NAME, REMINDERS } from './reminderData';
+import { parseShortDate } from './addReminderData';
 import ReminderValueSheet from './ReminderValueSheet';
 import AddReminderSheet from './AddReminderSheet';
 
 // Coloured icon chip — a 40×40 rounded-full tinted square holding a 20px icon.
-// Resolves the reminder's `kind` to an icon + semantic tone (copying the
-// `taskTile` pattern from ProductPage), so it re-tints in light/dark for free.
-function Chip({ kind, styles, t }) {
-  const meta = KIND_META[kind] ?? KIND_META.custom;
+// The action's semantic tone resolves against the theme, so it re-tints in
+// light/dark for free.
+function Chip({ action, styles, t }) {
+  const meta = actionMeta(action);
   const { bg, fg } =
     meta.tone === 'neutral'
       ? { bg: t.surface.secondary, fg: t.text.primary }
@@ -52,16 +68,16 @@ function DetailRow({ label, value, onPress, accessibilityLabel, styles, t }) {
   );
 }
 
-// One reminder card: a card-style List panel with a (non-pressable) header row —
-// chip, title, optional "Next reminder" subtitle, enable Toggle — followed by
-// three pressable detail rows (date, frequency, snooze).
-function ReminderCard({ reminder, onToggle, onEditField, onRemove, styles, t }) {
+// One reminder card: a card-style List panel with a (non-pressable) header row
+// — chip, title, "Next reminder" subtitle, enable Toggle — followed by three
+// pressable detail rows (date, frequency, snooze) and a Remove.
+function ReminderCard({ reminder, view, onToggle, onEditField, onRemove, styles, t }) {
   return (
     <List variant="card">
       <ListItem
-        before={<Chip kind={reminder.kind} styles={styles} t={t} />}
+        before={<Chip action={reminder.action} styles={styles} t={t} />}
         title={reminder.title}
-        subtitle={reminder.nextLabel}
+        subtitle={view.nextLabel}
         after={
           <Toggle
             value={reminder.enabled}
@@ -72,8 +88,8 @@ function ReminderCard({ reminder, onToggle, onEditField, onRemove, styles, t }) 
       />
       <View style={styles.details}>
         <DetailRow
-          label={reminder.dateLabel}
-          value={reminder.dateValue}
+          label={view.dateLabel}
+          value={view.dateValue}
           accessibilityLabel={`${reminder.title} date`}
           onPress={() => onEditField('date')}
           styles={styles}
@@ -81,7 +97,7 @@ function ReminderCard({ reminder, onToggle, onEditField, onRemove, styles, t }) 
         />
         <DetailRow
           label="Frequency"
-          value={reminder.frequency}
+          value={view.frequency}
           accessibilityLabel={`${reminder.title} Frequency`}
           onPress={() => onEditField('frequency')}
           styles={styles}
@@ -89,40 +105,52 @@ function ReminderCard({ reminder, onToggle, onEditField, onRemove, styles, t }) 
         />
         <DetailRow
           label="Snooze for"
-          value={reminder.snooze}
+          value={view.snooze}
           accessibilityLabel={`${reminder.title} Snooze`}
           onPress={() => onEditField('snooze')}
           styles={styles}
           t={t}
         />
-        {reminder.removable ? (
-          <View style={styles.removeWrap}>
-            <Button
-              variant="secondary"
-              destructive
-              size="sm"
-              label="Remove"
-              accessibilityLabel="Remove"
-              onPress={onRemove}
-              leftIcon={<Icon name="trash" size={16} color={t.error.primary} />}
-            />
-          </View>
-        ) : null}
+        <View style={styles.removeWrap}>
+          <Button
+            variant="secondary"
+            destructive
+            size="sm"
+            label="Remove"
+            accessibilityLabel="Remove"
+            onPress={onRemove}
+            leftIcon={<Icon name="trash" size={16} color={t.error.primary} />}
+          />
+        </View>
       </View>
     </List>
   );
 }
 
-// The Edit Reminders screen — a per-plant list of care reminders. Composed from
-// Cultum primitives and themed via useTheme() (light/dark), spacing from
-// theme/foundations. Mock data + local state (V1); mirrors ProductPage/TodayScreen.
-export default function RemindersScreen({ plantName }) {
+/**
+ * The stored reminder as the three detail rows read it.
+ *
+ * The card is entirely derived — there is no separate display copy to keep in
+ * step with the numbers underneath.
+ */
+function toView(reminder) {
+  const due = reminder.enabled ? nextDueAt(reminder) : null;
+  return {
+    nextLabel: due ? `Next reminder: ${longDate(due)}` : null,
+    dateLabel: dateLabelFor(reminder),
+    dateValue: reminderDateValue(reminder),
+    frequency: frequencyValue(reminder.intervalDays),
+    snooze: reminder.snoozedUntil ? `Until ${shortDate(new Date(reminder.snoozedUntil))}` : 'None',
+  };
+}
+
+export default function RemindersScreen({ plantId, plantName }) {
   const insets = useSafeAreaInsets();
   const { back } = useRouter();
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const garden = useGarden();
 
-  const [reminders, setReminders] = useState(REMINDERS);
   // Id of the reminder pending removal (drives the confirm Dialog); null = closed.
   const [pendingRemove, setPendingRemove] = useState(null);
   // Value editor: { id, field } while a detail row's sheet is open (null = closed).
@@ -132,12 +160,8 @@ export default function RemindersScreen({ plantName }) {
   // The three-step "Add new reminder" flow (nav + and the bottom row).
   const [addOpen, setAddOpen] = useState(false);
 
-  const toggle = (id) =>
-    setReminders((rs) =>
-      rs.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
-    );
-
-  const addReminder = (reminder) => setReminders((rs) => [...rs, reminder]);
+  const plant = plantId ? garden.getPlant(plantId) : null;
+  const reminders = plant ? garden.remindersFor(plant.id) : [];
 
   // Both sheets are Modals on this one screen, and iOS won't stack two — the UI
   // already makes them mutually exclusive (whichever is open covers the other's
@@ -151,20 +175,47 @@ export default function RemindersScreen({ plantName }) {
     setEditorOpen(false);
     setAddOpen(true);
   };
-  const closeEditor = () => setEditorOpen(false);
-  const applyEdit = (value) => {
-    if (!editor) return;
-    const { id, field } = editor;
-    const key = field === 'date' ? 'dateValue' : field;
-    setReminders((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
-  };
 
   const editing = editor ? reminders.find((r) => r.id === editor.id) : null;
+  const editingView = editing ? toView(editing) : null;
 
-  const askRemove = (id) => setPendingRemove(id);
-  const cancelRemove = () => setPendingRemove(null);
+  /** Translate a wheel's display string back into what the store keeps. */
+  const applyEdit = (value) => {
+    if (!editor || !editing) return;
+    const { id, field } = editor;
+    if (field === 'frequency') {
+      garden.updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) });
+      return;
+    }
+    if (field === 'snooze') {
+      // "None" parses to 0, which the store reads as "clear the snooze".
+      garden.snoozeReminder(id, durationMs(value));
+      return;
+    }
+    // The date row anchors the schedule: once something has been done it is the
+    // last completion, before that it is the start.
+    const date = parseShortDate(value);
+    if (!date) return;
+    garden.updateReminder(
+      id,
+      editing.lastDoneAt
+        ? { lastDoneAt: date.toISOString() }
+        : { startAt: date.toISOString() },
+    );
+  };
+
+  const addReminder = (draft) => {
+    if (!plant) return;
+    garden.addReminder(plant.id, {
+      action: 'custom',
+      title: draft.title,
+      intervalDays: parseFrequency(draft.frequency),
+      startAt: (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
+    });
+  };
+
   const confirmRemove = () => {
-    setReminders((rs) => rs.filter((r) => r.id !== pendingRemove));
+    garden.deleteReminder(pendingRemove);
     setPendingRemove(null);
   };
 
@@ -175,68 +226,80 @@ export default function RemindersScreen({ plantName }) {
       <View style={{ paddingTop: insets.top }}>
         <NavigationBar
           title="Edit Reminders"
-          subtitle={plantName ?? PLANT_NAME}
+          subtitle={plant?.nickname ?? plantName}
           leading="back"
           onLeadingPress={back}
           divider={false}
-          actions={[
-            {
-              icon: <Icon name="add" size={20} color={t.text.primary} />,
-              onPress: openAdd,
-              accessibilityLabel: 'Add reminder',
-            },
-          ]}
+          actions={
+            plant
+              ? [
+                {
+                  icon: <Icon name="add" size={20} color={t.text.primary} />,
+                  onPress: openAdd,
+                  accessibilityLabel: 'Add reminder',
+                },
+              ]
+              : []
+          }
         />
       </View>
 
-      <ScrollView
-        contentContainerStyle={{
-          padding: space[16],
-          paddingBottom: insets.bottom + space[24],
-          gap: space[16],
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {reminders.map((reminder) => (
-          <ReminderCard
-            key={reminder.id}
-            reminder={reminder}
-            onToggle={() => toggle(reminder.id)}
-            onEditField={(field) => openEditField(reminder.id, field)}
-            onRemove={() => askRemove(reminder.id)}
-            styles={styles}
-            t={t}
-          />
-        ))}
+      {plant ? (
+        <ScrollView
+          contentContainerStyle={{
+            padding: space[16],
+            paddingBottom: insets.bottom + space[24],
+            gap: space[16],
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {reminders.map((reminder) => (
+            <ReminderCard
+              key={reminder.id}
+              reminder={reminder}
+              view={toView(reminder)}
+              onToggle={() => garden.toggleReminder(reminder.id, !reminder.enabled)}
+              onEditField={(field) => openEditField(reminder.id, field)}
+              onRemove={() => setPendingRemove(reminder.id)}
+              styles={styles}
+              t={t}
+            />
+          ))}
 
-        <List variant="card">
-          <ListItem title="Add new reminder" onPress={openAdd} />
-        </List>
-      </ScrollView>
+          <List variant="card">
+            <ListItem title="Add new reminder" onPress={openAdd} />
+          </List>
+        </ScrollView>
+      ) : (
+        // Reached without a plant — the only way in now is from a plant, so
+        // this is a dead end rather than a state to design around.
+        <View style={styles.emptyWrap}>
+          <State
+            icon={<Icon name="plant" size={24} color={t.text.primary} />}
+            iconVariant="secondary"
+            title="No plant selected"
+            subtitle="Open a plant to edit its reminders."
+          />
+        </View>
+      )}
 
       <Dialog
         testID="remove-dialog"
         visible={pendingRemove !== null}
-        onClose={cancelRemove}
+        onClose={() => setPendingRemove(null)}
         title="Remove reminder?"
         description={
-          pending
-            ? `“${pending.title}” will be removed from this plant’s reminders.`
-            : undefined
+          pending ? `“${pending.title}” will be removed from this plant’s reminders.` : undefined
         }
-        primaryAction={{
-          label: 'Remove reminder',
-          destructive: true,
-          onPress: confirmRemove,
-        }}
-        secondaryAction={{ label: 'Cancel', onPress: cancelRemove }}
+        primaryAction={{ label: 'Remove reminder', destructive: true, onPress: confirmRemove }}
+        secondaryAction={{ label: 'Cancel', onPress: () => setPendingRemove(null) }}
       />
 
       <ReminderValueSheet
         visible={editorOpen}
         field={editor?.field}
-        reminder={editing}
-        onClose={closeEditor}
+        reminder={editingView}
+        onClose={() => setEditorOpen(false)}
         onConfirm={applyEdit}
       />
 
@@ -270,4 +333,5 @@ const makeStyles = (t) =>
     detailValue: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
     detailValueText: { ...typography.bodyLarge, color: t.text.secondary },
     removeWrap: { paddingTop: space[8] },
+    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: space[48] },
   });

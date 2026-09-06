@@ -9,7 +9,7 @@ import { Icon } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { fonts, list } from '../../theme/tokens';
-import { HERO } from '../plantData';
+import { HERO } from '../placeholderPhotos';
 
 export default function SuccessStep({ photo, title, subtitle }) {
   const t = useTheme();

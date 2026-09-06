@@ -60,21 +60,31 @@ const { loadTokens } = require('../lib/authStorage');
 const texts = (tree) =>
   tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
+// The garden provider holds a clock interval and an AppState subscription that
+// are only released on unmount — leave a tree mounted and the worker hangs.
+const mounted = [];
+
 async function renderApp() {
   let tree;
   await act(async () => {
     tree = TestRenderer.create(<App />);
   });
+  mounted.push(tree);
   return tree;
 }
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => {
+  act(() => {
+    while (mounted.length) mounted.pop().unmount();
+  });
+  jest.clearAllMocks();
+});
 
 test('with no stored tokens, App shows the Login screen', async () => {
   loadTokens.mockResolvedValue(null);
   const tree = await renderApp();
   expect(texts(tree)).toContain('Continue with Google');
-  expect(texts(tree)).not.toContain('Good afternoon, Allison');
+  expect(texts(tree)).not.toContain('Today’s tasks');
 });
 
 test('with stored tokens, App boots to Today and wires the Scan/Add tab to the camera', async () => {
@@ -85,7 +95,10 @@ test('with stored tokens, App boots to Today and wires the Scan/Add tab to the c
     expires_in: 3600,
   });
   const tree = await renderApp();
-  expect(texts(tree)).toContain('Good afternoon, Allison');
+  // A fresh install has no plants, so Today opens on its empty state — what
+  // matters here is that the router mounted at all.
+  expect(texts(tree)).toContain('Today’s tasks');
+  expect(texts(tree)).toContain('No plants yet');
 
   const scanTab = tree.root.find(
     (n) =>
@@ -96,5 +109,5 @@ test('with stored tokens, App boots to Today and wires the Scan/Add tab to the c
   act(() => scanTab.props.onPress());
 
   // The camera route's ungranted rationale renders.
-  expect(texts(tree)).toContain('Identify by photo');
+  expect(texts(tree)).toContain('Camera Access');
 });

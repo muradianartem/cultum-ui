@@ -9,6 +9,11 @@
 //
 // Pure: no React/RN imports, so it unit-tests directly.
 
+// The month and weekday names live with the rest of the garden's date
+// formatting (store/format.js); re-exported here so the sheets that already
+// import from this module keep working against one definition.
+export { MONTHS_SHORT, WEEKDAYS_SHORT } from '../store/format';
+
 const unit = (plural, singular) => ({ plural, singular });
 
 // The canonical repeat/duration units, ordered shortest → longest.
@@ -31,14 +36,6 @@ export const DEFAULT_FREQUENCY_UNIT_INDEX = 1;
 
 export const FREQUENCY_NUMBERS = Array.from({ length: 30 }, (_, i) => i + 1); // 1–30
 export const SNOOZE_NUMBERS = Array.from({ length: 12 }, (_, i) => i + 1); // 1–12
-
-export const MONTHS_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-// Sunday-first, matching Calendar's WEEKDAY_INITIALS.
-export const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // "1 day" / "2 days" — singular only at exactly 1.
 export const unitLabel = (u, n) => (n === 1 ? u.singular : u.plural);

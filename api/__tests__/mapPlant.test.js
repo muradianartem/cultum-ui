@@ -4,12 +4,17 @@ import {
   summaryToCard,
   speciesDetailToVM,
   cardToVM,
+  careActions,
+  faq,
+  highlights,
 } from '../mapPlant';
-import { DEFAULT_ABOUT, CHIPS } from '../../screens/plantData';
+import { DEFAULT_ABOUT, CHIPS } from '../fallbacks';
 import { MOCK_DETAIL } from '../__mocks__/scanFixtures';
 
-const water = (vm) => vm.careFacts.find((f) => f.label === 'Water').value;
-const fact = (vm, label) => vm.careFacts.find((f) => f.label === label).value;
+// The watering cadence and the six Highlights tiles are where the raw
+// SpeciesDetail numbers surface.
+const water = (d) => careActions(d).find((r) => r.action === 'water').value;
+const fact = (d, key) => highlights(d).find((h) => h.key === key).value;
 
 describe('matchesCaption', () => {
   test('interpolates the top percent into the verbatim design caption', () => {
@@ -92,48 +97,31 @@ describe('speciesDetailToVM', () => {
     expect(vm.speciesKey).toBe('monstera-deliciosa');
   });
 
-  test('builds all four care facts, in the order ProductPage indexes them', () => {
-    const vm = speciesDetailToVM(MOCK_DETAIL);
-    expect(vm.careFacts.map((f) => f.label)).toEqual([
-      'Water',
-      'Sun',
-      'Temperature',
-      'Humidity',
-    ]);
-    expect(water(vm)).toBe('Every 7–10 days');
-    expect(fact(vm, 'Sun')).toBe('Bright, indirect');
-    expect(fact(vm, 'Temperature')).toBe('18–27℃ / 64–81℉');
-    expect(fact(vm, 'Humidity')).toBe('Average home is fine');
+  test('reads the care numbers the catalog gives', () => {
+    expect(water(MOCK_DETAIL)).toBe('Every 7–10 days');
+    expect(fact(MOCK_DETAIL, 'sun')).toBe('Bright, indirect');
+    expect(fact(MOCK_DETAIL, 'temperature')).toBe('18–27℃ / 64–81℉');
+    expect(fact(MOCK_DETAIL, 'humidity')).toBe('Average home is fine');
   });
 
   test('collapses an equal water range and handles a single bound', () => {
-    expect(
-      water(speciesDetailToVM({ water_interval_days_min: 7, water_interval_days_max: 7 }))
-    ).toBe('Every 7 days');
-    expect(water(speciesDetailToVM({ water_interval_days_min: 5 }))).toBe('Every 5 days');
-    expect(water(speciesDetailToVM({ water_interval_days_max: 9 }))).toBe('Every 9 days');
+    expect(water({ water_interval_days_min: 7, water_interval_days_max: 7 })).toBe('Every 7 days');
+    expect(water({ water_interval_days_min: 5 })).toBe('Every 5 days');
+    expect(water({ water_interval_days_max: 9 })).toBe('Every 9 days');
   });
 
-  test('falls back to water_note, then to the static placeholder', () => {
-    expect(water(speciesDetailToVM({ water_note: 'When the topsoil dries.' }))).toBe(
-      'When the topsoil dries.'
-    );
-    expect(water(speciesDetailToVM({}))).toBe('Every 7–10 days');
+  test('falls back to water_note when the catalog only has prose', () => {
+    expect(water({ water_note: 'When the topsoil dries.' })).toBe('When the topsoil dries.');
+    expect(water({})).toBe('—');
   });
 
-  test('falls back to the raw level when a label is missing, then to the placeholder', () => {
-    const levels = speciesDetailToVM({ sun_level: 'low', humidity_level: 'high' });
-    expect(fact(levels, 'Sun')).toBe('low');
-    expect(fact(levels, 'Humidity')).toBe('high');
-
-    const bare = speciesDetailToVM({});
-    expect(fact(bare, 'Sun')).toBe('Bright, indirect');
-    expect(fact(bare, 'Temperature')).toBe('18–27℃ / 64–81℉');
-    expect(fact(bare, 'Humidity')).toBe('Average home is fine');
+  test('falls back to the raw level when a label is missing', () => {
+    expect(fact({ sun_level: 'low' }, 'sun')).toBe('low');
+    expect(fact({ humidity_level: 'high' }, 'humidity')).toBe('high');
   });
 
   test('converts a single-bound temperature to °F too', () => {
-    expect(fact(speciesDetailToVM({ temp_min_c: 10 }), 'Temperature')).toBe('10℃ / 50℉');
+    expect(fact({ temp_min_c: 10 }, 'temperature')).toBe('10℃ / 50℉');
   });
 
   test('derives chips from difficulty and toxicity, keeping the static pair when neither exists', () => {
@@ -172,9 +160,10 @@ describe('cardToVM', () => {
     expect(vm.latinName).toBe('Dracaena trifasciata');
     expect(vm.heroUri).toBe('https://img/snake.jpg');
     expect(vm.about).toBe(DEFAULT_ABOUT);
-    expect(vm.careFacts).toHaveLength(4);
+    expect(vm.highlights).toHaveLength(6);
+    expect(vm.careActions).toHaveLength(3);
     expect(vm.chips).toBeDefined();
-    expect(vm.faq).toBeDefined();
+    expect(vm.faq).toEqual([]); // nothing to answer from without detail
     expect(vm.speciesKey).toBe('dracaena-trifasciata');
   });
 });
@@ -236,15 +225,103 @@ test('maps the live catalog payload into every care fact and chip', () => {
     image_url: '/media/species/monstera-deliciosa/card.jpg',
   });
 
-  expect(vm.careFacts.map((f) => f.value)).toEqual([
-    'Every 7–10 days',
+  expect(vm.careActions.map((r) => r.value)).toEqual(['Every 7–10 days', '—', '—']);
+  expect(vm.highlights.map((h) => h.value)).toEqual([
+    'Toxic to humans, cats, dogs, horses',
+    'Moderate',
     'Bright, indirect',
     '16–29℃ / 61–84℉',
     'Likes humidity',
+    '—',
   ]);
   expect(vm.chips).toEqual([
     { label: 'Moderate', intent: 'positive', icon: 'stickers' },
     { label: 'Toxic', intent: 'negative', icon: 'outlined-paw' },
   ]);
   expect(vm.commonName).toBe('Swiss Cheese Plant');
+});
+
+// ---------------------------------------------------------------------------
+// The redesigned product page (Figma 1:11377) reads more of SpeciesDetail than
+// the old care grid did: six Highlights tiles, three "How to care" rows, and an
+// FAQ built from the catalog rather than a fixed script.
+// ---------------------------------------------------------------------------
+
+const row = (d, action) => careActions(d).find((r) => r.action === action);
+
+describe('highlights', () => {
+  test('always returns the six Figma tiles, in order', () => {
+    expect(highlights(MOCK_DETAIL).map((h) => h.label)).toEqual([
+      'Toxicity',
+      'Maintenance',
+      'Sun',
+      'Temperature',
+      'Humidity',
+      'Pruning',
+    ]);
+  });
+
+  test('names who a plant is toxic to, falling back to the bare label', () => {
+    expect(fact({ toxic_to: ['cats', 'dogs'] }, 'toxicity')).toBe('Toxic to cats, dogs');
+    expect(fact({ toxicity: 'toxic' }, 'toxicity')).toBe('Toxic');
+  });
+
+  test('derives pruning from growth rate, which is what actually drives it', () => {
+    expect(fact({ growth_rate: 'slow' }, 'pruning')).toBe('Rarely needed');
+    expect(fact({ growth_rate: 'Fast' }, 'pruning')).toBe('Often needed');
+  });
+
+  test('shows an em dash rather than dropping a tile out of the grid', () => {
+    expect(highlights({}).map((h) => h.value)).toEqual(['—', '—', '—', '—', '—', '—']);
+  });
+});
+
+describe('careActions', () => {
+  test('states a cadence and carries the interval the reminders are seeded from', () => {
+    const d = { ...MOCK_DETAIL, fertilize_interval_days: 28, repot_interval_months: 24 };
+    expect(row(d, 'water')).toMatchObject({ value: 'Every 7–10 days', intervalDays: 7 });
+    expect(row(d, 'fertilize')).toMatchObject({ value: 'Every 4 weeks', intervalDays: 28 });
+    expect(row(d, 'repot')).toMatchObject({ value: 'Every 2 years', intervalDays: 720 });
+  });
+
+  test('a monthly-or-longer cadence reads in months and years, not days', () => {
+    expect(row({ fertilize_interval_days: 30 }, 'fertilize').value).toBe('Every month');
+    expect(row({ fertilize_interval_days: 60 }, 'fertilize').value).toBe('Every 2 months');
+    expect(row({ repot_interval_months: 12 }, 'repot').value).toBe('Every year');
+    expect(row({ repot_interval_months: 18 }, 'repot').value).toBe('Every 18 months');
+  });
+
+  test('an unknown cadence cannot seed a reminder, and says so', () => {
+    expect(row({}, 'fertilize')).toMatchObject({ value: '—', intervalDays: null });
+  });
+});
+
+describe('faq', () => {
+  test('answers only what the catalog actually knows', () => {
+    expect(faq({})).toEqual([]);
+  });
+
+  test('builds the pet-safety answer from toxic_to when there is no note', () => {
+    const [first] = faq({ toxic_to: ['cats', 'dogs'] });
+    expect(first.q).toBe('Is it safe around pets?');
+    expect(first.a).toContain('toxic to cats and dogs');
+  });
+
+  test('prefers the catalog\'s own note over the derived sentence', () => {
+    expect(faq({ toxicity_note: 'Chewing the leaves causes mouth irritation.' })[0].a).toBe(
+      'Chewing the leaves causes mouth irritation.',
+    );
+  });
+
+  test('combines light and temperature into the where-should-it-live answer', () => {
+    const answer = faq({ sun_label: 'Bright, indirect', temp_min_c: 18, temp_max_c: 27 }).find(
+      (i) => i.q === 'Where should it live?',
+    );
+    expect(answer.a).toBe('Give it bright, indirect light. It is happiest at 18–27℃ / 64–81℉.');
+  });
+
+  test('growth rate closes the list', () => {
+    const items = faq(MOCK_DETAIL);
+    expect(items[items.length - 1].q).toBe('How fast does it grow?');
+  });
 });

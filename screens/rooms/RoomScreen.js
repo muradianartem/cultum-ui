@@ -1,55 +1,59 @@
+// RoomScreen — one room's plants (Figma "Room" 377:10, and "Room / Rename"
+// 381:19290 for the sheet).
+//
+// Reached from RoomsScreen with the room's *id* as the route param. Reading the
+// room from the store rather than receiving it by value is what makes the
+// rename stick: routing/Route.js unmounts this screen on the way back, and a
+// param would have been a snapshot of a name that no longer exists.
+
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, NavigationBar, State } from '../../components';
 import { useRouter } from '../../routing';
+import { useGarden } from '../../store/GardenProvider';
+import { plantCard, roomDetailSubtitle } from '../../store/views';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
-import { openPlant } from '../scan/openPlant';
 import PlantGrid from './PlantGrid';
 import RenameRoomSheet from './RenameRoomSheet';
-import { roomSubtitle } from './roomsData';
 
-/**
- * RoomScreen — one room's plants (Figma "Room" 377:10, and "Room / Rename"
- * 381:19290 for the sheet).
- *
- * Reached from RoomsScreen with the room as a route param. No tab bar: Figma
- * treats this as a pushed detail, not a tab root.
- *
- * V1 mock: the rename lives in this screen's state, and routing/Route.js
- * unmounts a screen the moment you navigate away — so a new name is gone once
- * you go back to the list. Same limitation the add-a-plant flow documents; it
- * lifts when rooms get a real store.
- */
-export default function RoomScreen({ room }) {
+export default function RoomScreen({ roomId }) {
   const insets = useSafeAreaInsets();
   const { navigate, back } = useRouter();
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const garden = useGarden();
 
-  const [name, setName] = useState(room?.name ?? 'Room');
   const [renaming, setRenaming] = useState(false);
 
-  const plants = room?.plants ?? [];
+  const room = garden.getRoom(roomId);
+  const plants = useMemo(
+    () => garden.plantsInRoom(roomId).map(plantCard),
+    [garden, roomId],
+  );
 
   return (
     <View style={styles.screen}>
       <View style={{ paddingTop: insets.top }}>
         <NavigationBar
-          title={name}
-          subtitle={roomSubtitle(room)}
+          title={room?.name ?? 'Room'}
+          subtitle={roomDetailSubtitle(garden.state, roomId)}
           leading="back"
           onLeadingPress={back}
           buttonVariant="secondary"
           divider={false}
-          actions={[
-            {
-              icon: <Icon name="edit-pen" size={20} color={t.text.primary} />,
-              onPress: () => setRenaming(true),
-              accessibilityLabel: 'Rename room',
-            },
-          ]}
+          actions={
+            room
+              ? [
+                {
+                  icon: <Icon name="edit-pen" size={20} color={t.text.primary} />,
+                  onPress: () => setRenaming(true),
+                  accessibilityLabel: 'Rename room',
+                },
+              ]
+              : []
+          }
         />
       </View>
 
@@ -73,15 +77,18 @@ export default function RoomScreen({ room }) {
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[24] }]}
           showsVerticalScrollIndicator={false}
         >
-          <PlantGrid plants={plants} onPress={(p) => openPlant(p, navigate)} />
+          <PlantGrid
+            plants={plants}
+            onPress={(plant) => navigate('product', { plantId: plant.id })}
+          />
         </ScrollView>
       )}
 
       <RenameRoomSheet
         visible={renaming}
-        name={name}
+        name={room?.name ?? ''}
         onClose={() => setRenaming(false)}
-        onSave={(next) => setName(next.trim())}
+        onSave={(next) => garden.renameRoom(roomId, next)}
       />
     </View>
   );
