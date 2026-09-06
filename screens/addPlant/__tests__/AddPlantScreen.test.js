@@ -1,87 +1,60 @@
-import TestRenderer, { act } from 'react-test-renderer';
-import { Text, TextInput as RNTextInput } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Router, useRouter } from '../../../routing';
+import { act } from 'react-test-renderer';
+import { TextInput as RNTextInput } from 'react-native';
+import { speciesDetailToVM } from '../../../api/mapPlant';
+import { Route } from '../../../routing';
+import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
+import ProductPage from '../../ProductPage';
 import AddPlantScreen from '../AddPlantScreen';
-import { resetRoomIds } from '../addPlantData';
-
-const METRICS = {
-  frame: { x: 0, y: 0, width: 375, height: 812 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
 
 // Fixed "today" so every date label is deterministic: Thursday 10 Sep 2026.
 const TODAY = new Date(2026, 8, 10);
 
-const VM = {
-  commonName: 'Swiss cheese plant',
-  latinName: 'Monstera deliciosa',
-  heroUri: 'https://img/monstera.jpg',
-  speciesKey: 'monstera-deliciosa',
-  careFacts: [
-    { icon: 'outlined-water', label: 'Water', value: 'Every 7–10 days' },
-    { icon: 'sun', label: 'Sun', value: 'Bright, indirect' },
-  ],
+const DETAIL = {
+  species_key: 'monstera-deliciosa',
+  scientific_name: 'Monstera deliciosa',
+  common_name: 'Swiss cheese plant',
+  image_url: 'https://img/monstera.jpg',
+  water_interval_days_min: 7,
+  water_interval_days_max: 10,
 };
+const VM = speciesDetailToVM(DETAIL);
 
-let api;
-function Probe() {
-  api = useRouter();
-  return null;
-}
+let harness;
 
+// The product page is mounted alongside so Done can be followed all the way
+// through: the flow finishes by replacing the route with the new plant's id,
+// and what lands there has to render from the store.
 function create(props = {}) {
-  let tree;
-  act(() => {
-    tree = TestRenderer.create(
-      <SafeAreaProvider initialMetrics={METRICS}>
-        <Router initial="add-plant">
-          <Probe />
-          <AddPlantScreen plant={VM} today={TODAY} {...props} />
-        </Router>
-      </SafeAreaProvider>
-    );
-  });
-  return tree;
+  harness = renderWithGarden(
+    <>
+      <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} {...props} />} />
+      <Route name="product" component={ProductPage} />
+    </>,
+    { state: seedGarden({ now: TODAY }), initial: 'add-plant', clock: TODAY },
+  );
+  return harness;
 }
 
-const texts = (tree) =>
-  tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
+afterEach(cleanupTrees);
 
-// Press the deepest node carrying this label — the host Pressable, not the
-// component element that also holds the prop.
-const press = (tree, label) => {
-  const nodes = tree.root.findAll(
-    (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === label
-  );
-  act(() => nodes[nodes.length - 1].props.onPress());
-};
+const texts = (r) => r.texts();
+const press = (r, label) => r.press(label);
+const button = (r, label) => r.find(label);
+const type = (r, value) => r.type(value);
 
-const button = (tree, label) =>
-  tree.root
-    .findAll(
-      (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === label
-    )
-    .at(-1);
-
-const type = (tree, value) =>
-  act(() => tree.root.findAllByType(RNTextInput)[0].props.onChangeText(value));
-
-const sheetVisible = (tree, testID) =>
-  tree.root.findAll((n) => n.props.testID === testID)[0].props.visible;
+const sheetVisible = (r, testID) =>
+  r.tree.root.findAll((n) => n.props.testID === testID)[0].props.visible;
 
 // Walk to a given step with a name and (past `room`) the Kitchen selected.
-const walkTo = (tree, step) => {
+const walkTo = (r, step) => {
   if (step === 'name') return;
-  press(tree, 'Continue'); // name → room
+  press(r, 'Continue'); // name → room
   if (step === 'room') return;
-  press(tree, 'Kitchen'); // select the room
-  press(tree, 'Continue'); // room → reminders
+  press(r, 'Kitchen'); // select the room
+  press(r, 'Continue'); // room → reminders
   if (step === 'reminders') return;
-  press(tree, 'Skip for now'); // reminders → success
+  press(r, 'Skip for now'); // reminders → success
 };
-
-beforeEach(resetRoomIds);
 
 describe('step 1 — name', () => {
   test('opens prefilled with the common name and the Figma suggestions', () => {
@@ -89,14 +62,14 @@ describe('step 1 — name', () => {
     const t = texts(tree);
     expect(t).toContain('Name your plant');
     expect(t).toContain('Step 1 of 3');
-    expect(tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Swiss cheese plant');
+    expect(tree.tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Swiss cheese plant');
     expect(t).toEqual(expect.arrayContaining(['Monstera', 'Ziggy', 'Mo', 'Bruce']));
   });
 
   test('a suggestion chip fills the field, and clearing disables Continue', () => {
     const tree = create();
     press(tree, 'Mo');
-    expect(tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Mo');
+    expect(tree.tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Mo');
 
     expect(button(tree, 'Continue').props.accessibilityState.disabled).toBe(false);
     type(tree, '   ');
@@ -109,7 +82,7 @@ describe('step 1 — name', () => {
     press(tree, 'Close');
     // Nothing to pop to from the initial route, so the route is unchanged —
     // what matters is that the flow did not advance or step within itself.
-    expect(api.route).toBe('add-plant');
+    expect(tree.router.route).toBe('add-plant');
     expect(texts(tree)).toContain('Name your plant');
   });
 });
@@ -138,7 +111,7 @@ describe('step 2 — room', () => {
     press(tree, 'Add a new room');
     expect(sheetVisible(tree, 'add-room-sheet')).toBe(true);
 
-    act(() => tree.root.findAllByType(RNTextInput)[0].props.onChangeText('Hallway'));
+    type(tree, 'Hallway');
     press(tree, 'Add room');
 
     expect(sheetVisible(tree, 'add-room-sheet')).toBe(false);
@@ -153,7 +126,7 @@ describe('step 2 — room', () => {
     walkTo(tree, 'room');
     press(tree, 'Back');
     expect(texts(tree)).toContain('Name your plant');
-    expect(tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Mo');
+    expect(tree.tree.root.findAllByType(RNTextInput)[0].props.value).toBe('Mo');
   });
 });
 
@@ -166,11 +139,13 @@ describe('step 3 — reminders', () => {
     expect(t).toContain('Step 3 of 3');
     expect(t).toContain('Watering');
     expect(t).toContain('Fertilizing');
-    expect(t.filter((x) => x === 'Reminder is turned off')).toHaveLength(2);
+    expect(t).toContain('Repotting');
+    expect(t.filter((x) => x === 'Reminder is turned off')).toHaveLength(3);
     expect(t).toContain('Skip for now');
 
     press(tree, 'Enable Watering');
-    expect(texts(tree)).toContain('Every 7 days');
+    // The catalog's own phrasing, not a flattened number.
+    expect(texts(tree)).toContain('Every 7–10 days');
     expect(texts(tree)).toContain('Continue'); // the CTA is no longer a skip
   });
 
@@ -212,28 +187,32 @@ describe('success', () => {
     expect(texts(tree)).toContain('Next treatment is on Thu 17, Sep');
   });
 
-  test('Done re-enters the product page as owned', () => {
+  test('Done writes the plant to the store and opens its page by id', () => {
     const tree = create();
     press(tree, 'Mo');
-    walkTo(tree, 'success');
+    walkTo(tree, 'reminders');
+    press(tree, 'Enable Watering');
+    press(tree, 'Continue');
     press(tree, 'Done');
 
-    expect(api.route).toBe('product');
-    expect(api.params).toEqual({
-      plant: VM,
-      owned: true,
-      speciesKey: 'monstera-deliciosa',
-      nickname: 'Mo',
-      room: 'Kitchen',
-      reminders: [],
-    });
+    expect(tree.router.route).toBe('product');
+    const { plantId } = tree.router.params;
+    expect(plantId).toBeTruthy();
+    // The page it lands on renders from the store, under the chosen name and
+    // in the chosen room — and the watering it opted into is really scheduled,
+    // a full interval out from the moment the plant was added.
+    const t = texts(tree);
+    expect(t).toContain('Mo');
+    expect(t).toContain('Monstera deliciosa · Kitchen');
+    expect(t).toContain('All caught up');
+    expect(t).toContain('Next reminder is on Thu, Sep 17');
   });
 
   test('Scan another plant resets to the camera, leaving no flow in the stack', () => {
     const tree = create();
     walkTo(tree, 'success');
     press(tree, 'Scan another plant');
-    expect(api.route).toBe('scan-camera');
-    expect(api.canGoBack).toBe(false);
+    expect(tree.router.route).toBe('scan-camera');
+    expect(tree.router.canGoBack).toBe(false);
   });
 });

@@ -1,35 +1,31 @@
+// ProductPage — a plant's page, in both of the lives it has (Figma "Product
+// page", node 1:11377).
+//
+// Before it is yours it is a catalog entry: hero, description, Highlights, How
+// to care, FAQ, and a CTA to add it. Once it is yours the same page gains the
+// things only an owned plant has — today's tasks for it, an About/Journal
+// switch, and the Actions list (Edit Reminders / Rename / Move / Archive /
+// Delete) that used to be a three-item overflow menu.
+//
+// Which life it is in is decided by the store, not by a route param: an owned
+// plant is addressed by `plantId` and every field is read live, so a rename
+// made here is on the Rooms screen before the navigation animation finishes.
+// A catalog preview arrives as `plant` (a PlantVM from api/mapPlant.js).
+
 import { useMemo, useState } from 'react';
-import {
-  ImageBackground,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Badge,
-  Button,
-  DropdownMenu,
-  Icon,
-  ICON_NAMES,
-  List,
-  ListItem,
-  Overlay,
-  SegmentedControl,
-} from '../components';
+import { Badge, Button, Dialog, Icon, ICON_NAMES, List, ListItem, SegmentedControl } from '../components';
 import { useRouter } from '../routing';
+import { useGarden } from '../store/GardenProvider';
+import { plantPhoto } from '../store/model';
+import { nextReminderLabel } from '../store/format';
+import { speciesDetailToVM, cardToVM } from '../api/mapPlant';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
-import {
-  DEFAULT_PLANT_VM,
-  HERO,
-  NEXT_REMINDER,
-  PLANT,
-  TODAYS_TASKS,
-} from './plantData';
+import RenamePlantSheet from './plant/RenamePlantSheet';
+import MovePlantSheet from './plant/MovePlantSheet';
 
 // Hero chrome sits over a photograph, so these treatments are theme-independent
 // (they must read the same in light and dark). Everything else is themed.
@@ -43,13 +39,12 @@ const GLASS_BORDER = 'rgba(250,250,250,0.6)';
 const OVER_PHOTO_TEXT = '#FFFFFF';
 const OVER_PHOTO_SUBTLE = '#DADBDA';
 
+const HERO_PLACEHOLDER = require('../assets/plant/hero.png');
+
 // Renders a Cultum <Icon> when `name` is a known icon, else falls back to the
-// raw value as text (for the few care/task glyphs the icon set lacks, e.g. the
-// temperature emoji).
+// raw value as text (for the few care glyphs the icon set lacks).
 function Glyph({ name, size = 24, color, textStyle }) {
-  if (ICON_NAMES.includes(name)) {
-    return <Icon name={name} size={size} color={color} />;
-  }
+  if (ICON_NAMES.includes(name)) return <Icon name={name} size={size} color={color} />;
   return <Text style={[{ fontSize: size, color }, textStyle]}>{name}</Text>;
 }
 
@@ -67,13 +62,16 @@ function NavButton({ icon, label, onPress, styles }) {
   );
 }
 
-// One tile of the care grid: icon over a bold label over a caption value.
-function CareFact({ icon, label, value, styles, t }) {
+// One 68pt fact card — used by both Highlights (two per row) and How to care
+// (one per row); the only difference is how wide the parent lets it be.
+function FactCard({ icon, label, value, styles, t }) {
   return (
-    <View style={styles.careFact}>
-      <Glyph name={icon} size={24} color={t.text.primary} textStyle={styles.careIcon} />
-      <Text style={styles.careLabel}>{label}</Text>
-      <Text style={styles.careValue}>{value}</Text>
+    <View style={styles.factCard}>
+      <Glyph name={icon} size={24} color={t.text.primary} textStyle={styles.factGlyph} />
+      <View style={styles.factText}>
+        <Text style={styles.factLabel} numberOfLines={1}>{label}</Text>
+        <Text style={styles.factValue} numberOfLines={2}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -97,17 +95,19 @@ function AccordionItem({ question, answer, open, onToggle, styles, t }) {
   );
 }
 
-// One "Today's tasks" row. The icon tile's colours come from the task's semantic
-// `tone` (information/warning) resolved against the theme, so it follows dark/light.
+// One "Today's tasks" row. The icon tile's colours come from the task's
+// semantic `tone` resolved against the theme, so it follows dark/light.
 function TaskRow({ task, onPress, styles, t }) {
-  const tone = t[task.tone] || t.information;
+  const tone = t[task.tone] ?? null;
+  const tile = tone ? tone.secondary : t.surface.secondary;
+  const glyph = tone ? tone.primary : t.text.primary;
   return (
     <List variant="card">
       <ListItem
         onPress={onPress}
         before={
-          <View style={[styles.taskTile, { backgroundColor: tone.secondary }]}>
-            <Glyph name={task.icon} size={20} color={tone.primary} textStyle={styles.taskGlyph} />
+          <View style={[styles.taskTile, { backgroundColor: tile }]}>
+            <Glyph name={task.icon} size={20} color={glyph} textStyle={styles.taskGlyph} />
           </View>
         }
         title={task.title}
@@ -128,60 +128,117 @@ function TaskRow({ task, onPress, styles, t }) {
 }
 
 // A titled content block (matches the Figma "Section ·" frames).
-function Section({ title, action, children, styles }) {
+function Section({ title, large, children, styles }) {
   return (
     <View style={styles.section}>
       {title ? (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.heading}>{title}</Text>
-          {action}
-        </View>
+        <Text style={large ? styles.headingLarge : styles.heading}>{title}</Text>
       ) : null}
       {children}
     </View>
   );
 }
 
-export default function ProductPage({ plant, owned = false, nickname, room }) {
+export default function ProductPage({ plantId, plant, owned = false }) {
   const insets = useSafeAreaInsets();
   const { navigate, back } = useRouter();
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const garden = useGarden();
 
-  // Param-driven: a scan/search tap passes a PlantVM; the standalone `product`
-  // route passes nothing and falls back to the static default.
-  const vm = plant ?? DEFAULT_PLANT_VM;
-
-  // `owned` comes back from the add-a-plant flow, which re-enters this route
-  // with replace() rather than calling back into it — the page is unmounted for
-  // the duration of the flow, so there is no state here to update in place.
-  const [added, setAdded] = useState(owned);
-  const [tasks, setTasks] = useState(TODAYS_TASKS);
   const [segment, setSegment] = useState('about');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
+  const [renaming, setRenaming] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 'archive' | 'delete'
 
-  const completeTask = (id) => setTasks((t) => t.filter((task) => task.id !== id));
+  const record = plantId ? garden.getPlant(plantId) : null;
 
-  const overflowItems = [
-    { title: 'Rename plant', onPress: () => setMenuOpen(false) },
-    { title: 'Move to another room', onPress: () => setMenuOpen(false) },
+  // An owned plant renders from the SpeciesDetail cached on it, so its page is
+  // complete with the radio off. A preview renders from the VM it arrived with.
+  const vm = useMemo(() => {
+    if (record) {
+      return record.care
+        ? speciesDetailToVM(record.care)
+        : cardToVM({ title: record.nickname, subtitle: '', speciesKey: record.speciesKey });
+    }
+    return plant ?? cardToVM({ title: 'Plant', subtitle: '' });
+  }, [record, plant]);
+
+  const isOwned = !!record;
+  // A catalog entry the user already has one of: the nudge banner, not the page.
+  const alreadyOwned = !isOwned ? garden.getPlantBySpecies(vm.speciesKey) : null;
+
+  const room = record ? garden.getRoom(record.roomId) : null;
+  const tasks = isOwned ? garden.tasksForPlant(record.id) : [];
+  const reminders = isOwned ? garden.remindersFor(record.id) : [];
+  const nextDue = isOwned ? garden.nextDueForPlant(record.id) : null;
+
+  const heroSource = (record && plantPhoto(record)) ??
+    (vm.heroUri ? { uri: vm.heroUri } : HERO_PLACEHOLDER);
+
+  const openReminders = () =>
+    navigate('reminders', isOwned ? { plantId: record.id } : { plantName: vm.commonName });
+
+  const removePlant = () => {
+    const target = record?.id;
+    setConfirm(null);
+    if (!target) return;
+    garden.deletePlant(target);
+    back();
+  };
+
+  const archivePlant = () => {
+    const target = record?.id;
+    setConfirm(null);
+    if (!target) return;
+    garden.archivePlant(target);
+    back();
+  };
+
+  // Figma's five Actions rows. Each is a real mutation now — the two that used
+  // to close the menu and do nothing (Rename, Move) open a sheet.
+  const actions = [
     {
-      title: 'Notification settings',
-      onPress: () => {
-        setMenuOpen(false);
-        navigate('reminders', { plantName: vm.commonName });
-      },
+      icon: 'settings',
+      title: 'Edit Reminders',
+      subtitle: 'Turn them on or off, or add your own.',
+      onPress: openReminders,
     },
     {
-      title: 'Remove from my plants',
-      onPress: () => {
-        setMenuOpen(false);
-        setAdded(false);
-        setTasks(TODAYS_TASKS);
-      },
+      icon: 'edit-pen',
+      title: 'Rename',
+      subtitle: "Change your plant's name",
+      onPress: () => setRenaming(true),
+    },
+    {
+      icon: 'arrow-up',
+      title: 'Move',
+      subtitle: 'Move to another room',
+      onPress: () => setMoving(true),
+    },
+    {
+      icon: 'archive',
+      title: 'Archive',
+      subtitle: 'You can restore it anytime',
+      onPress: () => setConfirm('archive'),
+    },
+    {
+      icon: 'trash',
+      title: 'Delete',
+      subtitle: 'Permanently delete it and its data',
+      onPress: () => setConfirm('delete'),
+      destructive: true,
     },
   ];
+
+  const description = (
+    <Text style={styles.bodyText}>
+      {segment === 'journal' && isOwned
+        ? 'No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.'
+        : vm.about}
+    </Text>
+  );
 
   return (
     <View style={styles.screen}>
@@ -191,11 +248,7 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <ImageBackground
-          source={vm.heroUri ? { uri: vm.heroUri } : HERO}
-          style={styles.hero}
-          resizeMode="cover"
-        >
+        <ImageBackground source={heroSource} style={styles.hero} resizeMode="cover">
           <View style={styles.heroScrim} pointerEvents="none" />
           <LinearGradient
             colors={[HERO_GRADIENT_TOP, HERO_GRADIENT_BOTTOM]}
@@ -205,26 +258,14 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
 
           <View style={[styles.navRow, { top: insets.top + space[8] }]}>
             <NavButton icon="chevron-left" label="Back" onPress={back} styles={styles} />
-            <View style={styles.navRight}>
-              {added ? (
-                <>
-                  <NavButton
-                    icon="settings"
-                    label="Settings"
-                    onPress={() => navigate('reminders', { plantName: vm.commonName })}
-                    styles={styles}
-                  />
-                  <NavButton
-                    icon="more-horizontal"
-                    label="More options"
-                    onPress={() => setMenuOpen(true)}
-                    styles={styles}
-                  />
-                </>
-              ) : (
-                <NavButton icon="bookmark" label="Save" onPress={() => {}} styles={styles} />
-              )}
-            </View>
+            {isOwned ? (
+              <NavButton
+                icon="settings"
+                label="Edit reminders"
+                onPress={openReminders}
+                styles={styles}
+              />
+            ) : null}
           </View>
 
           <View style={styles.heroText}>
@@ -239,12 +280,12 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
                 />
               ))}
             </View>
-            {/* Once it's yours it goes by the name you gave it, and the
-                species drops to the line below. */}
-            <Text style={styles.heroTitle}>{added && nickname ? nickname : vm.commonName}</Text>
+            {/* Once it's yours it goes by the name you gave it, and the species
+                drops to the line below, next to where it lives. */}
+            <Text style={styles.heroTitle}>{isOwned ? record.nickname : vm.commonName}</Text>
             <Text style={styles.heroSubtitle}>
-              {added && nickname
-                ? [vm.commonName, room].filter(Boolean).join(' · ')
+              {isOwned
+                ? [vm.latinName || vm.commonName, room?.name].filter(Boolean).join(' · ')
                 : vm.latinName}
             </Text>
           </View>
@@ -252,17 +293,16 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
 
         {/* ── Content ──────────────────────────────────────────── */}
         <View style={styles.content}>
-          {added ? (
+          {isOwned ? (
             <>
-              {/* Today's tasks */}
-              <Section title="Today’s tasks" styles={styles}>
+              <Section title="Today’s tasks" large styles={styles}>
                 {tasks.length > 0 ? (
                   <View style={styles.taskList}>
                     {tasks.map((task) => (
                       <TaskRow
                         key={task.id}
                         task={task}
-                        onPress={() => completeTask(task.id)}
+                        onPress={() => garden.completeReminder(task.reminderId)}
                         styles={styles}
                         t={t}
                       />
@@ -273,20 +313,25 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
                     <ListItem
                       before={
                         <View style={styles.doneIcon}>
-                          <Icon name="check" size={20} color={t.brand.onPrimary} />
+                          <Icon name="check-all" size={20} color={t.brand.onPrimary} />
                         </View>
                       }
                       title="All caught up"
-                      subtitle={NEXT_REMINDER}
+                      // Nothing scheduled at all is a different state from
+                      // everything being done, and reads as one.
+                      subtitle={
+                        reminders.some((r) => r.enabled)
+                          ? nextReminderLabel(nextDue)
+                          : 'No reminders'
+                      }
                       after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
-                      onPress={() => {}}
+                      onPress={openReminders}
                     />
                   </List>
                 )}
               </Section>
 
-              {/* Your plant */}
-              <Section title="Your plant" styles={styles}>
+              <View style={styles.section}>
                 <SegmentedControl
                   segments={[
                     { label: 'About', value: 'about' },
@@ -296,80 +341,110 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
                   onChange={setSegment}
                   style={styles.segment}
                 />
-                {segment === 'about' ? (
-                  <Text style={styles.bodyText}>{vm.about}</Text>
-                ) : (
-                  <Text style={styles.bodyText}>
-                    No journal entries yet. Care you log — waterings, repottings,
-                    new leaves — will show up here.
-                  </Text>
-                )}
-              </Section>
+                {description}
+              </View>
             </>
           ) : (
             <>
-              {/* Owned banner */}
-              <List variant="card">
-                <ListItem
-                  before={
-                    <View style={styles.ownedIcon}>
-                      <Icon name="check" size={20} color={t.brand.onPrimary} />
-                    </View>
-                  }
-                  title={PLANT.owned.title}
-                  subtitle={PLANT.owned.subtitle}
-                  after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
-                  onPress={() => {}}
-                />
-              </List>
-
-              {/* About */}
-              <View style={styles.section}>
-                <Text style={styles.bodyText}>{vm.about}</Text>
-              </View>
+              {alreadyOwned ? (
+                <List variant="card">
+                  <ListItem
+                    before={
+                      <View style={styles.doneIcon}>
+                        <Icon name="check" size={20} color={t.brand.onPrimary} />
+                      </View>
+                    }
+                    title="You already have one"
+                    subtitle={[alreadyOwned.nickname, garden.getRoom(alreadyOwned.roomId)?.name]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
+                    onPress={() => navigate('product', { plantId: alreadyOwned.id })}
+                  />
+                </List>
+              ) : null}
+              <View style={styles.section}>{description}</View>
             </>
           )}
 
-          {/* How to care */}
-          <Section title="How to care" styles={styles}>
-            <View style={styles.careGrid}>
-              <View style={styles.careRow}>
-                <CareFact {...vm.careFacts[0]} styles={styles} t={t} />
-                <CareFact {...vm.careFacts[1]} styles={styles} t={t} />
-              </View>
-              <View style={styles.careRow}>
-                <CareFact {...vm.careFacts[2]} styles={styles} t={t} />
-                <CareFact {...vm.careFacts[3]} styles={styles} t={t} />
-              </View>
-            </View>
-          </Section>
-
-          {/* V2: Gallery section — deferred with the full-screen photo viewer
-              (ImageViewer). "View All" → navigate('premium-gallery'); each photo
-              → navigate('image-viewer', { index: i }). Re-enable together in V2. */}
-
-          {/* FAQ */}
-          <Section title="FAQ" styles={styles}>
-            <View style={styles.accordionList}>
-              {vm.faq.map((item, i) => (
-                <View key={i} style={styles.accordion}>
-                  <AccordionItem
-                    question={item.q}
-                    answer={item.a}
-                    open={openFaq === i}
-                    onToggle={() => setOpenFaq(openFaq === i ? -1 : i)}
-                    styles={styles}
-                    t={t}
-                  />
+          {/* Highlights — six facts, two per row */}
+          <Section title="Highlights" styles={styles}>
+            <View style={styles.grid}>
+              {vm.highlights.map((h) => (
+                <View key={h.key} style={styles.gridCell}>
+                  <FactCard icon={h.icon} label={h.label} value={h.value} styles={styles} t={t} />
                 </View>
               ))}
             </View>
           </Section>
+
+          {/* How to care — the species' own cadence, full width */}
+          <Section title="How to care" styles={styles}>
+            <View style={styles.careList}>
+              {vm.careActions.map((c) => (
+                <FactCard
+                  key={c.action}
+                  icon={c.icon}
+                  label={c.label}
+                  value={c.value}
+                  styles={styles}
+                  t={t}
+                />
+              ))}
+            </View>
+          </Section>
+
+          {/* V2: Gallery section — deferred with the full-screen photo viewer
+              (ImageViewer). The catalog carries one image per species, so there
+              is nothing to scroll until user photos land. */}
+
+          {vm.faq.length > 0 ? (
+            <Section title="FAQ" styles={styles}>
+              <View style={styles.accordionList}>
+                {vm.faq.map((item, i) => (
+                  <View key={item.q} style={styles.accordion}>
+                    <AccordionItem
+                      question={item.q}
+                      answer={item.a}
+                      open={openFaq === i}
+                      onToggle={() => setOpenFaq(openFaq === i ? -1 : i)}
+                      styles={styles}
+                      t={t}
+                    />
+                  </View>
+                ))}
+              </View>
+            </Section>
+          ) : null}
+
+          {isOwned ? (
+            <Section title="Actions" styles={styles}>
+              <List variant="card">
+                {actions.map((a) => (
+                  <ListItem
+                    key={a.title}
+                    before={
+                      <View style={styles.actionIcon}>
+                        <Icon
+                          name={a.icon}
+                          size={20}
+                          color={a.destructive ? t.error.primary : t.text.primary}
+                        />
+                      </View>
+                    }
+                    title={a.title}
+                    subtitle={a.subtitle}
+                    onPress={a.onPress}
+                  />
+                ))}
+              </List>
+            </Section>
+          ) : null}
         </View>
       </ScrollView>
 
       {/* ── Sticky CTA (only before the plant is added) ────────── */}
-      {!added ? (
+      {!isOwned ? (
         <View style={[styles.cta, { paddingBottom: space[16] + insets.bottom }]}>
           <Button
             label="Add to my plants"
@@ -380,14 +455,41 @@ export default function ProductPage({ plant, owned = false, nickname, room }) {
         </View>
       ) : null}
 
-      {/* ── Overflow menu ──────────────────────────────────────── */}
-      {menuOpen ? (
-        <Overlay onPress={() => setMenuOpen(false)} color="transparent" opacity={1}>
-          <View style={[styles.menuAnchor, { top: insets.top + 52 }]}>
-            <DropdownMenu items={overflowItems} />
-          </View>
-        </Overlay>
-      ) : null}
+      <RenamePlantSheet
+        visible={renaming}
+        name={record?.nickname ?? ''}
+        onClose={() => setRenaming(false)}
+        onSave={(name) => garden.renamePlant(record.id, name)}
+      />
+
+      <MovePlantSheet
+        visible={moving}
+        rooms={garden.rooms}
+        roomId={record?.roomId}
+        onClose={() => setMoving(false)}
+        onMove={(roomId) => garden.movePlant(record.id, roomId)}
+        onAddRoom={(name) => garden.addRoom(name)}
+      />
+
+      <Dialog
+        testID="archive-dialog"
+        visible={confirm === 'archive'}
+        onClose={() => setConfirm(null)}
+        title="Archive this plant?"
+        description="It stops producing tasks and reminders. You can restore it anytime."
+        primaryAction={{ label: 'Archive', onPress: archivePlant }}
+        secondaryAction={{ label: 'Cancel', onPress: () => setConfirm(null) }}
+      />
+
+      <Dialog
+        testID="delete-dialog"
+        visible={confirm === 'delete'}
+        onClose={() => setConfirm(null)}
+        title="Delete this plant?"
+        description={`“${record?.nickname ?? ''}” and its reminders will be permanently deleted.`}
+        primaryAction={{ label: 'Delete', destructive: true, onPress: removePlant }}
+        secondaryAction={{ label: 'Cancel', onPress: () => setConfirm(null) }}
+      />
     </View>
   );
 }
@@ -399,23 +501,14 @@ const makeStyles = (t) =>
 
     // ── Hero ── (photo treatments are theme-independent)
     hero: {
-      height: 353,
+      height: 336,
       paddingHorizontal: space[16],
       paddingBottom: 25,
       justifyContent: 'flex-end',
       backgroundColor: HERO_FALLBACK,
     },
-    heroScrim: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: HERO_SCRIM,
-    },
-    heroGradient: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 117,
-    },
+    heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: HERO_SCRIM },
+    heroGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 117 },
     navRow: {
       position: 'absolute',
       left: space[16],
@@ -423,7 +516,6 @@ const makeStyles = (t) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
     },
-    navRight: { flexDirection: 'row', gap: space[8] },
     navBtn: {
       width: 40,
       height: 40,
@@ -441,38 +533,23 @@ const makeStyles = (t) =>
     heroSubtitle: { ...typography.bodyLarge, color: OVER_PHOTO_SUBTLE },
 
     // ── Content ──
-    content: { padding: space[16], paddingTop: space[24], gap: space[32] },
+    content: { padding: space[16], paddingTop: space[24], gap: space[24] },
     section: { gap: space[16] },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
     heading: { ...typography.headingSmallEmphasized, color: t.text.primary },
+    headingLarge: { ...typography.headingMediumEmphasized, color: t.text.primary },
     bodyText: { ...typography.bodyMedium, color: t.text.secondary },
-    viewAll: { ...typography.buttonSmall, color: t.text.primary },
-
-    // Owned banner
-    ownedIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.full,
-      backgroundColor: t.brand.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    segment: { alignSelf: 'stretch' },
 
     // ── Today's tasks ──
-    taskList: { gap: space[8] },
+    taskList: { gap: space[12] },
     taskTile: {
       width: 40,
       height: 40,
-      borderRadius: radius[8],
+      borderRadius: radius.full,
       alignItems: 'center',
       justifyContent: 'center',
     },
     taskGlyph: { fontSize: 20 },
-    segment: { alignSelf: 'stretch' },
     taskAfter: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
     doneIcon: {
       width: 40,
@@ -483,38 +560,40 @@ const makeStyles = (t) =>
       justifyContent: 'center',
     },
 
-    // ── Care grid ──
-    careGrid: { gap: space[12] },
-    careRow: { flexDirection: 'row', gap: space[12] },
-    careFact: {
-      flex: 1,
+    // ── Fact cards (Highlights + How to care) ──
+    // Two-column wrap rather than fixed rows, so a species with five facts
+    // still lays out cleanly instead of leaving a hole in a rigid grid.
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
+    gridCell: { width: '48%', flexGrow: 1 },
+    careList: { gap: space[8] },
+    factCard: {
+      minHeight: 68,
+      flexDirection: 'row',
+      alignItems: 'center',
       padding: space[12],
       gap: space[8],
       borderRadius: radius[16],
       backgroundColor: t.surface.primary,
     },
-    careIcon: { fontSize: 22 },
-    careLabel: { ...typography.bodyLargeEmphasized, color: t.text.primary },
-    careValue: { ...typography.caption, color: t.text.secondary },
+    factGlyph: { fontSize: 22 },
+    factText: { flex: 1, gap: space[2] },
+    factLabel: { ...typography.bodyLargeEmphasized, color: t.text.primary },
+    factValue: { ...typography.bodyMedium, color: t.text.secondary },
 
-    // ── Gallery ──
-    galleryScroller: { gap: space[12] },
-    galleryImage: { width: 264, height: 184 },
-    galleryImageRadius: { borderRadius: radius[12] },
+    // ── Actions ──
+    actionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      backgroundColor: t.surface.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
     // ── FAQ accordion ──
     accordionList: { gap: space[8] },
-    accordion: {
-      backgroundColor: t.surface.primary,
-      borderRadius: radius[16],
-      overflow: 'hidden',
-    },
-    accItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: space[8],
-      padding: space[12],
-    },
+    accordion: { backgroundColor: t.surface.primary, borderRadius: radius[16], overflow: 'hidden' },
+    accItem: { flexDirection: 'row', alignItems: 'center', gap: space[8], padding: space[12] },
     accText: { flex: 1, gap: space[4] },
     accQuestion: { ...typography.bodyLarge, color: t.text.primary },
     accAnswer: { ...typography.bodyMedium, color: t.text.secondary },
@@ -527,7 +606,4 @@ const makeStyles = (t) =>
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: t.border.tertiary,
     },
-
-    // ── Overflow menu ──
-    menuAnchor: { position: 'absolute', right: space[16] },
   });

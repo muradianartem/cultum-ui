@@ -1,14 +1,14 @@
-// Data + formatting for the "Add new reminder" flow (Figma section
+// Label formatting for the "Add new reminder" sheet (Figma section
 // "Reminders / Add new reminder", node 362:17102).
 //
 // Pure: no React/RN imports. The sheet holds wheel indices and a Date; these
-// helpers turn them into the CTA labels and, on confirm, into a reminder record
-// in exactly the shape ./reminderData.js documents. Unit lists come from
-// ./durationUnits.js so the create flow and the edit sheet stay in step.
-//
-// V1 mock — the returned reminder goes into the screen's local state; nothing
-// is persisted and no notification is scheduled.
+// helpers turn them into the CTA labels and, on confirm, into the draft its
+// caller converts into a real reminder (screens/RemindersScreen.js). Unit lists
+// come from ./durationUnits.js so the create flow and the edit sheet stay in
+// step; date formatting comes from store/format.js, which owns the display
+// strings the wheels and the store trade in.
 
+import { shortDate } from '../store/format';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
   FREQUENCY_NUMBERS,
@@ -17,6 +17,8 @@ import {
   unitLabel,
 } from './durationUnits';
 
+export { shortDate };
+
 // The wheel opens on "2 days", matching the Figma.
 export const DEFAULT_NUMBER_INDEX = 1; // FREQUENCY_NUMBERS[1] === 2
 export const DEFAULT_UNIT_INDEX = DEFAULT_FREQUENCY_UNIT_INDEX; // 'days'
@@ -24,11 +26,6 @@ export const DEFAULT_UNIT_INDEX = DEFAULT_FREQUENCY_UNIT_INDEX; // 'days'
 // Shift by calendar day (not by 24h) so DST changes can't slip the date.
 const shiftDays = (from, n) =>
   new Date(from.getFullYear(), from.getMonth(), from.getDate() + n);
-
-// "21 Aug" — the format every reminder detail row stores its date in, and the
-// one ReminderValueSheet's `date` field parses back.
-export const shortDate = (date) =>
-  `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
 
 const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 
@@ -88,30 +85,18 @@ export const startDateSuggestions = (today = new Date()) => [
   { label: 'Two weeks ago', date: shiftDays(today, -14) },
 ];
 
-// Ids only need to be unique within the session (V1 keeps reminders in local
-// state), but they must not collide when two are added in the same millisecond
-// — so count rather than timestamp.
-let seq = 0;
-export const resetReminderIds = () => {
-  seq = 0;
-}; // test seam
-
 /**
- * Build the reminder record the Reminders screen appends on confirm.
+ * What the sheet hands back on confirm: the three answers it collected, in the
+ * display vocabulary the wheels speak. Its caller turns that into a real
+ * reminder — ids, intervals and scheduling all belong to the store, not here.
+ *
  * `numberIndex`/`unitIndex` index FREQUENCY_NUMBERS / FREQUENCY_UNITS; `date`
  * is the chosen start date.
  */
-export function makeReminder({ label, numberIndex, unitIndex, date, id }) {
+export function makeReminderDraft({ label, numberIndex, unitIndex, date }) {
   return {
-    id: id ?? `custom-${(seq += 1)}`,
-    kind: 'custom',
     title: label.trim(),
-    nextLabel: null, // no schedule yet — nothing to count down to
-    enabled: true,
-    removable: true, // every user-created reminder can be removed
-    dateLabel: 'Start date',
     dateValue: shortDate(date),
     frequency: frequencyValue(numberIndex, unitIndex),
-    snooze: 'None',
   };
 }

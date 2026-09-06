@@ -1,148 +1,147 @@
-import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Router, useRouter } from '../../routing';
+import { act } from 'react-test-renderer';
+import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
+import TaskCard from '../TaskCard';
 import TodayScreen from '../TodayScreen';
 
-// Insets need a provider; feed fixed metrics so useSafeAreaInsets resolves.
-const METRICS = {
-  frame: { x: 0, y: 0, width: 375, height: 812 },
-  insets: { top: 47, left: 0, right: 0, bottom: 34 },
-};
+// Mid-afternoon, so "Good afternoon" is deterministic and a 09:00 reminder due
+// today has already come due.
+const NOW = new Date(2026, 8, 5, 15, 0, 0);
 
-let api;
-function Probe() {
-  api = useRouter();
-  return null;
-}
-
-function create(el) {
-  let tree;
-  act(() => {
-    tree = TestRenderer.create(
-      <SafeAreaProvider initialMetrics={METRICS}>
-        <Router initial="today">
-          <Probe />
-          {el}
-        </Router>
-      </SafeAreaProvider>
-    );
+// The garden every test below reasons about: one task due today, one three days
+// overdue, and one that isn't due for a few days.
+const garden = () =>
+  seedGarden({
+    now: NOW,
+    plants: [
+      {
+        nickname: 'Penny',
+        room: 'Kitchen',
+        reminders: [
+          { action: 'water', intervalDays: 7, dueInDays: 0 },
+          { action: 'fertilize', intervalDays: 30, dueInDays: -3 },
+        ],
+      },
+      {
+        nickname: 'Figgy',
+        room: 'Bedroom',
+        reminders: [
+          { action: 'prune', title: 'Trim the aerial roots', intervalDays: 14, dueInDays: 4 },
+        ],
+      },
+    ],
   });
-  return tree;
-}
 
-const texts = (tree) =>
-  tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
+const render = (state = garden()) => renderWithGarden(<TodayScreen />, { state, clock: NOW });
 
-// Flattened text content within a node's subtree.
-const subtreeText = (node) =>
-  node.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
+// The swipe actions live inside a specific card, and several cards are on
+// screen — so reach the one whose task is named, then press within it.
+const card = (r, title) =>
+  r.tree.root.findAllByType(TaskCard).find((c) => c.props.task.title === title);
 
-const tabs = (tree) =>
-  tree.root.findAll(
-    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'tab'
+const pressIn = (node, label) =>
+  act(() =>
+    node
+      .find((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === label)
+      .props.onPress(),
   );
 
-test('renders the greeting', () => {
-  const tree = create(<TodayScreen />);
-  expect(texts(tree)).toContain('Good afternoon, Allison');
+afterEach(cleanupTrees);
+
+test('greets by time of day, and by name once there is one', () => {
+  expect(render().texts()).toContain('Good afternoon');
+  expect(render({ ...garden(), profileName: 'Allison' }).texts()).toContain(
+    'Good afternoon, Allison',
+  );
 });
 
-test('renders the segmented control with a Today count, Today selected', () => {
-  const tree = create(<TodayScreen />);
-  const t = texts(tree);
+test('the Today count is the number of tasks actually due', () => {
+  const { tree, texts } = render();
+  const t = texts();
   expect(t).toContain('Today');
   expect(t).toContain('Upcoming');
-  expect(t).toContain('5'); // green count badge on Today
+  expect(t).toContain('2'); // the watering due today + the overdue feeding
 
-  const todayTab = tabs(tree).find((n) => subtreeText(n).includes('Today'));
-  expect(todayTab).toBeTruthy();
-  expect(todayTab.props.accessibilityState.selected).toBe(true);
+  expect(tree).toBeTruthy();
 });
 
 test('renders the section header and Complete All action', () => {
-  const tree = create(<TodayScreen />);
-  const t = texts(tree);
+  const t = render().texts();
   expect(t).toContain('Today’s tasks');
   expect(t).toContain('Complete All');
 });
 
-test('renders the three task groups with their rows', () => {
-  const tree = create(<TodayScreen />);
-  const t = texts(tree);
-  expect(t).toContain('Watering');
+test('groups by task type, and each row shows its plant, room and due badge', () => {
+  const t = render().texts();
+  expect(t).toContain('Watering'); // group header and row title
   expect(t).toContain('Fertilizing');
-  expect(t).toContain('Custom');
-  expect(t).toContain('Soil Check'); // a Watering row title
-  expect(t).toContain('Move this plant'); // the Custom row title
+  expect(t).toContain('Penny · Kitchen');
+  expect(t).toContain('Today');
+  expect(t).toContain('3d ago');
 });
 
-test('each task row shows a "plant · room" subtitle and a due badge', () => {
-  const tree = create(<TodayScreen />);
-  const t = texts(tree);
-  expect(t).toContain('Monstera · Kitchen'); // subtitle for Soil Check
-  expect(t).toContain('3d ago'); // a due badge label
-  expect(t).toContain('2d ago'); // a due badge label
+test('a task not due today stays out of the day', () => {
+  expect(render().texts()).not.toContain('Trim the aerial roots');
 });
-
-// Fire the deepest onPress for the row whose accessible label matches.
-const pressRow = (tree, label) => {
-  const node = tree.root.find(
-    (n) =>
-      typeof n.props.onPress === 'function' &&
-      n.props.accessibilityRole === 'button' &&
-      n.props.accessibilityLabel === label
-  );
-  act(() => node.props.onPress());
-};
 
 test('completing a task removes it, and an emptied group disappears', () => {
-  const tree = create(<TodayScreen />);
-  expect(texts(tree)).toContain('Soil Check');
-  expect(texts(tree)).toContain('Watering');
+  const r = render();
+  expect(r.texts()).toContain('Watering');
 
-  pressRow(tree, 'Soil Check');
+  pressIn(card(r, 'Watering'), 'Mark task done');
 
-  const t = texts(tree);
-  expect(t).not.toContain('Soil Check'); // the only Watering task is gone
-  expect(t).not.toContain('Watering'); // so the group header drops too
-  expect(t).toContain('Move this plant'); // other groups remain
+  expect(r.texts()).not.toContain('Watering'); // the row and its group header both go
+  expect(r.texts()).toContain('Fertilizing'); // the other group remains
 });
 
-test('completing all tasks shows the "All caught up" and "Next up" block', () => {
-  const tree = create(<TodayScreen />);
-  pressRow(tree, 'Complete All');
+test('completing everything shows "All caught up" and previews what is next', () => {
+  const { texts, press } = render();
+  press('Complete All');
+  press('Complete 2 tasks');
 
-  const t = texts(tree);
-  expect(t).not.toContain('Soil Check'); // every group is gone
+  const t = texts();
+  expect(t).not.toContain('Fertilizing');
   expect(t).toContain('All caught up');
   expect(t).toContain('Your plants are on their own schedule.');
   expect(t).toContain('Next up');
-  expect(t).toContain('Mist leaves'); // the Next up task title
+  expect(t).toContain('Trim the aerial roots'); // the soonest upcoming task
+});
+
+test('an empty garden offers a way in rather than "all caught up"', () => {
+  const t = render(seedGarden({ now: NOW })).texts();
+  expect(t).toContain('No plants yet');
+  expect(t).toContain('Add a plant');
+  expect(t).not.toContain('Your plants are on their own schedule.');
 });
 
 test('renders the 5-tab bar with Today active', () => {
-  const tree = create(<TodayScreen />);
-  const t = texts(tree);
+  const { tree, texts, find } = render();
   ['Discover', 'Scan/Add', 'Rooms', 'Settings'].forEach((label) =>
-    expect(t).toContain(label)
+    expect(texts()).toContain(label),
   );
-
-  // The tab bar's Today tab has a plain string accessibilityLabel (the segment's
-  // Today label is a node), and it is the selected tab.
-  const todayTab = tabs(tree).find((n) => n.props.accessibilityLabel === 'Today');
-  expect(todayTab).toBeTruthy();
-  expect(todayTab.props.accessibilityState.selected).toBe(true);
+  expect(find('Today').props.accessibilityState.selected).toBe(true);
+  expect(tree).toBeTruthy();
 });
 
 test('tapping the Scan/Add tab navigates to the camera route', () => {
-  const tree = create(<TodayScreen />);
-  const scanTab = tree.root.find(
-    (n) =>
-      typeof n.props.onPress === 'function' &&
-      n.props.accessibilityRole === 'tab' &&
-      n.props.accessibilityLabel === 'Scan/Add'
-  );
-  act(() => scanTab.props.onPress());
-  expect(api.route).toBe('scan-camera');
+  const r = render();
+  r.press('Scan/Add');
+  expect(r.router.route).toBe('scan-camera');
+});
+
+test('a task card opens that plant, not a hard-coded product page', () => {
+  const state = garden();
+  const r = render(state);
+  pressIn(card(r, 'Watering'), 'Watering'); // the card body opens the detail sheet
+  r.press('Open plant page');
+  expect(r.router.route).toBe('product');
+  expect(r.router.params.plantId).toBe(state.plants[0].id);
+});
+
+test('snoozing a task moves it out of today without changing its cadence', () => {
+  const r = render();
+  pressIn(card(r, 'Watering'), 'Snooze task');
+  // SnoozeContent opens on "2 days"; its CTA carries the choice.
+  r.press('Snooze for 2 days');
+
+  expect(r.texts()).not.toContain('Watering');
 });

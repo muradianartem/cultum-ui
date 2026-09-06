@@ -32,7 +32,7 @@ import {
   DEFAULT_NUMBER_INDEX,
   DEFAULT_UNIT_INDEX,
   frequencyLabel,
-  makeReminder,
+  makeReminderDraft,
   setDateLabel,
   shortDate,
   startDateSuggestions,
@@ -83,7 +83,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   const dismiss = () => (back ? setStep(back) : onClose?.());
 
   const confirm = () => {
-    onConfirm?.(makeReminder({ label, numberIndex, unitIndex, date }));
+    onConfirm?.(makeReminderDraft({ label, numberIndex, unitIndex, date }));
     onClose?.();
   };
 

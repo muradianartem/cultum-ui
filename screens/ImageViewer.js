@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from '../routing';
-import { PHOTOS, PLANT } from './plantData';
+import { PHOTOS } from './placeholderPhotos';
 import { badge, colors, radius } from '../theme/tokens';
 
 /**
@@ -27,7 +27,7 @@ import { badge, colors, radius } from '../theme/tokens';
  */
 const { width } = Dimensions.get('window');
 
-export default function ImageViewer() {
+export default function ImageViewer({ subtitle = '' }) {
   const insets = useSafeAreaInsets();
   const { back, params } = useRouter();
   const start = Math.min(Math.max(params?.index ?? 0, 0), PHOTOS.length - 1);
@@ -65,7 +65,7 @@ export default function ImageViewer() {
         </Pressable>
         <View style={styles.headerText}>
           <Text style={styles.title}>View All</Text>
-          <Text style={styles.subtitle}>{PLANT.commonName}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
         {/* Spacer keeps the title centred opposite the close button. */}
         <View style={styles.closeBtn} />

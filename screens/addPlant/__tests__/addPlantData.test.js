@@ -1,34 +1,25 @@
+import { careActions } from '../../../api/mapPlant';
+import { DEFAULT_ROOMS } from '../../../store/model';
 import {
-  DEFAULT_ROOMS,
-  FERTILIZE_FREQUENCY,
   customReminderRow,
   defaultReminders,
-  makePlantRecord,
-  makeRoom,
   nameSuggestions,
   reminderSubtitle,
   remindersCta,
-  resetRoomIds,
   successSubtitle,
   successTitle,
-  wateringDays,
-  weekdayDate,
 } from '../addPlantData';
-
-const careFacts = (waterValue) => [
-  { icon: 'outlined-water', label: 'Water', value: waterValue },
-  { icon: 'sun', label: 'Sun', value: 'Bright, indirect' },
-];
 
 // Thursday 10 September 2026.
 const TODAY = new Date(2026, 8, 10);
 
-beforeEach(resetRoomIds);
+// The pieces of a PlantVM this flow reads: the catalog's own care cadences.
+const vm = (detail) => ({ careActions: careActions(detail) });
 
 describe('nameSuggestions', () => {
   test('leads with the genus and the common name, then the pet names', () => {
     expect(
-      nameSuggestions({ commonName: 'Swiss cheese plant', latinName: 'Monstera deliciosa' })
+      nameSuggestions({ commonName: 'Swiss cheese plant', latinName: 'Monstera deliciosa' }),
     ).toEqual(['Monstera', 'Swiss cheese plant', 'Ziggy', 'Mo', 'Bruce']);
   });
 
@@ -43,37 +34,43 @@ describe('nameSuggestions', () => {
   });
 });
 
-describe('wateringDays', () => {
-  test('reads the low end of a range and a plain interval', () => {
-    expect(wateringDays(careFacts('Every 7–10 days'))).toBe(7); // en dash, as mapPlant emits
-    expect(wateringDays(careFacts('Every 5 days'))).toBe(5);
-  });
-
-  test('is null when there is no number to read', () => {
-    expect(wateringDays(careFacts('When the top inch is dry'))).toBeNull();
-    expect(wateringDays(careFacts(null))).toBeNull();
-    expect(wateringDays(undefined)).toBeNull();
-  });
-});
-
 describe('defaultReminders', () => {
-  test('seeds watering from the plant and fertilizing from the default, both off', () => {
-    const [water, feed] = defaultReminders({ careFacts: careFacts('Every 7–10 days') });
-    expect(water).toMatchObject({ title: 'Watering', enabled: false, frequency: 'Every 7 days', everyDays: 7 });
-    expect(feed).toMatchObject({ title: 'Fertilizing', enabled: false, frequency: FERTILIZE_FREQUENCY });
+  test('offers the three primary actions, all off, seeded from the species', () => {
+    const rows = defaultReminders(
+      vm({
+        water_interval_days_min: 7,
+        water_interval_days_max: 10,
+        fertilize_interval_days: 28,
+        repot_interval_months: 24,
+      }),
+    );
+    expect(rows.map((r) => r.action)).toEqual(['water', 'fertilize', 'repot']);
+    expect(rows.every((r) => r.enabled === false)).toBe(true);
+
+    // The interval the reminder will actually use, and the label the catalog
+    // states — a range reads better than the flattened number behind it.
+    expect(rows[0]).toMatchObject({ frequency: 'Every 7–10 days', intervalDays: 7 });
+    expect(rows[1]).toMatchObject({ frequency: 'Every 4 weeks', intervalDays: 28 });
+    expect(rows[2]).toMatchObject({ frequency: 'Every 2 years', intervalDays: 720 });
   });
 
-  test('watering carries no schedule when the species has no interval', () => {
-    const [water] = defaultReminders({ careFacts: careFacts('Keep evenly moist') });
-    expect(water.frequency).toBeNull();
-    expect(water.everyDays).toBeNull();
+  test('a species with no cadence still gets a row, on the action default', () => {
+    const [water, feed, repot] = defaultReminders(vm({}));
+    expect(water).toMatchObject({ frequency: 'Every 7 days', intervalDays: 7 });
+    expect(feed).toMatchObject({ frequency: 'Every month', intervalDays: 30 });
+    expect(repot).toMatchObject({ frequency: 'Every 12 months', intervalDays: 360 });
+  });
+
+  test('works from nothing at all, which is what a failed detail fetch gives', () => {
+    expect(defaultReminders()).toHaveLength(3);
+    expect(defaultReminders({}).every((r) => r.intervalDays > 0)).toBe(true);
   });
 });
 
 describe('reminderSubtitle', () => {
   test('says a reminder is off until it is enabled, then shows its schedule', () => {
     expect(reminderSubtitle({ enabled: false, frequency: 'Every 7 days' })).toBe(
-      'Reminder is turned off'
+      'Reminder is turned off',
     );
     expect(reminderSubtitle({ enabled: true, frequency: 'Every 7 days' })).toBe('Every 7 days');
     expect(reminderSubtitle({ enabled: true, frequency: null })).toBe('Reminder is on');
@@ -93,22 +90,25 @@ describe('remindersCta', () => {
   });
 });
 
-describe('rooms', () => {
-  test('ships the five Figma rooms', () => {
-    expect(DEFAULT_ROOMS.map((r) => r.name)).toEqual([
-      'Living Room',
-      'Kitchen',
-      'Bedroom',
-      'Bathroom',
-      'Office',
-    ]);
-  });
+test('the default room catalog is the five Figma rooms', () => {
+  expect(DEFAULT_ROOMS.map((r) => r.name)).toEqual([
+    'Living Room',
+    'Kitchen',
+    'Bedroom',
+    'Bathroom',
+    'Office',
+  ]);
+});
 
-  test('makeRoom trims the name, takes the generic glyph and counts ids', () => {
-    expect(makeRoom('  Hallway ')).toEqual({ id: 'room-1', name: 'Hallway', icon: 'home' });
-    expect(makeRoom('Balcony').id).toBe('room-2');
-    resetRoomIds();
-    expect(makeRoom('Porch').id).toBe('room-1');
+describe('customReminderRow', () => {
+  test('reads an AddReminderSheet draft as an enabled row with a real interval', () => {
+    expect(customReminderRow({ title: 'Rotate the pot', frequency: '2 weeks' }, 14)).toMatchObject({
+      action: 'custom',
+      title: 'Rotate the pot',
+      enabled: true,
+      frequency: 'Every 2 weeks',
+      intervalDays: 14,
+    });
   });
 });
 
@@ -120,54 +120,16 @@ describe('success copy', () => {
   test('counts from the soonest enabled reminder', () => {
     const subtitle = successSubtitle(
       [
-        { enabled: true, everyDays: 30 },
-        { enabled: true, everyDays: 7 },
-        { enabled: false, everyDays: 1 },
+        { enabled: true, intervalDays: 30 },
+        { enabled: true, intervalDays: 7 },
+        { enabled: false, intervalDays: 1 },
       ],
-      TODAY
+      TODAY,
     );
     expect(subtitle).toBe('Next treatment is on Thu 17, Sep');
   });
 
   test('says so when nothing is enabled', () => {
-    expect(successSubtitle([{ enabled: false }], TODAY)).toBe(
-      'There is no reminder set for now'
-    );
-  });
-
-  test('falls back when the only enabled reminders have no day count', () => {
-    expect(successSubtitle([{ enabled: true, everyDays: null }], TODAY)).toBe(
-      'Your reminders are set'
-    );
-  });
-
-  test('weekdayDate formats as the design does', () => {
-    expect(weekdayDate(new Date(2026, 7, 16))).toBe('Sun 16, Aug');
-  });
-});
-
-describe('records', () => {
-  test('customReminderRow reads an AddReminderSheet record as an enabled row', () => {
-    expect(
-      customReminderRow({ id: 'custom-1', title: 'Rotate the pot', frequency: '2 weeks' })
-    ).toMatchObject({ id: 'custom-1', title: 'Rotate the pot', enabled: true, frequency: 'Every 2 weeks', everyDays: null });
-  });
-
-  test('makePlantRecord keeps only the enabled reminders', () => {
-    const record = makePlantRecord({
-      vm: { speciesKey: 'monstera-deliciosa' },
-      nickname: ' Mo ',
-      room: { id: 'kitchen', name: 'Kitchen' },
-      reminders: [
-        { id: 'watering', enabled: true },
-        { id: 'fertilizing', enabled: false },
-      ],
-    });
-    expect(record).toEqual({
-      speciesKey: 'monstera-deliciosa',
-      nickname: 'Mo',
-      room: 'Kitchen',
-      reminders: [{ id: 'watering', enabled: true }],
-    });
+    expect(successSubtitle([{ enabled: false }], TODAY)).toBe('There is no reminder set for now');
   });
 });

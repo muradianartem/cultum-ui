@@ -37,7 +37,7 @@ test('uses the scan response’s inline care payload instead of re-fetching it',
   expect(getSpecies).not.toHaveBeenCalled();
   const [, params] = navigate.mock.calls[0];
   expect(params.plant.commonName).toBe('Monstera');
-  expect(params.plant.careFacts.find((f) => f.label === 'Water').value).toBe(
+  expect(params.plant.careActions.find((r) => r.action === 'water').value).toBe(
     'Every 7–10 days'
   );
 });

@@ -123,15 +123,12 @@ describe('step 2 — frequency', () => {
     press(tree, 'Remind every 2 days');
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm.mock.calls[0][0]).toMatchObject({
-      kind: 'custom',
+    // The draft carries the three answers the sheet collected; turning it into
+    // a real reminder is the caller's job (screens/RemindersScreen.js).
+    expect(onConfirm.mock.calls[0][0]).toEqual({
       title: 'Rotate the pot',
-      enabled: true,
-      removable: true,
-      dateLabel: 'Start date',
       dateValue: '10 Sep',
       frequency: '2 days',
-      snooze: 'None',
     });
     expect(onClose).toHaveBeenCalledTimes(1);
   });

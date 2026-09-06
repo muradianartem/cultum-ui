@@ -11,11 +11,10 @@
 // navigate() on every step — and losing it on back(). Instead the draft lives
 // here and `step` walks the PREVIOUS map, the same shape AddReminderSheet uses.
 //
-// Done re-enters the product page through replace() with `owned`, because a
-// Route only renders while it matches: ProductPage is unmounted for the whole
-// flow, so there is no state there to call back into.
-//
-// V1 mock — nothing is persisted and no notification is scheduled.
+// Done writes the plant and its reminders to the store in one commit and
+// re-enters the product page through replace() with the new plant's id — a
+// Route only renders while it matches, so ProductPage is unmounted for the
+// whole flow and there is no state there to call back into.
 
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -25,19 +24,17 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { navbar } from '../../theme/tokens';
+import { useGarden } from '../../store/GardenProvider';
+import { parseFrequency } from '../../store/format';
 import AddReminderSheet from '../AddReminderSheet';
-import { DEFAULT_PLANT_VM } from '../plantData';
 import AddRoomSheet from './AddRoomSheet';
 import NameStep from './NameStep';
 import RemindersStep from './RemindersStep';
 import RoomStep from './RoomStep';
 import SuccessStep from './SuccessStep';
 import {
-  DEFAULT_ROOMS,
   customReminderRow,
   defaultReminders,
-  makePlantRecord,
-  makeRoom,
   nameSuggestions,
   remindersCta,
   successSubtitle,
@@ -59,17 +56,20 @@ export default function AddPlantScreen({ plant, today }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { back, replace, reset } = useRouter();
+  const garden = useGarden();
 
-  const vm = plant ?? DEFAULT_PLANT_VM;
+  const vm = plant;
 
   const [step, setStep] = useState('name');
-  const [name, setName] = useState(() => vm.commonName ?? '');
-  const [rooms, setRooms] = useState(DEFAULT_ROOMS);
+  const [name, setName] = useState(() => vm?.commonName ?? '');
   const [roomId, setRoomId] = useState(null);
   const [reminders, setReminders] = useState(() => defaultReminders(vm));
   const [roomSheet, setRoomSheet] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(false);
 
+  // Rooms come from the store, so one created here is a room everywhere —
+  // the flow no longer keeps a private list that the Rooms tab never sees.
+  const rooms = garden.rooms;
   const room = rooms.find((r) => r.id === roomId) ?? null;
   const previous = PREVIOUS[step];
 
@@ -77,26 +77,30 @@ export default function AddPlantScreen({ plant, today }) {
   // otherwise leaves it.
   const leave = () => (previous ? setStep(previous) : back());
 
-  const addRoom = (roomName) => {
-    const created = makeRoom(roomName);
-    setRooms((list) => [...list, created]);
-    setRoomId(created.id);
-  };
+  const addRoom = (roomName) => setRoomId(garden.addRoom(roomName));
 
   const toggleReminder = (id) =>
     setReminders((list) =>
       list.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
     );
 
-  const addCustomReminder = (reminder) =>
-    setReminders((list) => [...list, customReminderRow(reminder)]);
+  const addCustomReminder = (draft) =>
+    setReminders((list) => [...list, customReminderRow(draft, parseFrequency(draft.frequency))]);
 
-  const done = () =>
-    replace('product', {
-      plant: vm,
-      owned: true,
-      ...makePlantRecord({ vm, nickname: name, room, reminders }),
+  const done = () => {
+    const plantId = garden.addPlant({
+      speciesKey: vm?.speciesKey ?? null,
+      nickname: name,
+      roomId,
+      // The raw SpeciesDetail, so the plant's page renders in full offline.
+      care: vm?.detail ?? null,
+      heroUri: vm?.heroUri ?? null,
+      reminders: reminders
+        .filter((r) => r.enabled)
+        .map((r) => ({ action: r.action, title: r.title, intervalDays: r.intervalDays })),
     });
+    replace('product', { plantId });
+  };
 
   // Both sheets are Modals, and iOS won't present a second over an open one —
   // so only one of them is ever mounted visible at a time.
@@ -129,10 +133,10 @@ export default function AddPlantScreen({ plant, today }) {
 
       {step === 'name' ? (
         <NameStep
-          photo={vm.heroUri}
+          photo={vm?.heroUri}
           name={name}
           onChangeName={setName}
-          suggestions={nameSuggestions(vm)}
+          suggestions={nameSuggestions(vm ?? {})}
         />
       ) : null}
 
@@ -155,7 +159,7 @@ export default function AddPlantScreen({ plant, today }) {
 
       {step === 'success' ? (
         <SuccessStep
-          photo={vm.heroUri}
+          photo={vm?.heroUri}
           title={successTitle(name, room?.name ?? '')}
           subtitle={successSubtitle(reminders, today ?? new Date())}
         />

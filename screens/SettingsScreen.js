@@ -6,7 +6,7 @@ import { useRouter } from '../routing';
 import { useAuth } from '../auth/AuthProvider';
 import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/foundations';
-import { TABS } from './todayData';
+import { TABS } from './navConfig';
 
 // Settings — a tab-level destination (not a pushed screen), so the bottom
 // TabBar stays visible with "Settings" active and the NavigationBar has no

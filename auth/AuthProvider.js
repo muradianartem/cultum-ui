@@ -26,7 +26,46 @@ function isUsable(tokens, now = Date.now()) {
 // the app with a fake session — lets you debug the UI/screens without OAuth
 // credentials. Gated by __DEV__ so it can NEVER take effect in a release build.
 // Turn this back to false once the real Google client IDs are wired in.
-const DEV_BYPASS_AUTH = false;
+const DEV_BYPASS_AUTH = true;
+
+// ...and never under jest, where __DEV__ is also true: the auth tests assert
+// the real sign-in flow, and a debugging shortcut should not be able to decide
+// whether they pass.
+const bypassAuth = () => __DEV__ && DEV_BYPASS_AUTH && typeof jest === 'undefined';
+
+/**
+ * The `name` claim out of a Google ID token.
+ *
+ * There is no profile endpoint on the backend, and the ID token already
+ * carries the user's name — so read it once at sign-in rather than adding a
+ * round trip. This does NOT verify the token: the backend does that in
+ * POST /auth/google, and by the time we get here it has already accepted it.
+ * The value is only ever used to say hello.
+ */
+export function nameFromIdToken(idToken) {
+  try {
+    const payload = String(idToken).split('.')[1];
+    if (!payload) return null;
+    const json = decodeBase64Url(payload);
+    const claims = JSON.parse(json);
+    return claims.given_name ?? claims.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Hermes has atob, but the JWT payload is base64url and may carry non-ASCII
+// (a name with an accent), so unescape the percent-encoded bytes back to UTF-8.
+function decodeBase64Url(value) {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = globalThis.atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+  return decodeURIComponent(
+    raw
+      .split('')
+      .map((c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`)
+      .join(''),
+  );
+}
 
 const DEV_FAKE_TOKENS = {
   access_token: 'dev-access',
@@ -39,6 +78,13 @@ export function AuthProvider({ children }) {
   // 'loading' until we know whether a session was persisted.
   const [status, setStatus] = useState('loading');
   const [tokens, setTokens] = useState(null);
+  // Read off the Google ID token at sign-in; there is no profile endpoint.
+  const [profileName, setProfileName] = useState(null);
+  // True while the session is the DEV_BYPASS_AUTH fake one. Anything that would
+  // call an authenticated endpoint has to sit it out: the fake tokens 401, and
+  // apiFetch answers a 401 by rotating the session — which fails too, and signs
+  // the developer straight back out.
+  const [devSession, setDevSession] = useState(false);
 
   // apiFetch reads the access token through a registered provider rather than
   // importing this context (it isn't a component). The ref keeps that provider
@@ -83,10 +129,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Dev escape hatch: pretend we have a session so AuthGate renders the app.
-    // Note: any real authenticated backend call would 401 with these fake
-    // tokens (none exist today — main screens use local/mock data).
-    if (__DEV__ && DEV_BYPASS_AUTH) {
+    // The fake tokens 401 against any authenticated endpoint, and apiFetch
+    // answers a 401 by rotating the session — which fails too and would sign
+    // the developer straight back out. `devSession` tells callers (the garden's
+    // sync) to sit this one out rather than find that out the hard way.
+    if (bypassAuth()) {
       applyTokens(DEV_FAKE_TOKENS);
+      setDevSession(true);
       setStatus('signedIn');
       return;
     }
@@ -96,6 +145,7 @@ export function AuthProvider({ children }) {
       if (cancelled) return;
       if (stored) {
         applyTokens(stored);
+        setProfileName(stored.name ?? null);
         setStatus('signedIn');
       } else {
         setStatus('signedOut');
@@ -110,8 +160,13 @@ export function AuthProvider({ children }) {
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
     const minted = withExpiry(await authApi.loginGoogle(idToken));
-    await saveTokens(minted);
+    // Kept alongside the tokens so the greeting survives a relaunch — the app
+    // tokens the backend mints carry no name of their own.
+    const name = nameFromIdToken(idToken);
+    await saveTokens({ ...minted, name });
     applyTokens(minted);
+    setProfileName(name);
+    setDevSession(false);
     setStatus('signedIn');
   }
 
@@ -132,7 +187,8 @@ export function AuthProvider({ children }) {
   async function rotate() {
     try {
       const rotated = withExpiry(await authApi.refresh(tokensRef.current?.refresh_token));
-      await saveTokens(rotated);
+      // The refresh response has no name; carry the stored one forward.
+      await saveTokens({ ...rotated, name: profileName ?? null });
       applyTokens(rotated);
       setStatus('signedIn');
       return rotated;
@@ -153,12 +209,15 @@ export function AuthProvider({ children }) {
     } catch { }
     await clearTokens();
     applyTokens(null);
+    setProfileName(null);
     setStatus('signedOut');
   }
 
   const value = {
     status,
     tokens,
+    profileName,
+    devSession,
     completeGoogleLogin,
     refreshSession,
     signOut,

@@ -4,17 +4,14 @@ import {
   DEFAULT_UNIT_INDEX,
   frequencyLabel,
   frequencyValue,
-  makeReminder,
+  makeReminderDraft,
   parseShortDate,
-  resetReminderIds,
   setDateLabel,
   shortDate,
   startDateSuggestions,
 } from '../addReminderData';
 
 const SEP_10 = new Date(2026, 8, 10);
-
-beforeEach(resetReminderIds);
 
 describe('labels', () => {
   test('shortDate matches the stored detail-row format', () => {
@@ -45,9 +42,9 @@ describe('labels', () => {
   });
 });
 
-describe('makeReminder', () => {
+describe('makeReminderDraft', () => {
   const build = (over = {}) =>
-    makeReminder({
+    makeReminderDraft({
       label: 'Rotate the pot',
       numberIndex: DEFAULT_NUMBER_INDEX,
       unitIndex: DEFAULT_UNIT_INDEX,
@@ -55,31 +52,16 @@ describe('makeReminder', () => {
       ...over,
     });
 
-  test('produces a custom, removable, enabled reminder', () => {
-    expect(build()).toMatchObject({
-      kind: 'custom',
+  test('carries the three answers the sheet collected, in wheel vocabulary', () => {
+    expect(build()).toEqual({
       title: 'Rotate the pot',
-      nextLabel: null,
-      enabled: true,
-      removable: true,
-      dateLabel: 'Start date',
       dateValue: '10 Sep',
       frequency: '2 days',
-      snooze: 'None',
     });
   });
 
   test('trims the typed label', () => {
     expect(build({ label: '  Rotate the pot  ' }).title).toBe('Rotate the pot');
-  });
-
-  test('ids are unique even within the same millisecond', () => {
-    const ids = [build(), build(), build()].map((r) => r.id);
-    expect(new Set(ids).size).toBe(3);
-  });
-
-  test('an explicit id wins', () => {
-    expect(build({ id: 'seeded' }).id).toBe('seeded');
   });
 
   // The whole point of sharing screens/durationUnits.js: a freshly created

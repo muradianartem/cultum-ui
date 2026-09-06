@@ -85,7 +85,7 @@ test('the top match renders from the inline care payload without a detail fetch'
   await press(tree, 'Swiss cheese plant');
 
   expect(getSpecies).not.toHaveBeenCalled();
-  expect(api.params.plant.careFacts.find((f) => f.label === 'Sun').value).toBe(
+  expect(api.params.plant.highlights.find((h) => h.key === 'sun').value).toBe(
     'Bright, indirect'
   );
 });

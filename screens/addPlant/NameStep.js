@@ -9,7 +9,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, Icon, TextInput } from '../../components';
 import { space } from '../../theme/foundations';
 import { list, textInput } from '../../theme/tokens';
-import { HERO } from '../plantData';
+import { HERO } from '../placeholderPhotos';
 
 export default function NameStep({ photo, name, onChangeName, suggestions }) {
   return (
