@@ -66,6 +66,10 @@ export default function NavigationBar({
   ...rest
 }) {
   const isLarge = size === 'lg';
+  // Figma's large bar drops the button row entirely when it has neither a
+  // leading icon nor actions (the Rooms header) — rendering it anyway would
+  // push the title down by an empty 56pt.
+  const hasButtons = Boolean(leading) || (actions?.length ?? 0) > 0;
 
   return (
     <View
@@ -75,12 +79,14 @@ export default function NavigationBar({
     >
       {isLarge ? (
         <>
-          <View style={styles.rowLarge}>
-            <LeadingButton leading={leading} onPress={onLeadingPress} variant={buttonVariant} />
-            <View style={styles.spacer} />
-            <Actions actions={actions} variant={buttonVariant} />
-          </View>
-          <View style={styles.largeTitleRow}>
+          {hasButtons ? (
+            <View style={styles.rowLarge}>
+              <LeadingButton leading={leading} onPress={onLeadingPress} variant={buttonVariant} />
+              <View style={styles.spacer} />
+              <Actions actions={actions} variant={buttonVariant} />
+            </View>
+          ) : null}
+          <View style={[styles.largeTitleRow, !hasButtons && styles.largeTitleRowAlone]}>
             {title ? <Text style={styles.largeTitle}>{title}</Text> : null}
           </View>
         </>
@@ -141,6 +147,8 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   largeTitleRow: { paddingHorizontal: 16, paddingVertical: 8 },
+  // Without the button row above it the title carries the bar's full inset.
+  largeTitleRowAlone: { paddingVertical: 16 },
   largeTitle: {
     fontFamily: fonts.display,
     fontSize: 32,
