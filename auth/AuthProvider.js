@@ -26,7 +26,7 @@ function isUsable(tokens, now = Date.now()) {
 // the app with a fake session — lets you debug the UI/screens without OAuth
 // credentials. Gated by __DEV__ so it can NEVER take effect in a release build.
 // Turn this back to false once the real Google client IDs are wired in.
-const DEV_BYPASS_AUTH = true;
+const DEV_BYPASS_AUTH = false;
 
 // ...and never under jest, where __DEV__ is also true: the auth tests assert
 // the real sign-in flow, and a debugging shortcut should not be able to decide
