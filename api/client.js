@@ -26,6 +26,61 @@ export function setUnauthorizedHandler(fn) {
   unauthorizedHandler = typeof fn === 'function' ? fn : null;
 }
 
+// Request tracing. `logged` below records every failure; this records the rest
+// — what went out, what came back, how long it took — so a working endpoint can
+// be confirmed rather than only a broken one being diagnosed.
+//
+// On in development, off in release: a shipped build has no use for a console
+// line per request. Request and response bodies are never traced — only shapes
+// and sizes. The one credential that is printed is the bearer token, and only
+// through `traceToken` below, which is hard-gated on __DEV__.
+let logging =
+  typeof __DEV__ !== 'undefined' &&
+  __DEV__ &&
+  process.env.NODE_ENV !== 'test';
+
+/** Turn request tracing on or off (tests silence it; dev defaults to on). */
+export function setApiLogging(on) {
+  logging = !!on;
+}
+
+export function trace(message) {
+  if (logging) console.log(`[api] ${message}`);
+}
+
+// Best-effort JWT expiry, so a token that has gone stale in a Swagger tab
+// explains itself instead of just returning 401. Never throws: a token we
+// cannot parse is still a token worth printing.
+function expiryNote(token) {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload || typeof atob !== 'function') return '';
+    const { exp } = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (!exp) return '';
+    const mins = Math.round((exp * 1000 - Date.now()) / 60000);
+    return mins > 0 ? ` — expires in ${mins}m` : ` — EXPIRED ${-mins}m ago`;
+  } catch {
+    return '';
+  }
+}
+
+// The access token, printed for pasting into Swagger's Authorize box at
+// {API_BASE_URL}/docs. Deliberately the one exception to not logging
+// credentials, because testing an endpoint by hand needs it.
+//
+// Guarded three ways: only when tracing is on (development, never release),
+// and deduped by value so it appears once per token — on sign-in and on each
+// refresh — rather than on every request.
+let tracedToken = null;
+
+function traceToken(token) {
+  if (!logging || !token || token === tracedToken) return;
+  tracedToken = token;
+  console.log(
+    `[api] bearer token (dev only)${expiryNote(token)} — paste into ${API_BASE_URL}/docs → Authorize:\n${token}`
+  );
+}
+
 export class ApiError extends Error {
   constructor(message, { status = 0, code = 'http', detail = null } = {}) {
     super(message);
@@ -104,6 +159,7 @@ export async function apiFetch(
   } = {}
 ) {
   const token = await getAuthToken();
+  traceToken(token);
   const finalHeaders = { Accept: 'application/json', ...headers };
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   if (!isForm && body != null && finalHeaders['Content-Type'] == null) {
@@ -112,6 +168,14 @@ export async function apiFetch(
   if (token) finalHeaders.Authorization = `Bearer ${token}`;
 
   const url = `${API_BASE_URL}${path}`;
+  // Whether a token was attached matters more than its value: a bearer-gated
+  // endpoint answering 401 is usually this line saying "no auth".
+  trace(
+    `→ ${method} ${path}` +
+      (isForm ? ' multipart' : '') +
+      (token ? '' : ' (no auth)')
+  );
+  const startedAt = Date.now();
   let res;
   try {
     res = await attempt(url, { method, headers: finalHeaders, body, timeoutMs, retries });
@@ -151,6 +215,8 @@ export async function apiFetch(
       }
     }
   }
+
+  trace(`← ${res.status} ${method} ${path} ${Date.now() - startedAt}ms`);
 
   if (!res.ok) {
     const code = res.status === 401 || res.status === 403 ? 'unauthorized' : 'http';

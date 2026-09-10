@@ -3,7 +3,7 @@ import { Text, TextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import ScanSearchScreen from '../ScanSearchScreen';
-import { searchPlants } from '../../../api/plants';
+import { searchPlants, getSpecies } from '../../../api/plants';
 import { MOCK_SEARCH } from '../../../api/__mocks__/scanFixtures';
 
 jest.mock('../../../api/plants', () => ({
@@ -94,4 +94,27 @@ test('"Scan it instead" resets to the camera route', async () => {
 
   expect(api.route).toBe('scan-camera');
   expect(api.canGoBack).toBe(false);
+});
+
+test('a failed open reports the error and leaves the results list standing', async () => {
+  searchPlants.mockResolvedValueOnce(MOCK_SEARCH);
+  getSpecies.mockRejectedValueOnce(Object.assign(new Error('down'), { code: 'offline' }));
+  const tree = create(<ScanSearchScreen />);
+  await type(tree, 'monstera');
+
+  const row = tree.root.find(
+    (n) =>
+      typeof n.props.onPress === 'function' &&
+      n.props.accessibilityRole === 'button' &&
+      n.props.accessibilityLabel === 'Monstera'
+  );
+  await act(async () => {
+    await row.props.onPress();
+  });
+
+  const t = texts(tree);
+  expect(t).toContain('You’re offline.');
+  // The query is still good — only the tap failed, so the results stay.
+  expect(t).toContain('Swiss cheese vine');
+  expect(api.route).toBe('scan-search');
 });

@@ -1,7 +1,8 @@
+import { File } from 'expo-file-system';
 import { createScan, confirmScan, SCAN_TIMEOUT_MS } from '../scans';
 import { apiFetch } from '../client';
 
-jest.mock('../client', () => ({ apiFetch: jest.fn() }));
+jest.mock('../client', () => ({ apiFetch: jest.fn(), trace: jest.fn() }));
 
 // The FormData under jest is the whatwg one, which stringifies object parts —
 // so capture what createScan actually appends rather than reading it back out.
@@ -35,11 +36,20 @@ describe('createScan', () => {
     expect(path).toBe('/scans');
     expect(opts.method).toBe('POST');
     expect(opts.body).toBeInstanceOf(FormData);
-    expect(image).toEqual({
-      uri: 'file:///tmp/IMG_0001.jpg',
-      name: 'scan.jpg',
-      type: 'image/jpeg',
-    });
+    expect(image).toMatchObject({ name: 'scan.jpg', type: 'image/jpeg' });
+  });
+
+  test('sends the file’s bytes, not a bare uri — expo/fetch cannot resolve a URI part', async () => {
+    // SDK 57's winter runtime swaps global fetch for expo/fetch, which builds
+    // the multipart body in JS and throws "Unsupported FormDataPart
+    // implementation" on React Native's { uri, name, type } shape.
+    new File('file:///tmp/IMG_0001.jpg').write('JPEGDATA');
+
+    const { image } = await upload('file:///tmp/IMG_0001.jpg');
+
+    expect(image.uri).toBeUndefined();
+    expect(typeof image.bytes).toBe('function');
+    expect(new TextDecoder().decode(await image.bytes())).toBe('JPEGDATA');
   });
 
   test('gives the upload its own deadline and one automatic retry', async () => {
@@ -58,11 +68,7 @@ describe('createScan', () => {
       uri: 'file:///cache/ImageManipulator/abc',
       mimeType: 'image/jpeg',
     });
-    expect(image).toEqual({
-      uri: 'file:///cache/ImageManipulator/abc',
-      name: 'scan.jpg',
-      type: 'image/jpeg',
-    });
+    expect(image).toMatchObject({ name: 'scan.jpg', type: 'image/jpeg' });
   });
 
   test('names the part after the real extension when there is no mimeType', async () => {

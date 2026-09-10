@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, ButtonIcon, Icon, State } from '../../components';
@@ -8,6 +9,7 @@ import { candidateToCard, matchesCaption } from '../../api/mapPlant';
 import { confirmScan } from '../../api/scans';
 import SpeciesCard from './SpeciesCard';
 import { openPlant } from './openPlant';
+import { copyFor } from './errorCopy';
 
 /**
  * ScanMatchesScreen — the ranked candidate picker after a scan upload.
@@ -16,10 +18,17 @@ import { openPlant } from './openPlant';
  * caption (top candidate's %), one SpeciesCard per candidate (with confidence),
  * and a "Search manually" escape hatch.
  *
- * Every exit records a label via POST /scans/{id}/confirm — the tapped candidate,
- * or null for "none of these". That feedback is the reason the candidate list is
- * a list rather than an auto-picked top result, so it fires on both paths. It is
- * fire-and-forget: a failed confirm must never block the user's navigation.
+ * Picking a candidate — and "None of these" — records a label via POST
+ * /scans/{id}/confirm. That feedback is the reason this is a list the user
+ * chooses from rather than an auto-picked top result, so it is the tap itself
+ * that labels. Abandoning the screen (Close, Retake) deliberately records
+ * nothing: leaving is not an answer about which plant this is. The confirm is
+ * fire-and-forget — a lost label must never block navigation.
+ *
+ * The pick then fetches care detail (GET /plants/{species_key}), which against
+ * a cold backend takes seconds, so it runs as a guarded lifecycle: one pick in
+ * flight at a time, a spinner on the chosen row, and a retry state on failure
+ * rather than a Product page filled with placeholder care values.
  */
 export default function ScanMatchesScreen({ photoUri, scan }) {
   const insets = useSafeAreaInsets();
@@ -29,14 +38,33 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
 
   const cards = (scan?.candidates ?? []).map(candidateToCard);
 
+  // The candidate whose detail fetch is in flight, and the failure to retry.
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState(null);
+  // A scan gets one answer: re-picking after a failure must not re-label, and
+  // the in-flight guard stops a second card from contradicting the first.
+  const labelled = useRef(new Set());
+
   const label = (candidateId) => {
     if (!scan?.id) return;
+    const key = candidateId ?? 'none';
+    if (labelled.current.has(key)) return;
+    labelled.current.add(key);
     confirmScan(scan.id, candidateId).catch(() => {});
   };
 
-  const onPick = (card) => {
+  const onPick = async (card) => {
+    if (pending) return;
     label(card.candidateId);
-    openPlant(card, navigate, { care: scan?.care });
+    setPending(card.candidateId ?? card.speciesKey ?? 'pick');
+    setError(null);
+    try {
+      await openPlant(card, navigate);
+    } catch (e) {
+      setError({ err: e, card });
+    } finally {
+      setPending(null);
+    }
   };
 
   const onNoneOfThese = () => {
@@ -82,12 +110,27 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
         {photoUri ? <Image source={{ uri: photoUri }} style={styles.photo} /> : null}
         <Text style={styles.caption}>{matchesCaption(cards[0]?.percent ?? 0)}</Text>
 
+        {error ? (
+          // Keep the photo and caption above this: the user should still see
+          // which scan they're retrying.
+          <State
+            variant="card"
+            icon={<Icon name="outlined-scan" size={28} color={t.text.primary} />}
+            title={copyFor(error.err?.code).title}
+            subtitle={copyFor(error.err?.code).subtitle}
+            primaryAction={{ label: 'Try again', onPress: () => onPick(error.card) }}
+            secondaryAction={{ label: 'Search manually', onPress: onNoneOfThese }}
+          />
+        ) : null}
+
         <View style={styles.list}>
           {cards.map((card, i) => (
             <SpeciesCard
               key={card.candidateId ?? i}
               card={card}
               showConfidence
+              loading={pending != null && pending === card.candidateId}
+              disabled={pending != null}
               onPress={() => onPick(card)}
             />
           ))}
