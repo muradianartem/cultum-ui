@@ -8,8 +8,11 @@
 jest.mock('expo-file-system', () => {
   const files = new Map();
   class File {
-    constructor(dir, name) {
-      this.uri = `${dir?.uri ?? dir ?? ''}/${name}`;
+    // Mirrors the real signature: any number of URI / File / Directory parts
+    // joined into a path, so `new File(uri)` works alongside
+    // `new File(Paths.document, name)`.
+    constructor(...parts) {
+      this.uri = parts.map((p) => p?.uri ?? p ?? '').join('/');
     }
     get exists() {
       return files.has(this.uri);
@@ -22,6 +25,9 @@ jest.mock('expo-file-system', () => {
     }
     async text() {
       return files.get(this.uri) ?? '';
+    }
+    async bytes() {
+      return new TextEncoder().encode(files.get(this.uri) ?? '');
     }
     textSync() {
       return files.get(this.uri) ?? '';

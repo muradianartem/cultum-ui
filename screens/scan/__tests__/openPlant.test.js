@@ -29,39 +29,16 @@ test('fetches detail by species key and navigates to product with the mapped VM'
   expect(params.plant.latinName).toBe('Monstera deliciosa');
 });
 
-test('uses the scan response’s inline care payload instead of re-fetching it', async () => {
+test('rejects when the detail fetch fails, rather than faking the care data', async () => {
+  const boom = Object.assign(new Error('boom'), { code: 'network' });
+  getSpecies.mockRejectedValueOnce(boom);
   const navigate = jest.fn();
 
-  await openPlant(CARD, navigate, { care: MOCK_DETAIL });
-
-  expect(getSpecies).not.toHaveBeenCalled();
-  const [, params] = navigate.mock.calls[0];
-  expect(params.plant.commonName).toBe('Monstera');
-  expect(params.plant.careActions.find((r) => r.action === 'water').value).toBe(
-    'Every 7–10 days'
-  );
-});
-
-test('ignores inline care that describes a different species', async () => {
-  getSpecies.mockResolvedValueOnce(MOCK_DETAIL);
-  const navigate = jest.fn();
-
-  const other = { ...CARD, speciesKey: 'epipremnum-aureum' };
-  await openPlant(other, navigate, { care: MOCK_DETAIL });
-
-  expect(getSpecies).toHaveBeenCalledWith('epipremnum-aureum');
-});
-
-test('falls back to a card-built VM when the detail fetch fails', async () => {
-  getSpecies.mockRejectedValueOnce(new Error('boom'));
-  const navigate = jest.fn();
-
-  await openPlant(CARD, navigate);
-
-  const [route, params] = navigate.mock.calls[0];
-  expect(route).toBe('product');
-  expect(params.plant.commonName).toBe('Swiss cheese plant');
-  expect(params.plant.heroUri).toBe('https://img/monstera.jpg');
+  // Falling back to a card-built VM here would hand the Add Plant flow
+  // placeholder watering intervals to seed real reminders from, with nothing on
+  // screen saying the numbers were invented. The caller shows a retry instead.
+  await expect(openPlant(CARD, navigate)).rejects.toBe(boom);
+  expect(navigate).not.toHaveBeenCalled();
 });
 
 test('skips the fetch entirely when the card has no species key', async () => {

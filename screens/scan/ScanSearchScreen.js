@@ -16,6 +16,7 @@ import { searchPlants } from '../../api/plants';
 import { summaryToCard } from '../../api/mapPlant';
 import SpeciesCard from './SpeciesCard';
 import { openPlant } from './openPlant';
+import { copyFor } from './errorCopy';
 
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 300;
@@ -24,6 +25,12 @@ const DEBOUNCE_MS = 300;
  * ScanSearchScreen — the "Search manually" fallback. Debounced text search
  * against GET /plants/search; results render as SpeciesCards (no confidence).
  * Zero results shows the "No species by that name" state with a scan escape.
+ *
+ * Opening a result costs a second round trip (GET /plants/{species_key}), so it
+ * gets the same guarded lifecycle as the Matches screen: one open in flight,
+ * a spinner on the chosen row, and a failure reported in place. `openError` is
+ * kept separate from the search `error` so a failed open leaves the results
+ * list standing — the user's query is still good, only the tap failed.
  */
 export default function ScanSearchScreen() {
   const insets = useSafeAreaInsets();
@@ -36,9 +43,12 @@ export default function ScanSearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searched, setSearched] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [openError, setOpenError] = useState(null);
 
   useEffect(() => {
     const q = query.trim();
+    setOpenError(null);
     if (q.length < MIN_QUERY) {
       setResults([]);
       setSearched(false);
@@ -70,6 +80,19 @@ export default function ScanSearchScreen() {
       clearTimeout(id);
     };
   }, [query]);
+
+  const onOpen = async (card) => {
+    if (pending) return;
+    setPending(card.speciesKey);
+    setOpenError(null);
+    try {
+      await openPlant(card, navigate);
+    } catch (e) {
+      setOpenError({ err: e, card });
+    } finally {
+      setPending(null);
+    }
+  };
 
   const noResults = searched && !loading && !error && results.length === 0;
 
@@ -114,12 +137,22 @@ export default function ScanSearchScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {openError ? (
+              <State
+                variant="card"
+                title={copyFor(openError.err?.code).title}
+                subtitle={copyFor(openError.err?.code).subtitle}
+                primaryAction={{ label: 'Try again', onPress: () => onOpen(openError.card) }}
+              />
+            ) : null}
             {results.map((card, i) => (
               <SpeciesCard
                 key={card.speciesKey ?? i}
                 card={card}
                 showConfidence={false}
-                onPress={() => openPlant(card, navigate)}
+                loading={pending != null && pending === card.speciesKey}
+                disabled={pending != null}
+                onPress={() => onOpen(card)}
               />
             ))}
           </ScrollView>

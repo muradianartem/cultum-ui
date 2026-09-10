@@ -39,13 +39,16 @@ function create(el) {
 const texts = (tree) =>
   tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
-const press = async (tree, label) => {
-  const node = tree.root.find(
+const button = (tree, label) =>
+  tree.root.find(
     (n) =>
       typeof n.props.onPress === 'function' &&
       n.props.accessibilityRole === 'button' &&
       n.props.accessibilityLabel === label
   );
+
+const press = async (tree, label) => {
+  const node = button(tree, label);
   await act(async () => {
     await node.props.onPress();
   });
@@ -70,6 +73,7 @@ test('renders the design caption and one card per candidate with its confidence'
 });
 
 test('tapping a card confirms that candidate and opens the product page', async () => {
+  getSpecies.mockResolvedValueOnce(MOCK_DETAIL);
   const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
 
   await press(tree, 'Swiss cheese plant');
@@ -79,12 +83,17 @@ test('tapping a card confirms that candidate and opens the product page', async 
   expect(api.params.plant.commonName).toBe('Monstera');
 });
 
-test('the top match renders from the inline care payload without a detail fetch', async () => {
+test('the top match fetches its own detail even though the scan carried care for it', async () => {
+  // The shortcut this replaces gave the top candidate an instant page while
+  // every other one paid a round trip — a latency nudge toward the top result
+  // on a screen whose whole point is an unbiased explicit pick.
+  expect(MOCK_SCAN.care.species_key).toBe('monstera-deliciosa');
+  getSpecies.mockResolvedValueOnce(MOCK_DETAIL);
   const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
 
   await press(tree, 'Swiss cheese plant');
 
-  expect(getSpecies).not.toHaveBeenCalled();
+  expect(getSpecies).toHaveBeenCalledWith('monstera-deliciosa');
   expect(api.params.plant.highlights.find((h) => h.key === 'sun').value).toBe(
     'Bright, indirect'
   );
@@ -125,4 +134,49 @@ test('an empty candidate list shows the no-match state instead of the list', () 
   const t = texts(tree);
   expect(t).toContain('No plant found');
   expect(t).not.toContain('Swiss cheese plant');
+});
+
+test('a pick in flight makes every row inert, so a second tap cannot relabel the scan', async () => {
+  let settle;
+  getSpecies.mockReturnValueOnce(new Promise((resolve) => { settle = resolve; }));
+  const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
+
+  // Fire without awaiting: the fetch is still open, as it would be against a
+  // cold backend, where a dead-looking screen invites a second tap.
+  await act(async () => {
+    button(tree, 'Swiss cheese plant').props.onPress();
+  });
+
+  expect(() => button(tree, 'Golden pothos')).toThrow();
+  expect(confirmScan).toHaveBeenCalledTimes(1);
+  expect(getSpecies).toHaveBeenCalledTimes(1);
+
+  await act(async () => {
+    settle(MOCK_DETAIL);
+  });
+  expect(api.route).toBe('product');
+});
+
+test('a failed detail fetch shows a retry state instead of a placeholder product page', async () => {
+  getSpecies.mockRejectedValueOnce(Object.assign(new Error('down'), { code: 'offline' }));
+  const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
+
+  await press(tree, 'Golden pothos');
+
+  expect(texts(tree)).toContain('You’re offline.');
+  expect(api.route).toBe('scan-matches');
+});
+
+test('retrying a failed pick re-fetches without sending a second label', async () => {
+  getSpecies.mockRejectedValueOnce(Object.assign(new Error('down'), { code: 'network' }));
+  const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
+  await press(tree, 'Golden pothos');
+  expect(confirmScan).toHaveBeenCalledTimes(1);
+
+  getSpecies.mockResolvedValueOnce(MOCK_DETAIL);
+  await press(tree, 'Try again');
+
+  expect(getSpecies).toHaveBeenCalledTimes(2);
+  expect(confirmScan).toHaveBeenCalledTimes(1);
+  expect(api.route).toBe('product');
 });

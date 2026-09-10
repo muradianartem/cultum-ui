@@ -19,6 +19,7 @@ import { createScan } from '../../api/scans';
 import { warmUp } from '../../api/health';
 import { prepareScanImage } from '../../lib/prepareImage';
 import Viewfinder from './Viewfinder';
+import { copyFor } from './errorCopy';
 
 // Camera chrome sits over a live preview, so these are fixed rather than themed:
 // the Figma frame's controls are the dark pill regardless of light/dark mode.
@@ -33,31 +34,6 @@ const SCRIM_FADE = 'rgba(0,0,0,0)';
 // Geometry of the punched-out viewfinder square.
 const VIEWFINDER_MAX = 288;
 const VIEWFINDER_INSET = 40;
-
-// One line per ApiError code. 'offline' is the only one that blames the user's
-// connection, and it is only ever set when the OS confirmed there isn't one —
-// a request we simply couldn't complete says so instead of sending someone to
-// go restart their router.
-const ERROR_COPY = {
-  unauthorized: {
-    title: 'Your session expired.',
-    subtitle: 'Sign in again to identify plants by photo.',
-  },
-  offline: { title: 'You’re offline.', subtitle: 'Check your connection and try again.' },
-  network: {
-    title: 'Couldn’t reach Cultum.',
-    subtitle: 'The upload didn’t get through. Try again.',
-  },
-  timeout: {
-    title: 'That took too long.',
-    subtitle: 'The server didn’t answer in time. Try again in a moment.',
-  },
-  camera: {
-    title: 'Couldn’t take the photo.',
-    subtitle: 'Try again, or pick an existing picture.',
-  },
-  http: { title: 'Something went wrong.', subtitle: 'Try again in a moment.' },
-};
 
 // How long identification may run before the overlay admits it's slow. The
 // request itself has a much longer deadline (SCAN_TIMEOUT_MS) — this only stops
@@ -319,8 +295,8 @@ export default function ScanCameraScreen() {
           <State
             icon={<Icon name="camera" size={24} color={t.text.primary} />}
             iconVariant="secondary"
-            title={(ERROR_COPY[errorCode] ?? ERROR_COPY.http).title}
-            subtitle={(ERROR_COPY[errorCode] ?? ERROR_COPY.http).subtitle}
+            title={copyFor(errorCode).title}
+            subtitle={copyFor(errorCode).subtitle}
             primaryAction={{ label: 'Try again', onPress: () => setPhase('ready') }}
             secondaryAction={{
               label: 'Search by Name Instead',
