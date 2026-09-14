@@ -5,6 +5,9 @@
 // backdrop-dismiss, slide-in and the green primary action. Only the surface
 // colour/radius (Figma gives this sheet #FAFAFA + a 24px top radius, vs. the
 // primitive's default) and the plan rows are specific to this screen.
+//
+// The plans come in as `products` — the mapped GET /billing/plans payload the
+// paywall is already holding — so the sheet owns no pricing of its own.
 
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,31 +15,26 @@ import { Badge, BottomSheet } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 
-// Figma copy. Real values must come from the StoreKit products once IAP lands —
-// see the same note on PRICING in PaywallScreen.js.
-export const PLANS = [
-  {
-    id: 'yearly',
-    name: 'Yearly',
-    badge: 'Best value',
-    detail: '$3.33 a month, billed yearly',
-    price: '$39.99',
-    period: 'per year',
-  },
-  {
-    id: 'monthly',
-    name: 'Monthly',
-    badge: null,
-    detail: 'Cancel any time',
-    price: '$5.99',
-    period: 'per month',
-  },
-];
+/**
+ * The line under a plan's name.
+ *
+ * Keyed off `period`, not off arithmetic on `fallbackPrice`. Figma's copy here
+ * was "$3.33 a month, billed yearly", but dividing the yearly price by twelve
+ * would make the sheet lie the moment pricing changes in App Store Connect —
+ * and `fallback_price` is not the price most storefronts show anyway. The
+ * value story survives through the API's own `badge: "Best value"`.
+ *
+ * The right fix is a `detail` string on PaywallProduct: one Pydantic field, and
+ * this function goes away.
+ */
+export function detailFor(product) {
+  return product.period === 'year' ? 'Billed yearly, cancel any time' : 'Cancel any time';
+}
 
-export default function ChoosePlanSheet({ visible, onClose, onDone, initialPlan = 'yearly' }) {
+export default function ChoosePlanSheet({ visible, products, onClose, onDone, initialPlan }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
-  const [selected, setSelected] = useState(initialPlan);
+  const [selected, setSelected] = useState(initialPlan ?? products[0]?.key);
 
   return (
     <BottomSheet
@@ -53,33 +51,37 @@ export default function ChoosePlanSheet({ visible, onClose, onDone, initialPlan 
       <Text style={styles.heading}>Choose a plan</Text>
 
       <View style={styles.plans}>
-        {PLANS.map((plan) => {
-          const isSelected = plan.id === selected;
+        {products.map((plan) => {
+          const isSelected = plan.key === selected;
+          const period = `per ${plan.period}`;
           return (
             <Pressable
-              key={plan.id}
-              onPress={() => setSelected(plan.id)}
+              key={plan.key}
+              onPress={() => setSelected(plan.key)}
               accessibilityRole="radio"
               // role=radio reads `checked`, not `selected` (it is what maps to
               // aria-checked on web and to the trait natively).
               accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={`${plan.name}, ${plan.price} ${plan.period}`}
+              accessibilityLabel={`${plan.label}, ${plan.fallbackPrice} ${period}`}
               style={[styles.plan, isSelected && styles.planSelected]}
-              testID={`plan-${plan.id}`}
+              testID={`plan-${plan.key}`}
             >
               <View style={styles.planLabel}>
                 <View style={styles.planName}>
-                  <Text style={styles.planNameText}>{plan.name}</Text>
+                  <Text style={styles.planNameText}>{plan.label}</Text>
                   {plan.badge ? (
                     <Badge label={plan.badge} intent="neutral" variant="primary" size="lg" />
                   ) : null}
                 </View>
-                <Text style={styles.planDetail}>{plan.detail}</Text>
+                <Text style={styles.planDetail}>{detailFor(plan)}</Text>
               </View>
 
               <View style={styles.planPrice}>
-                <Text style={styles.planPriceText}>{plan.price}</Text>
-                <Text style={styles.planPeriod}>{plan.period}</Text>
+                {/* The *fallback* price — right in a USD storefront and nowhere
+                    else. Swap it for the StoreKit/Play-resolved localized price
+                    when IAP lands; api/billing.js carries the product ids. */}
+                <Text style={styles.planPriceText}>{plan.fallbackPrice}</Text>
+                <Text style={styles.planPeriod}>{period}</Text>
               </View>
             </Pressable>
           );

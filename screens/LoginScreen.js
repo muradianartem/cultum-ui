@@ -11,6 +11,7 @@ import { radius, space, typography } from '../theme/foundations';
 import { GOOGLE_CLIENT_IDS } from '../lib/config';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
+import { prefetchPaywall } from '../billing/paywallContent';
 
 // Required so the web OAuth popup can hand the result back and close itself.
 WebBrowser.maybeCompleteAuthSession();
@@ -109,6 +110,10 @@ function WelcomeScreen() {
 
   useEffect(() => {
     refreshNonce();
+    // The paywall opens the moment sign-in completes, and GET /billing/plans is
+    // public — so fetch it now and spend the backend's cold start on the OAuth
+    // round trip instead of on a spinner. Doubles as api/health.js#warmUp.
+    prefetchPaywall();
   }, []);
 
   useEffect(() => {

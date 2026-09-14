@@ -9,6 +9,7 @@ import { GardenProvider } from './store/GardenProvider';
 import { clearState } from './store/persist';
 import { clearPhotos } from './store/media';
 import { cancelAll, configureNotifications } from './notifications';
+import PaywallLauncher from './billing/PaywallLauncher';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
 import { LoadingIndicator, SnackbarProvider } from './components';
@@ -38,7 +39,7 @@ configureNotifications();
 // here at the root (not via routing/guards, which are pure sync functions with
 // no context access), so the Router only ever mounts once authenticated.
 function AuthGate() {
-  const { status } = useAuth();
+  const { status, signedInVia } = useAuth();
 
   // Signing out has to take the garden with it: the document on disk, the
   // pictures beside it and the notifications already queued with the OS all
@@ -82,6 +83,9 @@ function AuthGate() {
           {/* Not a route: it has to outlive whichever screen is on top, because
               a tapped reminder can arrive at any moment. */}
           <NotificationRouter />
+          {/* Also not a route: it opens the paywall once the backend has said
+              what Plus costs. See billing/PaywallLauncher.js. */}
+          <PaywallLauncher signedInVia={signedInVia} />
           <Route name="today" component={TodayScreen} />
           <Route name="product" component={ProductPage} />
           <Route name="add-plant" component={AddPlantScreen} />
@@ -92,9 +96,10 @@ function AuthGate() {
           <Route name="scan-camera" component={ScanCameraScreen} />
           <Route name="scan-matches" component={ScanMatchesScreen} />
           <Route name="scan-search" component={ScanSearchScreen} />
-          {/* TODO: nothing navigates to "paywall" yet — it is reachable today only
-              as the subscription guard's fallback. Add the in-app entry points
-              (settings, gated actions) when entitlements land. */}
+          {/* Entered by <PaywallLauncher> above (see billing/entry.js) and as
+              the subscription guard's fallback. Deliberate in-app entry points
+              — Settings, gated actions — still need adding once entitlements
+              land. */}
           <Route name="paywall" component={PaywallScreen} />
           <Route
             name="premium-gallery"

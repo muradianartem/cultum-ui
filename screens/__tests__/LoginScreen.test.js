@@ -39,6 +39,8 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../api/auth', () => ({
   authApi: { createNonce: jest.fn(async () => ({ nonce: 'srv', expires_in: 300 })) },
 }));
+jest.mock('../../billing/paywallContent', () => ({ prefetchPaywall: jest.fn() }));
+const { prefetchPaywall } = require('../../billing/paywallContent');
 const mockCompleteGoogleLogin = jest.fn(async () => {});
 const mockCompleteAppleLogin = jest.fn(async () => {});
 jest.mock('../../auth/AuthProvider', () => ({
@@ -208,4 +210,11 @@ test('a successful Google response exchanges the id_token via completeGoogleLogi
   mockResponse = { type: 'success', params: { id_token: 'google-id-token' } };
   await render();
   expect(mockCompleteGoogleLogin).toHaveBeenCalledWith('google-id-token');
+});
+
+// The paywall opens the moment sign-in completes, and the backend cold-starts —
+// so the copy has to be on its way while the user is still choosing a provider.
+test('warms the paywall copy on mount', async () => {
+  await render();
+  expect(prefetchPaywall).toHaveBeenCalled();
 });
