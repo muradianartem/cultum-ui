@@ -53,6 +53,38 @@ describe('authApi.loginGoogle', () => {
   });
 });
 
+describe('authApi.loginApple', () => {
+  test('POSTs /auth/apple with the identity token and the name', async () => {
+    const tokens = {
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'bearer',
+      expires_in: 3600,
+    };
+    mockFetchOnce({ json: tokens });
+
+    const res = await authApi.loginApple('aid', 'Ada');
+
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toMatch(/\/auth\/apple$/);
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: 'Ada' });
+    expect(res).toEqual(tokens);
+  });
+
+  // Apple withholds the name on every sign-in after the first, so `name` is
+  // routinely absent — it has to go over the wire as an explicit null, not as a
+  // key JSON.stringify drops.
+  test('sends name: null when Apple did not disclose one', async () => {
+    mockFetchOnce({ json: {} });
+
+    await authApi.loginApple('aid');
+
+    const [, opts] = global.fetch.mock.calls[0];
+    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: null });
+  });
+});
+
 describe('authApi.refresh', () => {
   test('POSTs /auth/refresh with the refresh_token and returns the rotated TokenResponse', async () => {
     const rotated = {

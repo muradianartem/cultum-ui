@@ -13,6 +13,7 @@ jest.mock('../../lib/authStorage', () => ({
 jest.mock('../../api/auth', () => ({
   authApi: {
     loginGoogle: jest.fn(),
+    loginApple: jest.fn(),
     refresh: jest.fn(),
     logout: jest.fn(async () => null),
   },
@@ -74,6 +75,50 @@ test('completeGoogleLogin exchanges the id token, persists, and flips to signedI
   expect(ref.current.tokens).toMatchObject(minted);
   // Stamped on the way in, so a later read can tell the token is stale.
   expect(ref.current.tokens.expires_at).toEqual(expect.any(Number));
+});
+
+// Apple's identity token carries no name claim — the name comes in from the
+// screen, out of the one-time credential — so it has to be both forwarded to
+// the backend and written next to the tokens, or the greeting is gone the
+// moment the app relaunches.
+test('completeAppleLogin forwards the name and persists it alongside the tokens', async () => {
+  authStorage.loadTokens.mockResolvedValue(null);
+  const minted = { access_token: 'A', refresh_token: 'R', token_type: 'bearer', expires_in: 3600 };
+  authApi.loginApple.mockResolvedValue(minted);
+
+  const { ref } = await renderAuth();
+
+  await act(async () => {
+    await ref.current.completeAppleLogin('apple-id-token', 'Ada');
+  });
+
+  expect(authApi.loginApple).toHaveBeenCalledWith('apple-id-token', 'Ada');
+  expect(authStorage.saveTokens).toHaveBeenCalledWith(expect.objectContaining({
+    access_token: 'A',
+    name: 'Ada',
+  }));
+  expect(ref.current.status).toBe('signedIn');
+  expect(ref.current.profileName).toBe('Ada');
+});
+
+// A returning Apple user gets no name at all; the session still has to open.
+test('completeAppleLogin signs in with no name when Apple withheld one', async () => {
+  authStorage.loadTokens.mockResolvedValue(null);
+  authApi.loginApple.mockResolvedValue({
+    access_token: 'A',
+    refresh_token: 'R',
+    token_type: 'bearer',
+    expires_in: 3600,
+  });
+
+  const { ref } = await renderAuth();
+
+  await act(async () => {
+    await ref.current.completeAppleLogin('apple-id-token', null);
+  });
+
+  expect(ref.current.status).toBe('signedIn');
+  expect(ref.current.profileName).toBeNull();
 });
 
 test('signOut clears storage and flips to signedOut even if the logout call fails', async () => {

@@ -13,6 +13,21 @@ jest.mock('expo-auth-session/providers/google', () => ({
   useIdTokenAuthRequest: () => [{ /* request */ }, mockResponse, mockPromptAsync],
 }));
 jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
+// Sign in with Apple: available by default (the screen hides the button when
+// it isn't), with each test free to override the two calls it makes.
+let mockAppleAvailable = true;
+const mockAppleSignIn = jest.fn(async () => ({
+  identityToken: 'apple-id-token',
+  authorizationCode: 'code',
+  user: 'apple-user',
+  fullName: { givenName: 'Ada', familyName: 'Lovelace' },
+  email: 'ada@example.com',
+}));
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn(async () => mockAppleAvailable),
+  signInAsync: (...args) => mockAppleSignIn(...args),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));
 jest.mock('expo-linear-gradient', () => {
   const R = require('react');
   const RN = require('react-native');
@@ -25,8 +40,13 @@ jest.mock('../../api/auth', () => ({
   authApi: { createNonce: jest.fn(async () => ({ nonce: 'srv', expires_in: 300 })) },
 }));
 const mockCompleteGoogleLogin = jest.fn(async () => {});
+const mockCompleteAppleLogin = jest.fn(async () => {});
 jest.mock('../../auth/AuthProvider', () => ({
-  useAuth: () => ({ completeGoogleLogin: mockCompleteGoogleLogin, status: 'signedOut' }),
+  useAuth: () => ({
+    completeGoogleLogin: mockCompleteGoogleLogin,
+    completeAppleLogin: mockCompleteAppleLogin,
+    status: 'signedOut',
+  }),
 }));
 
 import LoginScreen from '../LoginScreen';
@@ -44,6 +64,7 @@ async function render() {
 afterEach(() => {
   jest.clearAllMocks();
   mockResponse = null;
+  mockAppleAvailable = true;
 });
 
 // The *host* node carries the resolved style; the composite Pressable above it
@@ -115,16 +136,72 @@ test('both provider buttons are opaque outlined pills', async () => {
   }
 });
 
-test('pressing Apple shows a coming-soon snackbar and makes no auth call', async () => {
+// The nonce is the whole replay defense: Apple echoes it into the identity
+// token's `nonce` claim, and the backend burns it. Sending our own — or none —
+// would hand the backend a token it cannot bind to this attempt.
+test('pressing Apple signs in with the server nonce and exchanges the identity token', async () => {
   const tree = await render();
-  expect(texts(tree)).not.toContain('Apple Sign In is coming soon');
 
   await act(async () => {
-    pressButton(tree, 'Continue with Apple');
+    await pressButton(tree, 'Continue with Apple');
   });
 
-  expect(texts(tree)).toContain('Apple Sign In is coming soon');
+  expect(mockAppleSignIn).toHaveBeenCalledWith(expect.objectContaining({ nonce: 'srv' }));
+  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', 'Ada');
   expect(mockPromptAsync).not.toHaveBeenCalled();
+});
+
+// Apple only discloses the name on the first-ever authorization; every later
+// sign-in has fullName: null and still has to go through.
+test('a returning Apple user with no name still exchanges the identity token', async () => {
+  mockAppleSignIn.mockResolvedValueOnce({
+    identityToken: 'apple-id-token',
+    authorizationCode: 'code',
+    user: 'apple-user',
+    fullName: null,
+    email: null,
+  });
+  const tree = await render();
+
+  await act(async () => {
+    await pressButton(tree, 'Continue with Apple');
+  });
+
+  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', null);
+});
+
+test('backing out of the Apple sheet is silent — no error snackbar', async () => {
+  const canceled = Object.assign(new Error('canceled'), { code: 'ERR_REQUEST_CANCELED' });
+  mockAppleSignIn.mockRejectedValueOnce(canceled);
+  const tree = await render();
+
+  await act(async () => {
+    await pressButton(tree, 'Continue with Apple');
+  });
+
+  expect(mockCompleteAppleLogin).not.toHaveBeenCalled();
+  expect(texts(tree)).not.toContain("Couldn't sign in. Try again.");
+});
+
+test('a failed Apple sign-in surfaces the error snackbar', async () => {
+  mockAppleSignIn.mockRejectedValueOnce(new Error('boom'));
+  const tree = await render();
+
+  await act(async () => {
+    await pressButton(tree, 'Continue with Apple');
+  });
+
+  expect(texts(tree)).toContain("Couldn't sign in. Try again.");
+});
+
+// Android and web have no implementation — offering the button there would
+// only produce an UnavailabilityError.
+test('hides the Apple button where Sign in with Apple is unavailable', async () => {
+  mockAppleAvailable = false;
+  const tree = await render();
+
+  expect(texts(tree)).not.toContain('Continue with Apple');
+  expect(texts(tree)).toContain('Continue with Google');
 });
 
 test('a successful Google response exchanges the id_token via completeGoogleLogin', async () => {

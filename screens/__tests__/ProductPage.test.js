@@ -145,6 +145,18 @@ describe('an owned plant', () => {
     expect(r.texts()).toContain('Next reminder is on Sat, Sep 19');
   });
 
+  test('a completion offers an Undo that puts the task back', () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+
+    r.press('Watering');
+    expect(r.texts()).toContain('Task completed');
+
+    r.press('Undo');
+    expect(r.texts()).toContain('Watering');
+    expect(r.texts()).not.toContain('All caught up');
+  });
+
   test('a plant with no reminders says so rather than promising a next one', () => {
     const state = owned({ reminders: [] });
     const t = render(<ProductPage plantId={state.plants[0].id} />, state).texts();

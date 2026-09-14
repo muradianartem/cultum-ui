@@ -234,6 +234,42 @@ export function reducer(state, action) {
         ),
       };
 
+    /**
+     * Put back what a completion or a snooze overwrote — the other half of the
+     * Undo on the snackbar.
+     *
+     * `entries` come from the mutation itself (store/GardenProvider.js snapshots
+     * them before dispatching): `{ id, lastDoneAt, snoozedUntil, updatedAt,
+     * wasQueued }`. Restoring the captured `updatedAt` rather than stamping
+     * `now` makes this an exact inverse.
+     *
+     * Only entries this mutation queued are dropped from the outbox: `enqueue`
+     * collapses per (op, localId), so an offline "complete, complete again,
+     * undo" would otherwise discard the first completion, which nobody undid.
+     * That is what `wasQueued` records.
+     */
+    case 'reminders/restore': {
+      const prior = new Map((action.entries ?? []).map((e) => [e.id, e]));
+      if (prior.size === 0) return state;
+      return {
+        ...state,
+        reminders: state.reminders.map((r) => {
+          const was = prior.get(r.id);
+          return was
+            ? {
+              ...r,
+              lastDoneAt: was.lastDoneAt ?? null,
+              snoozedUntil: was.snoozedUntil ?? null,
+              updatedAt: was.updatedAt ?? now,
+            }
+            : r;
+        }),
+        outbox: state.outbox.filter(
+          (e) => !(e.op === 'reminder.complete' && prior.get(e.localId)?.wasQueued === false),
+        ),
+      };
+    }
+
     case 'reminder/delete': {
       const reminder = state.reminders.find((r) => r.id === action.id);
       if (!reminder) return state;

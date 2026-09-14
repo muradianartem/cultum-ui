@@ -132,6 +132,85 @@ describe('plant/delete', () => {
   });
 });
 
+describe('reminders/restore', () => {
+  // What store/GardenProvider.js captures before it mutates.
+  const snapshotOf = (state, ids) =>
+    ids.map((id) => {
+      const r = state.reminders.find((x) => x.id === id);
+      return {
+        id,
+        lastDoneAt: r.lastDoneAt ?? null,
+        snoozedUntil: r.snoozedUntil ?? null,
+        updatedAt: r.updatedAt,
+        wasQueued: state.outbox.some((e) => e.op === 'reminder.complete' && e.localId === id),
+      };
+    });
+
+  test('undoing a completion is an exact inverse — rows and queue both', () => {
+    const s0 = seeded();
+    const entries = snapshotOf(s0, [s0.reminder.id]);
+    const done = reducer(s0, { type: 'reminder/complete', id: s0.reminder.id, now: NOW });
+    expect(done.outbox.map((e) => e.op)).toEqual(['reminder.complete']);
+
+    const back = reducer(done, { type: 'reminders/restore', entries, now: NOW });
+    expect(back.reminders).toEqual(s0.reminders);
+    expect(back.outbox).toEqual(s0.outbox);
+  });
+
+  test('undoing a snooze puts the previous snoozedUntil back', () => {
+    const s0 = seeded();
+    const snoozed = { ...s0, reminders: [{ ...s0.reminder, snoozedUntil: '2026-09-06T09:00:00.000Z' }] };
+    const entries = snapshotOf(snoozed, [s0.reminder.id]);
+    const again = reducer(snoozed, {
+      type: 'reminder/snooze',
+      id: s0.reminder.id,
+      until: '2026-09-09T09:00:00.000Z',
+      now: NOW,
+    });
+
+    const back = reducer(again, { type: 'reminders/restore', entries, now: NOW });
+    expect(back.reminders[0].snoozedUntil).toBe('2026-09-06T09:00:00.000Z');
+  });
+
+  test('a completion that was already queued survives the undo of a later one', () => {
+    const s0 = seeded();
+    const first = reducer(s0, { type: 'reminder/complete', id: s0.reminder.id, now: NOW });
+    // Offline: the second completion collapses into the same queued entry.
+    const entries = snapshotOf(first, [s0.reminder.id]);
+    expect(entries[0].wasQueued).toBe(true);
+    const second = reducer(first, { type: 'reminder/complete', id: s0.reminder.id, now: NOW });
+
+    const back = reducer(second, { type: 'reminders/restore', entries, now: NOW });
+    expect(back.reminders[0].lastDoneAt).toBe(first.reminders[0].lastDoneAt);
+    expect(back.outbox.map((e) => e.op)).toEqual(['reminder.complete']);
+  });
+
+  test('leaves other reminders and other queued ops alone', () => {
+    const s0 = seeded();
+    const other = { ...makeReminder({ plantId: s0.plant.id, action: 'mist' }), serverId: 'R2' };
+    const both = {
+      ...s0,
+      reminders: [...s0.reminders, other],
+      outbox: enqueue([], 'reminder.update', s0.reminder.id, 'R1'),
+    };
+    const entries = snapshotOf(both, [s0.reminder.id]);
+    const done = reducer(both, { type: 'reminder/complete', id: s0.reminder.id, now: NOW });
+
+    const back = reducer(done, { type: 'reminders/restore', entries, now: NOW });
+    expect(back.reminders[1]).toEqual(other);
+    expect(back.outbox.map((e) => e.op)).toEqual(['reminder.update']);
+  });
+
+  test('an id that is gone, and an empty list, are both no-ops', () => {
+    const s0 = seeded();
+    expect(reducer(s0, { type: 'reminders/restore', entries: [], now: NOW })).toBe(s0);
+    const ghost = [{ id: 'nope', lastDoneAt: null, snoozedUntil: null, wasQueued: false }];
+    const s = reducer(s0, { type: 'reminders/restore', entries: ghost, now: NOW });
+    expect(s.reminders).toEqual(s0.reminders);
+    expect(s.outbox).toEqual(s0.outbox);
+  });
+});
+
 test('an unknown action is a no-op, not a crash', () => {
   const s = emptyState();
   expect(reducer(s, { type: 'nope' })).toBe(s);

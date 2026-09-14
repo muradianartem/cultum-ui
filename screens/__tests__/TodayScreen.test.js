@@ -145,3 +145,38 @@ test('snoozing a task moves it out of today without changing its cadence', () =>
 
   expect(r.texts()).not.toContain('Watering');
 });
+
+describe('the snackbar takes the action back', () => {
+  test('completing one task', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Mark task done');
+    expect(r.texts()).toContain('Task completed');
+
+    r.press('Undo');
+    expect(r.texts()).toContain('Watering');
+    expect(r.texts()).not.toContain('Task completed');
+  });
+
+  test('completing all of them', () => {
+    const r = render();
+    r.press('Complete All');
+    r.press('Complete 2 tasks');
+    expect(r.texts()).toContain('All 2 tasks completed');
+
+    r.press('Undo');
+    const t = r.texts();
+    expect(t).toContain('Watering');
+    expect(t).toContain('Fertilizing');
+    expect(t).not.toContain('All caught up');
+  });
+
+  test('snoozing', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Snooze task');
+    r.press('Snooze for 2 days');
+    expect(r.texts()).toContain('Snoozed for 2 days');
+
+    r.press('Undo');
+    expect(r.texts()).toContain('Watering');
+  });
+});

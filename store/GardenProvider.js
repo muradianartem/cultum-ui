@@ -69,6 +69,14 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   const [ready, setReady] = useState(initialState != null);
   const [now, setNow] = useState(() => clock ?? new Date());
 
+  // An open undo window freezes the outbox: the backend has no un-complete
+  // endpoint, so a completion that reaches it can never be taken back. State
+  // rather than a ref, so releasing a hold re-runs the sync effect below — and
+  // therefore reads the state the undo's own dispatch just produced.
+  const [holds, setHolds] = useState(0);
+  const holding = useRef(0);
+  holding.current = holds;
+
   const saver = useRef(null);
   if (!saver.current) saver.current = createSaver(SAVE_DEBOUNCE_MS);
 
@@ -119,7 +127,7 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
     // A dev-bypass session has no real credentials — calling the garden
     // endpoints with them would 401, and apiFetch answers a 401 by rotating
     // the session, which would end it.
-    if (syncing.current || status !== 'signedIn' || devSession) return;
+    if (holding.current > 0 || syncing.current || status !== 'signedIn' || devSession) return;
     syncing.current = true;
     try {
       const merged = await syncGarden(latest.current);
@@ -129,16 +137,33 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
     }
   }, [status, devSession]);
 
+  /**
+   * Freeze the outbox while an undo is on offer, and hand back an idempotent
+   * release. A counter rather than a flag: a second snackbar takes its hold
+   * before the host dismisses the first and releases, so the count never dips
+   * to zero between two completions in a row.
+   */
+  const holdSync = useCallback(() => {
+    setHolds((n) => n + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      setHolds((n) => Math.max(0, n - 1));
+    };
+  }, []);
+
   // Keyed on the outbox, not on the whole document: a successful pull replaces
   // plants, reminders and rooms wholesale, so depending on `state` would make
   // every sync trigger the next one, forever. The outbox is the only thing that
   // says there is something new to push, and a pull that changes nothing leaves
   // it identical.
+  // A hold cancels the pending timer; releasing one schedules a fresh 2s.
   useEffect(() => {
-    if (!ready) return undefined;
+    if (!ready || holds > 0) return undefined;
     const timer = setTimeout(runSync, SYNC_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [state.outbox, ready, runSync]);
+  }, [state.outbox, ready, holds, runSync]);
 
   // --- notifications ------------------------------------------------------
   useEffect(() => {
@@ -176,6 +201,58 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
     // a reminder completed "now" is next due a whole interval from that same
     // instant — and a frozen clock makes the whole store deterministic.
     const commit = (action) => dispatch({ now: at().toISOString(), ...action });
+
+    /**
+     * What an undo has to put back. Read before the dispatch, from the last
+     * committed state, so it is the pre-mutation truth. `wasQueued` records
+     * whether a completion was *already* waiting to push — undoing must not
+     * drop an earlier completion nobody took back.
+     */
+    const snapshot = (ids) => {
+      const before = latest.current;
+      return ids.flatMap((id) => {
+        const r = before.reminders.find((x) => x.id === id);
+        return r
+          ? [{
+            id,
+            lastDoneAt: r.lastDoneAt ?? null,
+            snoozedUntil: r.snoozedUntil ?? null,
+            updatedAt: r.updatedAt,
+            wasQueued: before.outbox.some(
+              (e) => e.op === 'reminder.complete' && e.localId === id,
+            ),
+          }]
+          : [];
+      });
+    };
+
+    /**
+     * The token behind the snackbar's Undo. It owns the sync hold, so a caller
+     * that shows the bar and forgets to retire the token delays a push — it
+     * cannot desync the document.
+     *
+     * @returns {{count: number, undo: () => void, drop: () => void} | null}
+     *          null when the mutation touched nothing
+     */
+    const undoable = (entries) => {
+      if (entries.length === 0) return null;
+      const release = holdSync();
+      let spent = false;
+      return {
+        count: entries.length,
+        undo() {
+          if (spent) return;
+          spent = true;
+          commit({ type: 'reminders/restore', entries });
+          release();
+        },
+        drop() {
+          if (spent) return;
+          spent = true;
+          release();
+        },
+      };
+    };
 
     return {
       /**
@@ -246,12 +323,19 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
       toggleReminder: (id, enabled) =>
         commit({ type: 'reminder/update', id, patch: { enabled } }),
       deleteReminder: (id) => commit({ type: 'reminder/delete', id }),
-      completeReminder: (id) => commit({ type: 'reminder/complete', id }),
+      /** @returns an undo token for the snackbar, or null if there was no row. */
+      completeReminder(id) {
+        const entries = snapshot([id]);
+        commit({ type: 'reminder/complete', id });
+        return undoable(entries);
+      },
 
       /** Complete several at once ("Complete All" on the Today screen). */
       completeReminders(ids) {
+        const entries = snapshot(ids);
         const stamp = at().toISOString();
         for (const id of ids) commit({ type: 'reminder/complete', id, at: stamp });
+        return undoable(entries);
       },
 
       /**
@@ -260,14 +344,18 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
        * what picking "None" on the snooze wheel means.
        */
       snoozeReminder(id, ms) {
+        const entries = snapshot([id]);
         const until = ms > 0 ? new Date(at().getTime() + ms).toISOString() : null;
         commit({ type: 'reminder/snooze', id, until });
+        // A snooze queues nothing (the server has no column for it), so this
+        // token holds the sync only for symmetry — undo is the point.
+        return undoable(entries);
       },
 
       setProfileName: (name) => commit({ type: 'profile/name', name }),
       sync: runSync,
     };
-  }, [runSync, clock]);
+  }, [runSync, holdSync, clock]);
 
   // ------------------------------------------------------------------------
   // Derived views
