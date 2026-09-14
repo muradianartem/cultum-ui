@@ -7,6 +7,7 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { GardenProvider } from './store/GardenProvider';
 import { clearState } from './store/persist';
+import { clearPhotos } from './store/media';
 import { cancelAll, configureNotifications } from './notifications';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
@@ -39,12 +40,20 @@ configureNotifications();
 function AuthGate() {
   const { status } = useAuth();
 
-  // Signing out has to take the garden with it: the document on disk and the
-  // notifications already queued with the OS both outlive the React tree, and
-  // the next person to sign in on this device must not inherit either.
+  // Signing out has to take the garden with it: the document on disk, the
+  // pictures beside it and the notifications already queued with the OS all
+  // outlive the React tree, and the next person to sign in on this device must
+  // not inherit any of them.
+  //
+  // Only the user's *own* photos are cleared. The cached catalog images under
+  // media/ are public — GET /media/{key} takes no bearer token and every user
+  // of a species sees the same picture — so keeping them says nothing about who
+  // was signed in, and means the next sign-in has its cards populated
+  // immediately instead of re-downloading the same bytes.
   useEffect(() => {
     if (status === 'signedOut') {
       clearState();
+      clearPhotos();
       cancelAll();
     }
   }, [status]);

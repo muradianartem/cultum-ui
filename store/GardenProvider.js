@@ -38,10 +38,12 @@ import {
   remindersForPlant,
   roomById,
 } from './model';
+import { importPhoto, reconcile, sweep } from './media';
 import { createSaver, loadState } from './persist';
 import { reducer } from './reducer';
 import { nextTaskForPlant, plantTasks, todayTasks, upcomingTasks } from './schedule';
 import { syncGarden } from './sync';
+import { mediaUrl } from '../api/mapPlant';
 
 const GardenContext = createContext(null);
 
@@ -52,6 +54,7 @@ const CLOCK_TICK_MS = 5 * 60 * 1000;
 const SAVE_DEBOUNCE_MS = 400;
 const SYNC_DEBOUNCE_MS = 2000;
 const RESCHEDULE_DEBOUNCE_MS = 1500;
+const MEDIA_DEBOUNCE_MS = 1200;
 
 /**
  * @param {object}  [initialState]  skip hydration and start from this document
@@ -164,6 +167,32 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
     const timer = setTimeout(runSync, SYNC_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [state.outbox, ready, holds, runSync]);
+
+  // --- images -------------------------------------------------------------
+  // Pull every plant's picture down to disk and drop the ones nothing points at
+  // any more. This is what makes a card survive two things it otherwise would
+  // not: the radio being off, and a sign-out — which deletes the document, so
+  // the next sign-in rebuilds the garden from the server and keeps only what
+  // the server can restate.
+  //
+  // Debounced and guarded rather than run per plant: adding a plant with three
+  // reminders is one pass, and the pass's own dispatch must not start another.
+  const reconciling = useRef(false);
+  useEffect(() => {
+    if (!ready) return undefined;
+    const timer = setTimeout(async () => {
+      if (reconciling.current) return;
+      reconciling.current = true;
+      try {
+        const { files, keep } = await reconcile(latest.current.plants);
+        if (Object.keys(files).length > 0) dispatch({ type: 'plants/images', files });
+        sweep(keep);
+      } finally {
+        reconciling.current = false;
+      }
+    }, MEDIA_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [state.plants, ready]);
 
   // --- notifications ------------------------------------------------------
   useEffect(() => {
@@ -292,8 +321,30 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
       movePlant: (id, roomId) => commit({ type: 'plant/move', id, roomId }),
       archivePlant: (id, archived = true) => commit({ type: 'plant/archive', id, archived }),
       deletePlant: (id) => commit({ type: 'plant/delete', id }),
-      setPlantCare: (id, care) => commit({ type: 'plant/care', id, care }),
-      setPlantPhoto: (id, uri) => commit({ type: 'plant/photo', id, uri }),
+      // The catalog's own `image_url` is root-relative; absolutise it here, the
+      // same way store/sync.js does on the pull, or the reducer's heroUri
+      // fallback stores a path <Image> cannot load.
+      setPlantCare: (id, care) =>
+        commit({
+          type: 'plant/care',
+          id,
+          care: care ? { ...care, image_url: mediaUrl(care.image_url) } : care,
+        }),
+
+      /**
+       * Set a plant's own photo.
+       *
+       * The camera and the picker both hand back a URI in the OS cache, which
+       * the system may reclaim at any point — so the file is copied into the
+       * app's storage first and the plant records the copy. The original URI is
+       * kept too, as the thing to show for the instant before the copy lands.
+       */
+      async setPlantPhoto(id, uri) {
+        commit({ type: 'plant/photo', id, uri });
+        const file = await importPhoto(uri);
+        if (file) commit({ type: 'plant/photo', id, uri, file });
+        return file;
+      },
 
       /** Create a room and hand back its id, so a caller can select it. */
       addRoom(name, icon) {

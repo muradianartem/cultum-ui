@@ -4,7 +4,11 @@ import { API_BASE_URL } from './client';
 // The catalog serves its own images as root-relative /media/... paths, which RN's
 // <Image> can't load — it needs an absolute URL. Provider-supplied images
 // (scan candidates) already come through absolute, so leave those alone.
-function mediaUrl(path) {
+//
+// Exported because the pull in store/sync.js reads the very same `image_url`
+// off UserPlantOut and has to absolutise it the same way; a plant adopted from
+// the server with a raw '/media/...' renders as a blank card.
+export function mediaUrl(path) {
   if (!path) return null;
   return /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
 }

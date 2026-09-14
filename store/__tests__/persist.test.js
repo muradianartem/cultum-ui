@@ -48,7 +48,12 @@ describe('migrate', () => {
     const old = { version: 0, plants: [{ id: 'p1', nickname: 'Penny' }] };
     const migrated = migrate(old);
     expect(migrated.version).toBe(STATE_VERSION);
-    expect(migrated.plants[0]).toEqual({ id: 'p1', nickname: 'Penny', dirty: {} });
+    expect(migrated.plants[0]).toEqual({
+      id: 'p1',
+      nickname: 'Penny',
+      dirty: {},
+      imageFile: null,
+    });
     expect(migrated.outbox).toEqual([]);
     expect(migrated.rooms.length).toBeGreaterThan(0);
   });

@@ -130,8 +130,28 @@ export function reducer(state, action) {
     case 'plant/photo':
       return {
         ...state,
-        plants: mapById(state.plants, action.id, (p) => stamp({ ...p, photoUri: action.uri }, now)),
+        plants: mapById(state.plants, action.id, (p) =>
+          stamp({ ...p, photoUri: action.uri, imageFile: action.file ?? null }, now),
+        ),
       };
+
+    /**
+     * Record where plants' pictures landed on disk (store/media.js#reconcile).
+     *
+     * Not a user edit: nothing is stamped and nothing is queued. The bytes are
+     * a local cache of something the server already knows about, so touching
+     * `updatedAt` here would make every launch look like a change worth
+     * pushing. Batched because one pass usually resolves several at once, and a
+     * dispatch per image would re-run the pass that produced them.
+     */
+    case 'plants/images': {
+      const files = action.files ?? {};
+      if (Object.keys(files).length === 0) return state;
+      return {
+        ...state,
+        plants: state.plants.map((p) => (files[p.id] ? { ...p, imageFile: files[p.id] } : p)),
+      };
+    }
 
     /** Delete a plant and everything hanging off it. */
     case 'plant/delete': {

@@ -3,12 +3,16 @@
 //
 // Pure — no React, no React Native, no network. Everything here is a plain
 // object or a function over plain objects, so the whole model is unit-testable
-// and can be serialised straight to disk (see store/persist.js).
+// and can be serialised straight to disk (see store/persist.js). The one import
+// is store/media.js's `fileUri`, which is path arithmetic against a constant
+// and touches no file; the I/O in that module stays on its own side.
 //
 // The shapes deliberately mirror the backend's `UserPlantOut` / `ReminderOut`
 // (see api/garden.js) so a sync is a field rename rather than a translation.
 // Where the server has no equivalent the field is marked local-only; those are
 // the ones store/sync.js must never overwrite from a pull.
+
+import { fileUri } from './media';
 
 /** Bump when a stored document's shape changes; store/persist.js migrates. */
 export const STATE_VERSION = 1;
@@ -190,6 +194,11 @@ export const makePlant = ({
   care,
   heroUri: heroUri ?? care?.image_url ?? null,
   photoUri, // a photo the user took, preferred over the catalog image
+  // Where the picture actually lives on this device, relative to the document
+  // directory (store/media.js). The two URIs above are where it *came* from;
+  // this is the only one that still resolves offline, or after a sign-out has
+  // thrown the document away and a pull rebuilt it.
+  imageFile: null,
   archived: false,
   dirty: {},
   createdAt: now.toISOString(),
@@ -275,9 +284,16 @@ export const plantBySpecies = (state, speciesKey) =>
 export const occupiedRooms = (state) =>
   state.rooms.filter((room) => plantsInRoom(state, room.id).length > 0);
 
-/** What a plant's card and hero render: the user's photo, else the catalog's. */
+/**
+ * What a plant's card and hero render.
+ *
+ * The cached file first: it is the only source that survives the radio being
+ * off, and after a sign-out it is the only one that survives at all. The two
+ * remote/temporary URIs are the fallback for the window between a plant being
+ * added and its image finishing its download.
+ */
 export const plantPhoto = (plant) => {
-  const uri = plant?.photoUri ?? plant?.heroUri;
+  const uri = fileUri(plant?.imageFile) ?? plant?.photoUri ?? plant?.heroUri;
   return uri ? { uri } : null;
 };
 
