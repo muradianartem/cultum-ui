@@ -311,3 +311,64 @@ describe('proactive refresh', () => {
     expect(authApi.refresh).toHaveBeenCalledTimes(1);
   });
 });
+
+// `signedInVia` is what billing/entry.js keys the paywall off. It matters that
+// it is settled by the time `status` says signedIn — App.js reads it on the
+// render that mounts the Router, and the Router reads its initial route once.
+describe('signedInVia', () => {
+  test('is null before anything has signed in', async () => {
+    authStorage.loadTokens.mockResolvedValue(null);
+    const { ref } = await renderAuth();
+    expect(ref.current.signedInVia).toBeNull();
+  });
+
+  test('reports a restored session as such', async () => {
+    authStorage.loadTokens.mockResolvedValue({ access_token: 'a', refresh_token: 'r' });
+    const { ref } = await renderAuth();
+    expect(ref.current.status).toBe('signedIn');
+    expect(ref.current.signedInVia).toBe('restore');
+  });
+
+  test('reports a completed Google or Apple sign-in as a login', async () => {
+    authStorage.loadTokens.mockResolvedValue(null);
+    authApi.loginGoogle.mockResolvedValue({ access_token: 'g', refresh_token: 'r', expires_in: 3600 });
+    const google = await renderAuth();
+    await act(async () => {
+      await google.ref.current.completeGoogleLogin('the-id-token');
+    });
+    expect(google.ref.current.signedInVia).toBe('login');
+
+    authApi.loginApple.mockResolvedValue({ access_token: 'a', refresh_token: 'r', expires_in: 3600 });
+    const apple = await renderAuth();
+    await act(async () => {
+      await apple.ref.current.completeAppleLogin('apple-id-token', 'Ada');
+    });
+    expect(apple.ref.current.signedInVia).toBe('login');
+  });
+
+  test('survives a token rotation — the session did not begin again', async () => {
+    authStorage.loadTokens.mockResolvedValue({ access_token: 'a', refresh_token: 'r' });
+    authApi.refresh.mockResolvedValue({ access_token: 'a2', refresh_token: 'r2', expires_in: 3600 });
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.refreshSession();
+    });
+    expect(ref.current.signedInVia).toBe('restore');
+  });
+
+  test('is cleared by signing out and by a rejected refresh', async () => {
+    authStorage.loadTokens.mockResolvedValue({ access_token: 'a', refresh_token: 'r' });
+    const out = await renderAuth();
+    await act(async () => {
+      await out.ref.current.signOut();
+    });
+    expect(out.ref.current.signedInVia).toBeNull();
+
+    authApi.refresh.mockRejectedValue(Object.assign(new Error('nope'), { status: 401 }));
+    const rejected = await renderAuth();
+    await act(async () => {
+      await expect(rejected.ref.current.refreshSession()).rejects.toMatchObject({ status: 401 });
+    });
+    expect(rejected.ref.current.signedInVia).toBeNull();
+  });
+});

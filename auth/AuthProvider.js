@@ -106,6 +106,15 @@ export function AuthProvider({ children }) {
   // already-rotated refresh token, which the backend rejects.
   const rotationRef = useRef(null);
 
+  // How the current session began — read by billing/entry.js to decide whether
+  // the app opens on the paywall. A ref, written synchronously before the
+  // setStatus that reveals the session, rather than a second piece of state:
+  // AuthGate mounts <Router> on the render that flips `status`, and <Router>
+  // reads its `initial` route exactly once, at that mount. A torn write (status
+  // committed a render before the origin) would land the user on Today with no
+  // way back to the paywall for the rest of the session.
+  const originRef = useRef(null);
+
   useEffect(() => {
     setAuthTokenProvider(currentAccessToken);
     setUnauthorizedHandler(refreshSession);
@@ -137,6 +146,7 @@ export function AuthProvider({ children }) {
     if (bypassAuth()) {
       applyTokens(DEV_FAKE_TOKENS);
       setDevSession(true);
+      originRef.current = 'dev';
       setStatus('signedIn');
       return;
     }
@@ -147,6 +157,7 @@ export function AuthProvider({ children }) {
       if (stored) {
         applyTokens(stored);
         setProfileName(stored.name ?? null);
+        originRef.current = 'restore';
         setStatus('signedIn');
       } else {
         setStatus('signedOut');
@@ -182,6 +193,7 @@ export function AuthProvider({ children }) {
     applyTokens(minted);
     setProfileName(name);
     setDevSession(false);
+    originRef.current = 'login';
     setStatus('signedIn');
   }
 
@@ -205,11 +217,15 @@ export function AuthProvider({ children }) {
       // The refresh response has no name; carry the stored one forward.
       await saveTokens({ ...rotated, name: profileName ?? null });
       applyTokens(rotated);
+      // `originRef` is deliberately untouched: this fires mid-session with the
+      // Router already mounted, and claiming a new origin here would re-arm the
+      // paywall for a session the user is already inside.
       setStatus('signedIn');
       return rotated;
     } catch (e) {
       await clearTokens();
       applyTokens(null);
+      originRef.current = null;
       setStatus('signedOut');
       throw e;
     }
@@ -225,6 +241,7 @@ export function AuthProvider({ children }) {
     await clearTokens();
     applyTokens(null);
     setProfileName(null);
+    originRef.current = null;
     setStatus('signedOut');
   }
 
@@ -233,6 +250,7 @@ export function AuthProvider({ children }) {
     tokens,
     profileName,
     devSession,
+    signedInVia: originRef.current,
     completeGoogleLogin,
     completeAppleLogin,
     refreshSession,

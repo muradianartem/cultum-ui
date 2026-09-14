@@ -49,6 +49,40 @@ jest.mock('../api/auth', () => ({
   authApi: { createNonce: jest.fn(async () => ({ nonce: 'srv', expires_in: 300 })) },
 }));
 
+// The paywall's copy is fetched, never bundled, and jest-expo has no fetch.
+// Unanswered by default: the launcher then has nothing to open, which is what
+// every test below except the last one wants.
+jest.mock('../api/billing', () => ({
+  ...jest.requireActual('../api/billing'),
+  getPaywall: jest.fn(() => new Promise(() => {})),
+}));
+const { getPaywall } = require('../api/billing');
+const { __resetPaywallCache } = require('../billing/paywallContent');
+
+const PAYWALL_RESPONSE = {
+  title: 'Cultum Plus, free for 7 days',
+  trial_days: 7,
+  timeline: [{ day: 0, label: 'Today', title: 'Full access', body: 'Everything on.' }],
+  features: [{ key: 'plants', label: 'Unlimited plants', free: '5 plants', plus: null }],
+  products: [
+    {
+      key: 'yearly',
+      label: 'Yearly',
+      period: 'year',
+      fallback_price: '$39.99',
+      trial_days: 7,
+      default: true,
+    },
+  ],
+  footnote: 'Cancel any time.',
+};
+
+// Whether the paywall opens at all is its own decision (billing/entry.js has
+// the truth table); here it is a dial, so each test can state which app it is
+// booting.
+jest.mock('../billing/entry', () => ({ paywallEntryRoute: jest.fn(() => null) }));
+const { paywallEntryRoute } = require('../billing/entry');
+
 // The AuthGate keys off persisted tokens — control the branch per test.
 jest.mock('../lib/authStorage', () => ({
   loadTokens: jest.fn(),
@@ -78,6 +112,7 @@ afterEach(() => {
     while (mounted.length) mounted.pop().unmount();
   });
   jest.clearAllMocks();
+  __resetPaywallCache();
 });
 
 test('with no stored tokens, App shows the Login screen', async () => {
@@ -86,6 +121,13 @@ test('with no stored tokens, App shows the Login screen', async () => {
   expect(texts(tree)).toContain('Continue with Google');
   expect(texts(tree)).not.toContain('Today’s tasks');
 });
+
+const STORED_TOKENS = {
+  access_token: 'a',
+  refresh_token: 'r',
+  token_type: 'bearer',
+  expires_in: 3600,
+};
 
 test('with stored tokens, App boots to Today and wires the Scan/Add tab to the camera', async () => {
   loadTokens.mockResolvedValue({
@@ -110,4 +152,29 @@ test('with stored tokens, App boots to Today and wires the Scan/Add tab to the c
 
   // The camera route's ungranted rationale renders.
   expect(texts(tree)).toContain('Camera Access');
+});
+
+test('the paywall opens over Today once the backend has priced it', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  paywallEntryRoute.mockReturnValue('paywall');
+  getPaywall.mockResolvedValue(PAYWALL_RESPONSE);
+  const tree = await renderApp();
+
+  expect(texts(tree)).toContain('Cultum Plus,\nfree for 7 days');
+  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+  // It was asked about the session it actually got, not about nothing.
+  expect(paywallEntryRoute).toHaveBeenCalledWith({ signedInVia: 'restore' });
+});
+
+// The whole reason the launcher waits instead of <Router initial>: with nothing
+// bundled, a paywall that cannot be priced has nothing to say, and blocking the
+// app behind a failed request would be worse than not selling.
+test('a paywall that cannot be priced never opens, and Today is not blocked', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  paywallEntryRoute.mockReturnValue('paywall');
+  getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
+  const tree = await renderApp();
+
+  expect(texts(tree)).toContain('Today\u2019s tasks');
+  expect(texts(tree)).not.toContain('Cultum Plus,\nfree for 7 days');
 });

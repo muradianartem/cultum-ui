@@ -3,8 +3,18 @@
 // timeline, a Free-vs-Plus comparison table, social proof, and a sticky price
 // bar. "See all plans" opens <ChoosePlanSheet> (node 265:159).
 //
+// The copy, the trial timeline, the comparison rows and both products come
+// from GET /billing/plans via billing/paywallContent.js. Nothing is bundled, so
+// this screen has no prices of its own to fall back on — and no loading or
+// error state either: <PaywallLauncher> only opens it once that content exists,
+// which is why `content` is all but guaranteed here and the null branch below
+// is a guard rather than a state the user is meant to see.
+//
+// The rating and the reviews are NOT in that payload and stay local constants;
+// there is no endpoint to hunt for.
+//
 // Presentation only — there is no IAP dependency in the project yet, so
-// `onStartTrial` is a stub. See PRICING below.
+// `onStartTrial` is a stub.
 
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,54 +24,36 @@ import { Button, ButtonIcon, Icon } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
+import { usePaywallContent } from '../billing/paywallContent';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
 const HERO_H = 300;
 const CHIP_W = 57;
 const COL_W = 64;
-const RAIL_LINE = { left: 27.5, top: 44, height: 120 };
+// Figma's line is a fixed 120 tall, fitted to exactly three steps. The step
+// count is server data now, so it runs chip-centre to chip-centre instead —
+// which also survives a step whose body text wraps to an extra line.
+const RAIL_LINE = { left: 27.5, top: 44, bottom: 44 };
 const PLUS_CORNER = radius[16]; // Figma 14px — nearest step on the radius scale
 
-// Copy + numbers are transcribed from the Figma frame. Replace `PRICING` with
-// the resolved StoreKit products (and `SOCIAL_PROOF` with real App Store data)
-// when in-app purchases are wired up.
-const PRICING = { headline: '7 days free, then $39.99 a year' };
+// Not in GET /billing/plans — the backend has no App Store review data — so
+// these stay transcribed from the Figma frame.
 const SOCIAL_PROOF = { rating: '4.8', count: '6.2K ratings' };
 
-const TRIAL_STEPS = [
-  {
-    day: 'Today',
-    highlight: true,
-    title: 'Full access',
-    body: 'Every plan, check and reminder unlocks straight away.',
-  },
-  {
-    day: 'Day 5',
-    highlight: false,
-    title: 'Reminder',
-    body: 'We email you two days before the trial ends.',
-  },
-  {
-    day: 'Day 7',
-    highlight: false,
-    title: 'Trial ends',
-    body: 'Billing starts unless you have cancelled by then.',
-  },
-];
-
-// `free` is what the FREE column shows; Plus always gets a tick.
-const FEATURES = [
-  { label: 'Unlimited plants', free: 'Limited' },
-  { label: 'Plant identification', free: 'Limited' },
-  { label: 'Journal and history', free: 'Limited' },
-  { label: 'Discover and care guides', free: 'Limited' },
-  { label: 'Rooms and spaces', free: 'Limited' },
-  { label: 'Adaptive care reminders', free: null },
-  { label: 'Custom reminders', free: null },
-  { label: 'Bulk care actions', free: null },
-  { label: 'Shared household', free: null },
-];
+/**
+ * The line above the CTA, for the currently selected product.
+ *
+ * Exported because it is the one piece of derived copy on this screen worth
+ * testing on its own: it is what makes the price follow the plan sheet, which
+ * the hardcoded version never did.
+ */
+export function headlineFor(product) {
+  const price = `${product.fallbackPrice} a ${product.period}`;
+  return product.trialDays > 0
+    ? `${product.trialDays} days free, then ${price}`
+    : price;
+}
 
 const REVIEWS = [
   {
@@ -76,25 +68,45 @@ const REVIEWS = [
   },
 ];
 
-const FOOTNOTE =
-  'Cancel any time in the App Store. If you cancel before day 7 you are not charged.';
-
 export default function PaywallScreen() {
+  const content = usePaywallContent();
+  // Hooks cannot be skipped, so the "no content" check has to happen above
+  // every other one — hence the split. Reachable only by opening the route
+  // directly (the guard fallback), never through the launcher.
+  if (!content) return null;
+  return <Paywall content={content} />;
+}
+
+function Paywall({ content }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
   const { back, canGoBack, reset } = useRouter();
 
   const [plansOpen, setPlansOpen] = useState(false);
-  const [plan, setPlan] = useState('yearly');
+  const [planKey, setPlanKey] = useState(content.defaultProductKey);
+
+  // The cache is write-once (billing/paywallContent.js), so `content` cannot
+  // change under an open screen and `planKey` cannot go stale. The `??` is the
+  // whole insurance that needs; anything more would be guarding a state the
+  // app has no way to reach.
+  const product =
+    content.products.find((p) => p.key === planKey) ?? content.products[0];
 
   // Same shape as the scan flow's close: pop if there's history, else go home.
   const onClose = () => (canGoBack ? back() : reset('today'));
 
-  // TODO: hand off to StoreKit once an IAP module is added; today this only
-  // closes the paywall so the flow is walkable.
+  // TODO: hand off to StoreKit / Play Billing once an IAP module is added, then
+  // POST the resulting transaction to /billing/apple/verify. Today this only
+  // closes the paywall so the flow is walkable — but it logs the store product
+  // ids that call will need, so the swap is this function body and nothing else.
   const onStartTrial = () => {
-    if (__DEV__) console.log('[paywall] start trial (stub) — selected plan:', plan);
+    if (__DEV__) {
+      console.log('[paywall] start trial (stub) —', product.key, {
+        apple: product.appleProductId,
+        google: product.googleProductId,
+      });
+    }
     onClose();
   };
 
@@ -133,26 +145,29 @@ export default function PaywallScreen() {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>{'Cultum Plus,\nfree for 7 days'}</Text>
+          <Text style={styles.title}>{content.titleLines}</Text>
 
           <View style={styles.rail}>
             <View style={styles.railLine} />
-            {TRIAL_STEPS.map((step) => (
-              <View key={step.day} style={styles.step}>
-                <View style={[styles.dayChip, step.highlight && styles.dayChipActive]}>
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.dayText, step.highlight && styles.dayTextActive]}
-                  >
-                    {step.day}
-                  </Text>
+            {content.timeline.map((step) => {
+              const highlight = step.day === 0;
+              return (
+                <View key={step.day} style={styles.step}>
+                  <View style={[styles.dayChip, highlight && styles.dayChipActive]}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.dayText, highlight && styles.dayTextActive]}
+                    >
+                      {step.label}
+                    </Text>
+                  </View>
+                  <View style={styles.stepText}>
+                    <Text style={styles.stepTitle}>{step.title}</Text>
+                    <Text style={styles.stepBody}>{step.body}</Text>
+                  </View>
                 </View>
-                <View style={styles.stepText}>
-                  <Text style={styles.stepTitle}>{step.title}</Text>
-                  <Text style={styles.stepBody}>{step.body}</Text>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           <View style={styles.table}>
@@ -169,8 +184,8 @@ export default function PaywallScreen() {
               </View>
             </View>
 
-            {FEATURES.map((feature, i) => (
-              <View key={feature.label} style={styles.tableRow} testID="paywall-feature-row">
+            {content.features.map((feature, i) => (
+              <View key={feature.key} style={styles.tableRow} testID="paywall-feature-row">
                 <View style={styles.labelCell}>
                   <Text style={styles.featureLabel}>{feature.label}</Text>
                 </View>
@@ -180,12 +195,18 @@ export default function PaywallScreen() {
                 <View
                   style={[
                     styles.plusCell,
-                    i === FEATURES.length - 1 && styles.plusCellBottom,
+                    i === content.features.length - 1 && styles.plusCellBottom,
                   ]}
                 >
-                  <View style={styles.tick}>
-                    <Icon name="check" size={14} color={t.brand.onPrimary} />
-                  </View>
+                  {/* A Plus tier that is simply "yes" gets a tick; one with a
+                      ceiling of its own ("30 scans a day") has to say so. */}
+                  {feature.plus ? (
+                    <Text style={styles.plusText}>{feature.plus}</Text>
+                  ) : (
+                    <View style={styles.tick}>
+                      <Icon name="check" size={14} color={t.brand.onPrimary} />
+                    </View>
+                  )}
                 </View>
               </View>
             ))}
@@ -211,12 +232,12 @@ export default function PaywallScreen() {
             ))}
           </View>
 
-          <Text style={styles.footnote}>{FOOTNOTE}</Text>
+          <Text style={styles.footnote}>{content.footnote}</Text>
         </View>
       </ScrollView>
 
       <View style={styles.priceBar}>
-        <Text style={styles.priceHeadline}>{PRICING.headline}</Text>
+        <Text style={styles.priceHeadline}>{headlineFor(product)}</Text>
         <Button size="lg" label="Start free trial" onPress={onStartTrial} />
         <Button
           size="md"
@@ -228,10 +249,11 @@ export default function PaywallScreen() {
 
       <ChoosePlanSheet
         visible={plansOpen}
-        initialPlan={plan}
+        products={content.products}
+        initialPlan={planKey}
         onClose={() => setPlansOpen(false)}
         onDone={(next) => {
-          setPlan(next);
+          setPlanKey(next);
           setPlansOpen(false);
         }}
       />
@@ -321,6 +343,15 @@ function makeStyles(t, insets) {
       borderTopColor: t.border.primary,
     },
     freeText: { fontSize: 12.5, lineHeight: 18, fontWeight: '500', color: t.text.placeholder },
+    // The FREE column's metrics on the PLUS column's ink — both tokens already
+    // exist on this screen, so the string case adds none.
+    plusText: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontWeight: '500',
+      color: t.success.onSecondary,
+      textAlign: 'center',
+    },
     plusCell: {
       width: COL_W,
       alignItems: 'center',
