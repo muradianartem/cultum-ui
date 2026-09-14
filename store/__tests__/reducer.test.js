@@ -111,6 +111,40 @@ describe('reminder lifecycle', () => {
   });
 });
 
+describe('plants/images', () => {
+  const withPlants = () => {
+    const state = reducer(emptyState(), {
+      type: 'plant/add',
+      plant: makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' }),
+      reminders: [],
+      now: NOW,
+    });
+    return state;
+  };
+
+  test('records where each picture landed', () => {
+    const state = withPlants();
+    const id = state.plants[0].id;
+    const next = reducer(state, { type: 'plants/images', files: { [id]: 'media/abc.jpg' } });
+    expect(next.plants[0].imageFile).toBe('media/abc.jpg');
+  });
+
+  // A cached file says nothing about the plant the server holds. Stamping it
+  // would make every launch look like an edit worth pushing.
+  test('does not stamp updatedAt or queue anything', () => {
+    const state = withPlants();
+    const id = state.plants[0].id;
+    const next = reducer(state, { type: 'plants/images', files: { [id]: 'media/abc.jpg' } });
+    expect(next.plants[0].updatedAt).toBe(state.plants[0].updatedAt);
+    expect(next.outbox).toEqual(state.outbox);
+  });
+
+  test('an empty batch is the same object, so it cannot loop the effect that made it', () => {
+    const state = withPlants();
+    expect(reducer(state, { type: 'plants/images', files: {} })).toBe(state);
+  });
+});
+
 describe('plant/delete', () => {
   test('takes the plant, its reminders and their queued work with it', () => {
     const s0 = seeded();

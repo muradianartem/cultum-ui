@@ -37,7 +37,9 @@ export function migrate(doc) {
     ...base,
     ...doc,
     version: STATE_VERSION,
-    plants: Array.isArray(doc.plants) ? doc.plants.map((p) => ({ dirty: {}, ...p })) : [],
+    plants: Array.isArray(doc.plants)
+      ? doc.plants.map((p) => ({ dirty: {}, imageFile: null, ...p }))
+      : [],
     reminders: Array.isArray(doc.reminders) ? doc.reminders : [],
     rooms: Array.isArray(doc.rooms) && doc.rooms.length ? doc.rooms : base.rooms,
     outbox: Array.isArray(doc.outbox) ? doc.outbox : [],

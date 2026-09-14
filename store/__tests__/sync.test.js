@@ -1,4 +1,4 @@
-import { ApiError } from '../../api/client';
+import { API_BASE_URL, ApiError } from '../../api/client';
 import { emptyState, makePlant, makeReminder, makeRoom } from '../model';
 import { enqueue } from '../reducer';
 import { drainOutbox, mergeGarden, syncGarden } from '../sync';
@@ -178,6 +178,64 @@ describe('mergeGarden', () => {
     // The default catalog already has a Kitchen — matched, not duplicated.
     expect(merged.rooms.filter((r) => r.name === 'Kitchen')).toHaveLength(1);
     expect(merged.plants[0].roomId).toBe('kitchen');
+  });
+
+  // The catalog serves image_url as a root-relative '/media/...' path. An
+  // <Image> given that renders nothing, which is what made every card go blank
+  // after a sign-out: the document is deleted, so signing back in re-adopts
+  // every plant through this path rather than from the add-a-plant flow (which
+  // absolutises via api/mapPlant.js).
+  test('absolutises the catalog image path on a plant adopted from the server', () => {
+    const merged = mergeGarden(
+      local(),
+      [serverPlant({ image_url: '/media/species/monstera-deliciosa/card.jpg' })],
+      NOW,
+    );
+    expect(merged.plants[0].heroUri).toBe(
+      `${API_BASE_URL}/media/species/monstera-deliciosa/card.jpg`,
+    );
+  });
+
+  test('falls back to the care blob for the image, absolutised the same way', () => {
+    const merged = mergeGarden(
+      local(),
+      [serverPlant({ care: { image_url: '/media/species/x/card.jpg' } })],
+      NOW,
+    );
+    expect(merged.plants[0].heroUri).toBe(`${API_BASE_URL}/media/species/x/card.jpg`);
+  });
+
+  test('leaves an already-absolute image url alone', () => {
+    const merged = mergeGarden(
+      local(),
+      [serverPlant({ image_url: 'https://cdn.example/card.jpg' })],
+      NOW,
+    );
+    expect(merged.plants[0].heroUri).toBe('https://cdn.example/card.jpg');
+  });
+
+  test('a plant this device already knows gets its image absolutised too', () => {
+    const plant = { ...makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' }), serverId: 'S1' };
+    const merged = mergeGarden(
+      local({ plants: [plant] }),
+      [serverPlant({ image_url: '/media/species/monstera-deliciosa/card.jpg' })],
+      NOW,
+    );
+    expect(merged.plants[0].heroUri).toBe(
+      `${API_BASE_URL}/media/species/monstera-deliciosa/card.jpg`,
+    );
+  });
+
+  // The cached file is the only picture that survives a pull, so the merge must
+  // not treat it as a field the server is entitled to overwrite.
+  test('keeps the locally cached image file across a pull', () => {
+    const plant = {
+      ...makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' }),
+      serverId: 'S1',
+      imageFile: 'media/abc.jpg',
+    };
+    const merged = mergeGarden(local({ plants: [plant] }), [serverPlant()], NOW);
+    expect(merged.plants[0].imageFile).toBe('media/abc.jpg');
   });
 
   test('creates a room for a location the device does not know', () => {

@@ -16,6 +16,7 @@
 // then syncing would silently undo the rename.
 
 import * as gardenApi from '../api/garden';
+import { mediaUrl } from '../api/mapPlant';
 import { actionMeta, makeRoom, uid } from './model';
 import { enqueue } from './reducer';
 
@@ -67,8 +68,11 @@ function plantFromServer(dto, roomId, now) {
     roomId,
     acquiredAt: dto.acquired_at ?? null,
     care: dto.care ?? null,
-    heroUri: dto.image_url ?? dto.care?.image_url ?? null,
+    // Absolutised on the way in: UserPlantOut carries the catalog's own
+    // root-relative '/media/...' path, which <Image> cannot load.
+    heroUri: mediaUrl(dto.image_url ?? dto.care?.image_url),
     photoUri: null,
+    imageFile: null,
     archived: false,
     dirty: {},
     createdAt: now,
@@ -226,7 +230,7 @@ async function pushOne(state, entry, api) {
  *     a room for its `location`;
  *   • server values win, except for fields marked dirty (unpushable local
  *     edits) and fields the server has no column for (`title`, `snoozedUntil`,
- *     `photoUri`, `archived`);
+ *     `photoUri`, `imageFile`, `archived`);
  *   • a reminder with a queued push is left alone — the queue is newer.
  */
 export function mergeGarden(state, remote, now = new Date().toISOString()) {
@@ -257,7 +261,7 @@ export function mergeGarden(state, remote, now = new Date().toISOString()) {
       ...plant,
       speciesKey: dto.species_key ?? plant.speciesKey,
       care: dto.care ?? plant.care,
-      heroUri: plant.heroUri ?? dto.image_url ?? dto.care?.image_url ?? null,
+      heroUri: plant.heroUri ?? mediaUrl(dto.image_url ?? dto.care?.image_url),
       nickname: plant.dirty?.nickname ? plant.nickname : dto.nickname ?? plant.nickname,
       roomId: plant.dirty?.roomId ? plant.roomId : resolved.roomId ?? plant.roomId,
       acquiredAt: dto.acquired_at ?? plant.acquiredAt,
