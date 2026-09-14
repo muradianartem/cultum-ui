@@ -16,7 +16,17 @@ import { useMemo, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Badge, Button, Dialog, Icon, ICON_NAMES, List, ListItem, SegmentedControl } from '../components';
+import {
+  Badge,
+  Button,
+  Dialog,
+  Icon,
+  ICON_NAMES,
+  List,
+  ListItem,
+  SegmentedControl,
+  useUndoSnackbar,
+} from '../components';
 import { useRouter } from '../routing';
 import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
@@ -145,6 +155,7 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
+  const notify = useUndoSnackbar();
 
   const [segment, setSegment] = useState('about');
   const [openFaq, setOpenFaq] = useState(0);
@@ -302,7 +313,8 @@ export default function ProductPage({ plantId, plant, owned = false }) {
                       <TaskRow
                         key={task.id}
                         task={task}
-                        onPress={() => garden.completeReminder(task.reminderId)}
+                        onPress={() =>
+                          notify('Task completed', garden.completeReminder(task.reminderId))}
                         styles={styles}
                         t={t}
                       />

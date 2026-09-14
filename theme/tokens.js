@@ -173,7 +173,7 @@ export const emptyState = {
 };
 
 // ---- snackbar (Figma: "Snackbar – P2", node 26744:5114) ----
-// Dark 343×56 pill: 12px light copy, optional leading icon, optional dark action
+// Dark 343×56 pill: 14px light copy, optional leading icon, optional dark action
 // pill, optional close (Dismissable=True). Sits over content with a low shadow.
 export const snackbar = {
   bg: '#151515',

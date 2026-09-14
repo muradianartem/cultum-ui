@@ -10,7 +10,7 @@ import { clearState } from './store/persist';
 import { cancelAll, configureNotifications } from './notifications';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
-import { LoadingIndicator } from './components';
+import { LoadingIndicator, SnackbarProvider } from './components';
 import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
@@ -66,31 +66,35 @@ function AuthGate() {
     // moment you navigate away, so anything the domain needs to remember has to
     // live outside the screen that changed it.
     <GardenProvider>
-      <Router initial="today">
-        {/* Not a route: it has to outlive whichever screen is on top, because
-            a tapped reminder can arrive at any moment. */}
-        <NotificationRouter />
-        <Route name="today" component={TodayScreen} />
-        <Route name="product" component={ProductPage} />
-        <Route name="add-plant" component={AddPlantScreen} />
-        <Route name="reminders" component={RemindersScreen} />
-        <Route name="rooms" component={RoomsScreen} />
-        <Route name="room" component={RoomScreen} />
-        <Route name="settings" component={SettingsScreen} />
-        <Route name="scan-camera" component={ScanCameraScreen} />
-        <Route name="scan-matches" component={ScanMatchesScreen} />
-        <Route name="scan-search" component={ScanSearchScreen} />
-        {/* TODO: nothing navigates to "paywall" yet — it is reachable today only
-            as the subscription guard's fallback. Add the in-app entry points
-            (settings, gated actions) when entitlements land. */}
-        <Route name="paywall" component={PaywallScreen} />
-        <Route
-          name="premium-gallery"
-          guard={requireSubscription}
-          component={PremiumGallery}
-          fallback={<PaywallScreen />}
-        />
-      </Router>
+      {/* Above the Router for the same reason, and inside the garden so an
+          open undo can still reach it — signing out takes both with it. */}
+      <SnackbarProvider>
+        <Router initial="today">
+          {/* Not a route: it has to outlive whichever screen is on top, because
+              a tapped reminder can arrive at any moment. */}
+          <NotificationRouter />
+          <Route name="today" component={TodayScreen} />
+          <Route name="product" component={ProductPage} />
+          <Route name="add-plant" component={AddPlantScreen} />
+          <Route name="reminders" component={RemindersScreen} />
+          <Route name="rooms" component={RoomsScreen} />
+          <Route name="room" component={RoomScreen} />
+          <Route name="settings" component={SettingsScreen} />
+          <Route name="scan-camera" component={ScanCameraScreen} />
+          <Route name="scan-matches" component={ScanMatchesScreen} />
+          <Route name="scan-search" component={ScanSearchScreen} />
+          {/* TODO: nothing navigates to "paywall" yet — it is reachable today only
+              as the subscription guard's fallback. Add the in-app entry points
+              (settings, gated actions) when entitlements land. */}
+          <Route name="paywall" component={PaywallScreen} />
+          <Route
+            name="premium-gallery"
+            guard={requireSubscription}
+            component={PremiumGallery}
+            fallback={<PaywallScreen />}
+          />
+        </Router>
+      </SnackbarProvider>
     </GardenProvider>
   );
 }

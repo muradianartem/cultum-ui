@@ -73,6 +73,7 @@ import { Text, TextInput as RNTextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../routing';
 import { GardenProvider } from './GardenProvider';
+import { SnackbarProvider } from '../components/SnackbarProvider';
 
 const METRICS = {
   frame: { x: 0, y: 0, width: 375, height: 812 },
@@ -112,10 +113,12 @@ export function renderWithGarden(element, { state, initial = 'today', clock } = 
     tree = TestRenderer.create(
       <SafeAreaProvider initialMetrics={METRICS}>
         <GardenProvider initialState={state} clock={clock}>
-          <Router initial={initial}>
-            <Probe />
-            {element}
-          </Router>
+          <SnackbarProvider>
+            <Router initial={initial}>
+              <Probe />
+              {element}
+            </Router>
+          </SnackbarProvider>
         </GardenProvider>
       </SafeAreaProvider>,
     );

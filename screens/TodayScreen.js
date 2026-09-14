@@ -9,7 +9,16 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Dialog, Icon, SegmentedControl, State, TabBar } from '../components';
+import {
+  Button,
+  Dialog,
+  Icon,
+  SegmentedControl,
+  State,
+  TabBar,
+  useSnackbarOffset,
+  useUndoSnackbar,
+} from '../components';
 import { useRouter } from '../routing';
 import { useGarden } from '../store/GardenProvider';
 import { durationMs } from '../store/format';
@@ -87,6 +96,7 @@ export default function TodayScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
+  const notify = useUndoSnackbar();
 
   const [segment, setSegment] = useState('today');
   const [grouping, setGrouping] = useState('task');
@@ -98,6 +108,10 @@ export default function TodayScreen() {
   // Which page the sheet opens on: tapping a card lands on 'detail', the swipe
   // "Snooze" action opens straight on the 'snooze' step.
   const [sheetStep, setSheetStep] = useState('detail');
+  // The snackbar sits above the bottom block (grouping row + tab bar); measure
+  // it rather than hardcode a height, so it tracks the row coming and going.
+  const [bottomH, setBottomH] = useState(0);
+  useSnackbarOffset(bottomH);
 
   const tasks = garden.todaysTasks;
   const upcoming = garden.upcoming;
@@ -125,8 +139,10 @@ export default function TodayScreen() {
   const openPlant = (task) => navigate('product', { plantId: task?.plantId });
 
   const completeAll = () => {
-    garden.completeReminders(tasks.map((task) => task.reminderId));
+    const n = taskCount;
+    const undoable = garden.completeReminders(tasks.map((task) => task.reminderId));
     setConfirmAll(false);
+    notify(n === 1 ? 'Task completed' : `All ${n} tasks completed`, undoable);
   };
 
   // TabBar wants icon nodes; resolve each tab's icon name to an <Icon>.
@@ -195,7 +211,8 @@ export default function TodayScreen() {
                 <TaskGroup
                   key={group.key}
                   group={group}
-                  onComplete={(task) => garden.completeReminder(task.reminderId)}
+                  onComplete={(task) =>
+                    notify('Task completed', garden.completeReminder(task.reminderId))}
                   onOpen={openSheet}
                   onAdjust={openReminders}
                   onSnooze={openSnooze}
@@ -253,7 +270,10 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom }]}
+        onLayout={(e) => setBottomH(e.nativeEvent.layout.height)}
+      >
         {/* Grouping control is a Today-only affordance; Upcoming groups by day. */}
         {segment === 'today' ? (
           <View style={styles.groupingRow}>
@@ -286,7 +306,9 @@ export default function TodayScreen() {
         initialStep={sheetStep}
         onClose={closeSheet}
         onMarkDone={() => {
-          if (sheetTask) garden.completeReminder(sheetTask.reminderId);
+          if (sheetTask) {
+            notify('Task completed', garden.completeReminder(sheetTask.reminderId));
+          }
           closeSheet();
         }}
         onSnoozeConfirm={(amount, unit) => {
@@ -294,7 +316,11 @@ export default function TodayScreen() {
           // alone — the plant is still on its schedule. SnoozeContent hands
           // back the number and the already-pluralised unit ("2", "days").
           if (sheetTask) {
-            garden.snoozeReminder(sheetTask.reminderId, durationMs(`${amount} ${unit}`));
+            const undoable = garden.snoozeReminder(
+              sheetTask.reminderId,
+              durationMs(`${amount} ${unit}`),
+            );
+            notify(`Snoozed for ${amount} ${unit}`, undoable);
           }
           closeSheet();
         }}

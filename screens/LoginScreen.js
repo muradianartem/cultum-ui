@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import { Button, Icon, Snackbar } from '../components';
 import { ThemeProvider, useTheme } from '../theme/ThemeProvider';
@@ -14,8 +15,12 @@ import { useAuth } from '../auth/AuthProvider';
 // Required so the web OAuth popup can hand the result back and close itself.
 WebBrowser.maybeCompleteAuthSession();
 
-const APPLE_COMING_SOON = 'Apple Sign In is coming soon';
 const SIGN_IN_FAILED = "Couldn't sign in. Try again.";
+
+// Apple raises this when the user backs out of the system sheet. Not a
+// failure — they chose not to sign in, and a snackbar saying otherwise is
+// just noise.
+const APPLE_CANCELED = 'ERR_REQUEST_CANCELED';
 
 const TAGLINE = 'Better plant-care reminders, so you never forget your plants again.';
 
@@ -66,7 +71,14 @@ function WelcomeScreen() {
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
 
   const [nonce, setNonce] = useState(null);
-  const [busy, setBusy] = useState(false);
+  // Which provider is mid-sign-in ('google' | 'apple' | null): the spinner
+  // goes on the button that was pressed and the other one is held shut.
+  const [busy, setBusy] = useState(null);
+  // Sign in with Apple is iOS 13+ only — the module has no Android or web
+  // implementation and answers `false` there — so the button is only offered
+  // where it can actually run. Apple's guidelines want it on iOS; everywhere
+  // else it would be a button that throws.
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const [snack, setSnack] = useState(null);
 
   const auth = useAuth();
@@ -99,24 +111,36 @@ function WelcomeScreen() {
     refreshNonce();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    AppleAuthentication.isAvailableAsync()
+      .then((ok) => {
+        if (!cancelled) setAppleAvailable(ok);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Exchange the Google id_token once the auth request resolves.
   useEffect(() => {
     if (!response) return;
     if (response.type === 'success') {
       const idToken = response.params?.id_token ?? response.authentication?.idToken;
       if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
-      setBusy(true);
+      setBusy('google');
       auth
         .completeGoogleLogin(idToken)
         .catch((err) => {
           if (__DEV__) console.warn('[login] /auth/google exchange failed:', err?.message ?? err);
           setSnack({ label: SIGN_IN_FAILED });
         })
-        .finally(() => setBusy(false));
+        .finally(() => setBusy(null));
     } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
       if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
       // The old nonce may be spent — re-arm for the next attempt.
-      setBusy(false);
+      setBusy(null);
       refreshNonce();
     }
   }, [response]);
@@ -132,8 +156,31 @@ function WelcomeScreen() {
     await promptAsync();
   }
 
-  function showAppleComingSoon() {
-    setSnack({ label: APPLE_COMING_SOON });
+  async function onApplePress() {
+    setBusy('apple');
+    try {
+      // The server nonce goes to Apple verbatim (the native request sets
+      // ASAuthorizationAppleIDRequest.nonce as given) and comes back as the
+      // identity token's `nonce` claim — the same binding the Google flow
+      // relies on, so the backend can burn one nonce either way.
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce,
+      });
+      await auth.completeAppleLogin(credential.identityToken, firstNameOf(credential));
+    } catch (err) {
+      if (err?.code !== APPLE_CANCELED) {
+        if (__DEV__) console.warn('[login] Apple sign-in failed:', err?.message ?? err);
+        setSnack({ label: SIGN_IN_FAILED });
+      }
+      // Cancelled or failed, the nonce may already be spent — re-arm it.
+      refreshNonce();
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -183,16 +230,23 @@ function WelcomeScreen() {
             label="Continue with Google"
             leftIcon={<Icon name="google" size={24} />}
             onPress={onGooglePress}
-            loading={busy}
-            disabled={!request || !nonce}
+            loading={busy === 'google'}
+            disabled={!request || !nonce || busy === 'apple'}
           />
-          <Button
-            size="lg"
-            variant="outline"
-            label="Continue with Apple"
-            leftIcon={<Icon name="apple" size={24} />}
-            onPress={showAppleComingSoon}
-          />
+          {/* The Apple mark is a black silhouette in the source SVG; on this
+              dark frame it has to be light, which is what Apple's own
+              guidelines ask for anyway. */}
+          {appleAvailable ? (
+            <Button
+              size="lg"
+              variant="outline"
+              label="Continue with Apple"
+              leftIcon={<Icon name="apple" size={24} color={t.text.primary} />}
+              onPress={onApplePress}
+              loading={busy === 'apple'}
+              disabled={!nonce || busy === 'google'}
+            />
+          ) : null}
           {/* TODO: link the two spans to the real Terms/Privacy URLs via
               WebBrowser.openBrowserAsync once they exist. */}
           <Text style={styles.legal}>
@@ -210,6 +264,20 @@ function WelcomeScreen() {
       ) : null}
     </>
   );
+}
+
+/**
+ * The greeting name out of an Apple credential.
+ *
+ * Apple hands the name over exactly once — on the user's very first
+ * authorization for this app — and returns `null` for it forever after, a
+ * reinstall included. It also arrives split into components rather than as a
+ * claim in the identity token, so unlike Google's there is nothing to read
+ * back out of the JWT later. Take the given name if the user granted it;
+ * `null` just means we greet them without one.
+ */
+function firstNameOf(credential) {
+  return credential?.fullName?.givenName ?? null;
 }
 
 function makeStyles(t, insets) {

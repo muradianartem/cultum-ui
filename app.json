@@ -9,6 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.cultum.ui",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -33,6 +34,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withLocalDevSigning",
       [
         "expo-camera",
         {
@@ -45,6 +47,7 @@
           "photosPermission": "Cultum uses your photos so you can identify a plant from an existing picture."
         }
       ],
+      "expo-apple-authentication",
       "expo-web-browser",
       "expo-secure-store",
       [

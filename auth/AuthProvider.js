@@ -1,6 +1,7 @@
-// Auth session state + the token exchange/persistence orchestration. The Google
-// ID-token acquisition (the useAuthRequest hook) lives in the Login screen, not
-// here — this provider only owns exchange + storage.
+// Auth session state + the token exchange/persistence orchestration. Acquiring
+// the provider ID token (Google's useAuthRequest hook, Apple's signInAsync)
+// lives in the Login screen, not here — this provider only owns exchange +
+// storage.
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { loadTokens, saveTokens, clearTokens, withExpiry } from '../lib/authStorage';
@@ -159,10 +160,24 @@ export function AuthProvider({ children }) {
   // Exchange a Google ID token for app tokens, persist, and flip to signedIn.
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
-    const minted = withExpiry(await authApi.loginGoogle(idToken));
-    // Kept alongside the tokens so the greeting survives a relaunch — the app
-    // tokens the backend mints carry no name of their own.
-    const name = nameFromIdToken(idToken);
+    // Google's ID token carries the name, so read it here rather than making
+    // the screen dig the claim out.
+    await establishSession(await authApi.loginGoogle(idToken), nameFromIdToken(idToken));
+  }
+
+  // Exchange an Apple identity token for app tokens. Unlike Google's, Apple's
+  // token has no name claim: the name is handed to the *screen*, once, in the
+  // credential, so it arrives as an argument here. It is `null` on every sign-in
+  // after the first — see `loginApple` in api/auth.js.
+  async function completeAppleLogin(idToken, name) {
+    await establishSession(await authApi.loginApple(idToken, name), name ?? null);
+  }
+
+  async function establishSession(response, name) {
+    const minted = withExpiry(response);
+    // The name is kept alongside the tokens so the greeting survives a relaunch
+    // — the app tokens the backend mints carry no name of their own, and for
+    // Apple this device is the only place the name is written down at all.
     await saveTokens({ ...minted, name });
     applyTokens(minted);
     setProfileName(name);
@@ -219,6 +234,7 @@ export function AuthProvider({ children }) {
     profileName,
     devSession,
     completeGoogleLogin,
+    completeAppleLogin,
     refreshSession,
     signOut,
   };

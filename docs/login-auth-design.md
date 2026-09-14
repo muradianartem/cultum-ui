@@ -8,6 +8,12 @@ Add a real **Login screen** as the app's pre-auth entry point: a full-bleed back
 
 **Non-goals:**
 - **Apple Sign In** — no real wiring. Button shows a "coming soon" snackbar. `POST /auth/apple` stays unused this pass.
+  > **Resolved.** Apple is wired now, by the same shape as Google: `expo-apple-authentication`'s `signInAsync` in
+  > [screens/LoginScreen.js](screens/LoginScreen.js) gets the identity token, `completeAppleLogin` in
+  > [auth/AuthProvider.js](auth/AuthProvider.js) exchanges it at `POST /auth/apple`. The server nonce is passed
+  > through to Apple exactly as it is to Google. The button only renders where `isAvailableAsync()` says yes
+  > (iOS 13+) — there is no Android or web implementation. Requires `ios.usesAppleSignIn` + the config plugin in
+  > [app.json](app.json), so a `prebuild` is needed before it runs on device.
 - **Token refresh / auto-refresh on 401** — `POST /auth/refresh` is *implemented in the API client* but the app does **not** yet auto-refresh expired access tokens or attach `Authorization` headers to feature requests (there are no authenticated feature calls yet). V2.
 - **Sign-out UI** — `AuthProvider` exposes `signOut()` and it clears storage, but wiring a visible logout control into TabBar/settings is out of scope.
 - **Real backend session use** — nothing in Today/Product screens consumes the tokens yet; this pass only establishes and stores the session.
@@ -35,7 +41,7 @@ Base: `https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerap
 |---|---|---|---|
 | `/auth/nonce` | *(empty)* | `200 NonceResponse { nonce: string, expires_in: int }` | "Mint a single-use nonce to pass to the sign-in SDK… The nonce is burned on first use, so a captured token cannot be replayed." |
 | `/auth/google` | `GoogleLoginRequest { id_token: string }` *(required)* | `200 TokenResponse` | `422 HTTPValidationError` on bad body |
-| `/auth/apple` | `AppleLoginRequest { id_token: string, name?: string\|null }` | `200 TokenResponse` | **not used this pass** |
+| `/auth/apple` | `AppleLoginRequest { id_token: string, name?: string\|null }` | `200 TokenResponse` | wired (see Resolved note above) |
 | `/auth/refresh` | `RefreshRequest { refresh_token: string }` | `200 TokenResponse` | client method only |
 | `/auth/logout` | `RefreshRequest { refresh_token: string }` | `204` no content | client method only |
 
@@ -91,7 +97,7 @@ A tiny `fetch` wrapper. No dependency on React.
 - Export `authApi` with:
   - `createNonce(): Promise<{ nonce: string, expires_in: number }>` → `request('/auth/nonce')`
   - `loginGoogle(idToken: string): Promise<TokenResponse>` → `request('/auth/google', { id_token: idToken })`
-  - `loginApple(idToken, name?): Promise<TokenResponse>` → `request('/auth/apple', { id_token: idToken, name })` *(defined, unused this pass)*
+  - `loginApple(idToken, name?): Promise<TokenResponse>` → `request('/auth/apple', { id_token: idToken, name })`
   - `refresh(refreshToken): Promise<TokenResponse>` → `request('/auth/refresh', { refresh_token: refreshToken })` *(defined, unused)*
   - `logout(refreshToken): Promise<null>` → `request('/auth/logout', { refresh_token: refreshToken })`
 
@@ -130,7 +136,7 @@ Follows the TodayScreen pattern (`useTheme()` + `useMemo(makeStyles)` + `foundat
 - **Brand block:** the app name/logo and a short tagline near center/lower third (use `typography.display` / `headingMedium`; text color light against the scrim — a fixed light token is fine here since it sits on a photo).
 - **Actions (bottom):**
   - **Google:** `<Button label="Continue with Google" leftIcon={<Icon name="google" size={20} />} onPress={onGooglePress} loading={busy} />`.
-  - **Apple:** `<Button variant="secondary" label="Continue with Apple" leftIcon={<Icon name="apple" size={20} />} onPress={showAppleComingSoon} />`.
+  - **Apple:** an outlined `<Button label="Continue with Apple" leftIcon={<Icon name="apple" />} onPress={onApplePress} />`, rendered only when `AppleAuthentication.isAvailableAsync()` resolves true.
 - **Google flow (in this component):**
   - `WebBrowser.maybeCompleteAuthSession()` at module top (required so the web popup closes).
   - Google OIDC discovery: `const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');` (or the static discovery doc).

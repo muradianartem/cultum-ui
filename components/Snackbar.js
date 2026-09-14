@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   labelSlot: { flex: 1 },
-  label: { flex: 1, fontSize: 12, lineHeight: 16, color: snackbar.ink },
+  label: { flex: 1, fontSize: 14, lineHeight: 20, color: snackbar.ink },
   action: {
     height: 40,
     paddingHorizontal: 16,

@@ -6,8 +6,10 @@ import { ICON_XML, ICON_NAMES } from './iconRegistry';
  * Icon — the Cultum icon set (158 glyphs from the design-system "Icons" frame).
  *
  * All monochrome icons render in `color` (they were normalised to
- * fill="currentColor" at build time). The four brand logos — apple, facebook,
- * google, x — keep their own colours and ignore `color`.
+ * fill="currentColor" at build time). The multicolour brand logos — facebook,
+ * google, x, cultum-logo — keep their own colours and ignore `color`. `apple`
+ * is a silhouette, so it follows `color` like any monochrome glyph (Apple's
+ * guidelines require the mark to be white on a dark background).
  *
  * Drops straight into the icon-agnostic library props:
  *   <Button leftIcon={<Icon name="search" />} ... />
