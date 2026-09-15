@@ -122,3 +122,35 @@ test('rebuilding always starts from a clean slate', async () => {
   expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
   expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
 });
+
+describe('the master switch', () => {
+  // A garden with something genuinely schedulable, so "nothing was scheduled"
+  // means the switch did it rather than there having been nothing to do.
+  const garden = () =>
+    seedGarden({
+      now: NOW,
+      plants: [
+        {
+          nickname: 'Penny',
+          room: 'Kitchen',
+          reminders: [{ action: 'water', intervalDays: 7, dueInDays: 1 }],
+        },
+      ],
+    });
+
+  beforeEach(() => {
+    Notifications.cancelAllScheduledNotificationsAsync.mockClear();
+    Notifications.scheduleNotificationAsync.mockClear();
+  });
+
+  test('off still clears the queue, but schedules nothing', async () => {
+    await rescheduleAll(garden(), NOW, { notificationsEnabled: false });
+    expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalledTimes(1);
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  test('on is the default, so every existing caller is unaffected', async () => {
+    await rescheduleAll(garden(), NOW);
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+  });
+});

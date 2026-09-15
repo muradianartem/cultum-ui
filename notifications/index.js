@@ -53,6 +53,29 @@ export async function ensurePermission() {
   }
 }
 
+/**
+ * What the OS will do, without asking it to do anything.
+ *
+ * `ensurePermission()` cannot be used to *render* a row: it prompts. This is
+ * the read-only twin — the settings screen needs to know whether a permission
+ * has been refused so it can say so, and iOS gives no other signal (a denied
+ * `scheduleNotificationAsync` still resolves; the OS just holds nothing).
+ *
+ * 'denied' means refused and un-askable — the only remedy is iOS Settings.
+ * 'undetermined' means we may still prompt.
+ */
+export async function permissionStatus() {
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.granted) return 'granted';
+    return current.canAskAgain === false ? 'denied' : 'undetermined';
+  } catch {
+    // The module isn't there (Expo Go on some platforms) — nothing will ever
+    // be delivered, and that is not something the user can fix.
+    return 'unavailable';
+  }
+}
+
 /** "Water Penny" — the verb reads as an instruction; a custom reminder keeps
  *  the name the user gave it, which is already phrased how they want it. */
 function contentFor(task) {
@@ -78,6 +101,10 @@ export function pendingOccurrences(state, now = new Date(), limit = MAX_SCHEDULE
     .slice(0, limit);
 }
 
+// Serialisation state for rescheduleAll — see the guard inside it.
+let running = false;
+let queued = null;
+
 /**
  * Rebuild the whole schedule from the garden as it stands.
  *
@@ -85,9 +112,39 @@ export function pendingOccurrences(state, now = new Date(), limit = MAX_SCHEDULE
  * local notifications is cheap, and it makes "what is scheduled" a pure
  * function of the store rather than a second thing to keep correct.
  */
-export async function rescheduleAll(state, now = new Date()) {
+export async function rescheduleAll(state, now = new Date(), options = {}) {
+  const { notificationsEnabled = true } = options;
+
+  // Two overlapping runs would interleave one's cancelAll into the middle of
+  // the other's scheduling loop and leave the OS holding a partial set. Serialise
+  // instead, and remember that a request arrived mid-flight so the last state
+  // wins rather than being dropped.
+  if (running) {
+    queued = { state, now, options };
+    return;
+  }
+  running = true;
+  try {
+    await rebuild(state, now, notificationsEnabled);
+  } finally {
+    running = false;
+    const next = queued;
+    queued = null;
+    if (next) await rescheduleAll(next.state, next.now, next.options);
+  }
+}
+
+async function rebuild(state, now, notificationsEnabled) {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
+    // The master switch governs OS delivery only. It deliberately does not
+    // touch any reminder's own `enabled` flag: that one is pushed to the
+    // server, so writing it here would silently disable the user's reminders
+    // on their other devices.
+    if (!notificationsEnabled) {
+      if (__DEV__) console.log('[notifications] master switch off — nothing scheduled');
+      return;
+    }
     const due = pendingOccurrences(state, now);
     for (const task of due) {
       await Notifications.scheduleNotificationAsync({

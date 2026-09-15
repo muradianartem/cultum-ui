@@ -29,6 +29,39 @@ export async function getPaywall({ timeoutMs = PAYWALL_TIMEOUT_MS } = {}) {
   return apiFetch('/billing/plans', { timeoutMs });
 }
 
+/**
+ * GET /users/me/subscription → EntitlementOut. Authenticated.
+ *
+ * `{ plan, is_plus, limits, usage, subscription }` — the backend calls it "the
+ * caller's plan, limits and usage, polled by the app on launch". Only `is_plus`
+ * is read today (the upgrade card, the subscription guard); `limits` is what a
+ * plant/scan ceiling will read when those are enforced client-side.
+ *
+ * Raw DTO, snake_case. Run it through `mapEntitlement`.
+ */
+export async function getEntitlement() {
+  return apiFetch('/users/me/subscription');
+}
+
+/**
+ * EntitlementOut → the camelCase shape the app uses.
+ *
+ * Unlike `mapPaywall` this never returns null: there is always an answer to
+ * "is this user Plus", and the safe one is no. A payload we cannot read means
+ * `free`, which shows an upgrade card to someone who may not need it — the
+ * mistake that costs nothing, as against hiding Plus from someone paying for it.
+ */
+export function mapEntitlement(dto) {
+  const plan = dto?.plan === 'plus' ? 'plus' : 'free';
+  return {
+    plan,
+    isPlus: dto?.is_plus === true,
+    limits: dto?.limits ?? null,
+    usage: dto?.usage ?? null,
+    subscription: dto?.subscription ?? null,
+  };
+}
+
 const str = (v) => (typeof v === 'string' && v.trim() ? v : null);
 const int = (v) => (Number.isFinite(v) ? Math.trunc(v) : 0);
 const arr = (v) => (Array.isArray(v) ? v : []);

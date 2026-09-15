@@ -104,3 +104,22 @@ jest.mock('expo-notifications', () => ({
   getLastNotificationResponseAsync: jest.fn(async () => null),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
+
+// Settings reaches three more native modules. None of them has behaviour worth
+// asserting through — the screens' own tests check what is rendered and which
+// function was called — so they are inert.
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(async () => true),
+  getStringAsync: jest.fn(async () => ''),
+}));
+
+jest.mock('expo-store-review', () => ({
+  hasAction: jest.fn(async () => true),
+  isAvailableAsync: jest.fn(async () => true),
+  requestReview: jest.fn(async () => {}),
+}));
+
+jest.mock('expo-application', () => ({
+  nativeApplicationVersion: '1.0.6',
+  nativeBuildVersion: '42',
+}));

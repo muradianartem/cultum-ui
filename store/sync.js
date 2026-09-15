@@ -17,7 +17,7 @@
 
 import * as gardenApi from '../api/garden';
 import { mediaUrl } from '../api/mapPlant';
-import { actionMeta, makeRoom, uid } from './model';
+import { DEFAULT_TIME_OF_DAY, actionMeta, makeRoom, uid } from './model';
 import { enqueue } from './reducer';
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ function reminderFromServer(dto, plantId, now) {
     action,
     title: meta.label,
     intervalDays: dto.interval_days,
-    timeOfDay: dto.time_of_day ? String(dto.time_of_day).slice(0, 5) : '09:00',
+    timeOfDay: dto.time_of_day ? String(dto.time_of_day).slice(0, 5) : DEFAULT_TIME_OF_DAY,
     enabled: dto.enabled !== false,
     startAt: now,
     lastDoneAt: dto.last_done_at ?? null,
@@ -113,10 +113,20 @@ const isTransient = (e) =>
  *
  * @returns {{ state: object, stopped: boolean }}
  */
+/** How many queued writes one sync round will push before yielding. */
+export const MAX_PUSH_PER_ROUND = 25;
+
 export async function drainOutbox(state, api = gardenApi) {
   let next = state;
   let stopped = false;
-  const queue = [...next.outbox];
+  // Bounded on purpose. Changing the global reminder time queues one update per
+  // reminder, and this loop is serial: fifty of them is fifteen-odd seconds
+  // during which no other sync can start and an iOS backgrounding can kill the
+  // whole run. A slice at a time survives that — GardenProvider's sync effect
+  // is keyed on `state.outbox`, so committing a shorter one re-triggers it, and
+  // it terminates because the queue strictly shrinks.
+  const queue = next.outbox.slice(0, MAX_PUSH_PER_ROUND);
+  const budgeted = next.outbox.length > queue.length;
 
   for (const entry of queue) {
     try {
@@ -131,7 +141,10 @@ export async function drainOutbox(state, api = gardenApi) {
       next = { ...next, outbox: next.outbox.filter((e2) => e2 !== entry) };
     }
   }
-  return { state: next, stopped };
+  // A budgeted round reports as stopped: there is more to push, so the pull
+  // must wait — merging now would take the server's values as authoritative for
+  // rows whose updates are still sitting in the queue.
+  return { state: next, stopped: stopped || (budgeted && next.outbox.length > 0) };
 }
 
 async function pushOne(state, entry, api) {

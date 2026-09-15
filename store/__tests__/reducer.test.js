@@ -245,6 +245,63 @@ describe('reminders/restore', () => {
   });
 });
 
+describe('reminders/timeOfDay', () => {
+  const garden = (count, { serverIds = true } = {}) => {
+    const plant = makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' });
+    const reminders = Array.from({ length: count }, (_, i) => ({
+      ...makeReminder({ plantId: plant.id, action: 'water' }),
+      id: `rem_${i}`,
+      serverId: serverIds ? `R${i}` : null,
+    }));
+    return { ...emptyState(), plants: [plant], reminders };
+  };
+
+  test('moves every reminder and queues one update each', () => {
+    const s = reducer(garden(3), { type: 'reminders/timeOfDay', timeOfDay: '07:30', now: NOW });
+    expect(s.reminders.map((r) => r.timeOfDay)).toEqual(['07:30', '07:30', '07:30']);
+    expect(s.outbox).toHaveLength(3);
+    expect(s.outbox.every((e) => e.op === 'reminder.update')).toBe(true);
+  });
+
+  test('a reminder the server has never seen queues nothing', () => {
+    // Its own create reads current state when it drains, so it carries the new
+    // time by itself — queueing an update for it would be a round trip to
+    // reach where we already are.
+    const s = reducer(garden(3, { serverIds: false }), {
+      type: 'reminders/timeOfDay',
+      timeOfDay: '07:30',
+      now: NOW,
+    });
+    expect(s.reminders.every((r) => r.timeOfDay === '07:30')).toBe(true);
+    expect(s.outbox).toHaveLength(0);
+  });
+
+  test('re-picking the same time returns the state by identity', () => {
+    // Load-bearing, not an optimisation: GardenProvider's persist, sync, media
+    // and reschedule effects all key off the state object, so a new-but-equal
+    // object would cost a disk write, a sync round and a full rebuild of the
+    // OS notification queue for a setting nobody changed.
+    const before = garden(3);
+    const after = reducer(before, {
+      type: 'reminders/timeOfDay',
+      timeOfDay: before.reminders[0].timeOfDay,
+      now: NOW,
+    });
+    expect(after).toBe(before);
+  });
+
+  test('re-timing five times over fifty reminders queues fifty entries, not 250', () => {
+    // enqueue collapses per (op, localId), which is what keeps a wheel the user
+    // scrolled through several values from flooding the outbox.
+    let s = garden(50);
+    for (const time of ['07:00', '08:00', '09:30', '10:00', '11:15']) {
+      s = reducer(s, { type: 'reminders/timeOfDay', timeOfDay: time, now: NOW });
+    }
+    expect(s.outbox).toHaveLength(50);
+    expect(s.reminders.every((r) => r.timeOfDay === '11:15')).toBe(true);
+  });
+});
+
 test('an unknown action is a no-op, not a crash', () => {
   const s = emptyState();
   expect(reducer(s, { type: 'nope' })).toBe(s);
