@@ -27,6 +27,11 @@ jest.mock('../../api/billing', () => ({
 }));
 const { getPaywall } = require('../../api/billing');
 
+// The store flow has its own tests (billing/__tests__/useStorePurchase.test.js);
+// here it is only what the screen asks of it and what it hands back.
+const mockStore = { supported: true, available: true, busy: false, error: null, purchase: jest.fn() };
+jest.mock('../../billing/useStorePurchase', () => ({ __esModule: true, default: () => mockStore }));
+
 import PaywallScreen from '../PaywallScreen';
 import { Icon } from '../../components';
 import { __resetPaywallCache } from '../../billing/paywallContent';
@@ -113,6 +118,8 @@ const press = (tree, label) =>
 beforeEach(() => {
   __resetPaywallCache();
   getPaywall.mockReturnValue(new Promise(() => {}));
+  Object.assign(mockStore, { supported: true, available: true, busy: false, error: null });
+  mockStore.purchase.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -235,6 +242,61 @@ describe('with the live payload', () => {
     expect(texts(tree)).toContain('$99.99 a lifetime');
     expect(texts(tree)).toContain('Buy once, keep it.');
     expect(rows(tree)).toHaveLength(2);
+  });
+});
+
+describe('Start free trial', () => {
+  const startTrial = (tree) => act(async () => press(tree, 'Start free trial'));
+  const cta = (tree) =>
+    tree.root.find(
+      (n) => n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Start free trial'
+    );
+
+  test('buys the default plan and closes once the purchase is confirmed', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    await startTrial(tree);
+    expect(mockStore.purchase).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'yearly', appleProductId: 'com.cultum.plus.yearly' })
+    );
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  test('buys the plan chosen in the sheet', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => press(tree, 'See all plans'));
+    act(() =>
+      tree.root
+        .find((n) => typeof n.type !== 'string' && n.props.testID === 'plan-monthly')
+        .props.onPress()
+    );
+    act(() => press(tree, 'Done'));
+    await startTrial(tree);
+    expect(mockStore.purchase).toHaveBeenCalledWith(
+      expect.objectContaining({ appleProductId: 'com.cultum.plus.monthly' })
+    );
+  });
+
+  test('stays open when the purchase is cancelled or fails', async () => {
+    mockStore.purchase.mockResolvedValue(false);
+    const tree = await renderWith(LIVE_RESPONSE);
+    await startTrial(tree);
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
+  });
+
+  test('shows the store error and a busy button', async () => {
+    Object.assign(mockStore, { busy: true, error: "The App Store couldn't complete the purchase. Try again." });
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain("The App Store couldn't complete the purchase. Try again.");
+    expect(cta(tree).props.accessibilityState.busy).toBe(true);
+  });
+
+  test('with no store flow on the platform it just closes', async () => {
+    mockStore.supported = false;
+    const tree = await renderWith(LIVE_RESPONSE);
+    await startTrial(tree);
+    expect(mockStore.purchase).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
   });
 });
 

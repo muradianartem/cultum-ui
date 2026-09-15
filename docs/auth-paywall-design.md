@@ -34,11 +34,21 @@ deliberately left out.
 - **`Caption/Caption Emphasized` is Inter Medium** in these frames, while
   `typography.captionEmphasized` is bold — the weight is pinned back to `'500'`
   at the three call sites.
-- **No IAP.** `onStartTrial` is a stub: there is no in-app-purchase module in
-  the project and `POST /billing/apple/verify` wants a StoreKit 2
-  `Transaction.jwsRepresentation`. It logs the store product ids that call will
-  need (they come down with the rest of the payload), so the swap is that one
-  function body. `fallback_price` is right only in a USD storefront until then.
+- **IAP is iOS-only.** "Start free trial" runs through
+  [billing/useStorePurchase.ios.js](../billing/useStorePurchase.ios.js), built on
+  `expo-iap`. The steps are: StoreKit 2 purchase of the selected plan's
+  `apple_product_id`, then `POST /billing/apple/verify` with the JWS
+  (`purchase.purchaseToken`), then the returned `EntitlementOut` applied through
+  `EntitlementProvider#apply`, then `finishTransaction`. The transaction is
+  finished only after verify succeeds, so a failed verify replays on the next
+  store connection. The paywall closes only on a confirmed purchase. A cancel is
+  silent, and any other failure is shown above the CTA. Other platforms resolve
+  `billing/useStorePurchase.js`, which has no store flow, so the button just
+  closes the screen there.
+  Still open: the Play flow (`/billing/google/verify`), a "Restore purchases"
+  entry, and StoreKit's localized price in place of `fallback_price` (right only
+  in a USD storefront). `expo-iap` is native, so it needs a rebuild and not an
+  OTA update.
 - **Figma's copy now comes from the backend.** `PRICING`, `TRIAL_STEPS`,
   `FEATURES`, `FOOTNOTE` and `ChoosePlanSheet`'s `PLANS` are gone — see
   "Content" below. `SOCIAL_PROOF` and `REVIEWS` stayed: the API has no App Store
