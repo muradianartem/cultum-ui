@@ -63,6 +63,7 @@ export default function State({
               variant="primary"
               size="sm"
               fullWidth={false}
+              style={styles.action}
               label={primaryAction.label}
               onPress={primaryAction.onPress}
               {...primaryAction}
@@ -73,6 +74,7 @@ export default function State({
               variant="ghost"
               size="sm"
               fullWidth={false}
+              style={styles.action}
               label={secondaryAction.label}
               onPress={secondaryAction.onPress}
               {...secondaryAction}
@@ -117,4 +119,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   actions: { alignSelf: 'stretch', alignItems: 'center', gap: 4 },
+  // Inline Buttons pin themselves with alignSelf: 'flex-start', which beats the
+  // column's alignItems — re-centre each one or the actions hug the left edge.
+  action: { alignSelf: 'center' },
 });

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, ButtonIcon, Icon, State } from '../../components';
+import { Button, Icon, NavigationBar, State } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, space, typography } from '../../theme/foundations';
@@ -27,8 +27,12 @@ import { copyFor } from './errorCopy';
  *
  * The pick then fetches care detail (GET /plants/{species_key}), which against
  * a cold backend takes seconds, so it runs as a guarded lifecycle: one pick in
- * flight at a time, a spinner on the chosen row, and a retry state on failure
- * rather than a Product page filled with placeholder care values.
+ * flight at a time, a spinner on the chosen row, and a full-screen retry state
+ * on failure rather than a Product page filled with placeholder care values.
+ *
+ * Figma: "Scan / Matches" (158:10405). The design has no no-match or error
+ * frame; both are composed from "Camera access" (158:10369) and "Search
+ * manually · No results" (158:10511) — a centred State with stacked actions.
  */
 export default function ScanMatchesScreen({ photoUri, scan }) {
   const insets = useSafeAreaInsets();
@@ -72,56 +76,87 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
     navigate('scan-search');
   };
 
-  const header = (
-    <View style={[styles.header, { paddingTop: insets.top + space[8] }]}>
-      <ButtonIcon
-        variant="ghost"
-        size="md"
-        icon={<Icon name="close" size={24} color={t.text.primary} />}
-        onPress={() => reset('today')}
-        accessibilityLabel="Close"
-      />
-      <Text style={styles.title}>Match</Text>
-      <Button label="Retake" variant="outline" size="sm" onPress={back} />
+  // Figma floats Retake over the bar rather than putting it in the bar's
+  // (icon-only) action slot, which also keeps the title optically centred.
+  const header = (showRetake) => (
+    <View style={{ paddingTop: insets.top }}>
+      <View>
+        <NavigationBar
+          title="Matching"
+          leading="close"
+          onLeadingPress={() => reset('today')}
+          buttonVariant="secondary"
+          divider={false}
+        />
+        {showRetake ? (
+          <Button
+            label="Retake"
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            onPress={back}
+            style={styles.retake}
+          />
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const searchAction = {
+    label: 'Search manually',
+    leftIcon: <Icon name="search" size={16} color={t.text.primary} />,
+    onPress: onNoneOfThese,
+  };
+
+  const centred = (showRetake, state) => (
+    <View style={styles.screen}>
+      {header(showRetake)}
+      <View style={styles.emptyWrap}>{state}</View>
     </View>
   );
 
   if (cards.length === 0) {
-    return (
-      <View style={styles.screen}>
-        {header}
-        <View style={styles.emptyWrap}>
-          <State
-            icon={<Icon name="outlined-scan" size={28} color={t.text.primary} />}
-            title="No plant found"
-            subtitle="Try a clearer, closer photo."
-            primaryAction={{ label: 'Retake', onPress: back }}
-            secondaryAction={{ label: 'Search manually', onPress: onNoneOfThese }}
-          />
-        </View>
-      </View>
+    // The primary action is Retake, so the header pill would say it twice.
+    return centred(
+      false,
+      <State
+        style={styles.state}
+        icon={<Icon name="outlined-scan" size={24} color={t.text.primary} />}
+        iconVariant="secondary"
+        title="No plant found"
+        subtitle="Try a clearer, closer photo."
+        primaryAction={{
+          label: 'Retake',
+          leftIcon: <Icon name="outlined-scan" size={16} color={t.brand.onPrimary} />,
+          onPress: back,
+        }}
+        secondaryAction={searchAction}
+      />
+    );
+  }
+
+  if (error) {
+    const copy = copyFor(error.err?.code);
+    return centred(
+      true,
+      <State
+        style={styles.state}
+        icon={<Icon name="outlined-scan" size={24} color={t.text.primary} />}
+        iconVariant="secondary"
+        title={copy.title}
+        subtitle={copy.subtitle}
+        primaryAction={{ label: 'Try again', onPress: () => onPick(error.card) }}
+        secondaryAction={searchAction}
+      />
     );
   }
 
   return (
     <View style={styles.screen}>
-      {header}
+      {header(true)}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {photoUri ? <Image source={{ uri: photoUri }} style={styles.photo} /> : null}
         <Text style={styles.caption}>{matchesCaption(cards[0]?.percent ?? 0)}</Text>
-
-        {error ? (
-          // Keep the photo and caption above this: the user should still see
-          // which scan they're retrying.
-          <State
-            variant="card"
-            icon={<Icon name="outlined-scan" size={28} color={t.text.primary} />}
-            title={copyFor(error.err?.code).title}
-            subtitle={copyFor(error.err?.code).subtitle}
-            primaryAction={{ label: 'Try again', onPress: () => onPick(error.card) }}
-            secondaryAction={{ label: 'Search manually', onPress: onNoneOfThese }}
-          />
-        ) : null}
 
         <View style={styles.list}>
           {cards.map((card, i) => (
@@ -141,7 +176,8 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
           <Button
             label="Search manually"
             variant="secondary"
-            size="md"
+            size="sm"
+            fullWidth={false}
             onPress={onNoneOfThese}
           />
         </View>
@@ -153,19 +189,27 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
 const makeStyles = (t) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background.primary },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: space[16],
-      paddingBottom: space[8],
-    },
-    title: { ...typography.headingSmallEmphasized, color: t.text.primary },
+    // 40pt pill centred in the 56pt bar, on the bar's 16pt inset.
+    retake: { position: 'absolute', top: space[8], right: space[16] },
     content: { padding: space[16], gap: space[20], alignItems: 'stretch' },
     photo: { width: 168, height: 168, borderRadius: radius[16], alignSelf: 'center' },
     caption: { ...typography.bodyLarge, color: t.text.secondary, textAlign: 'center' },
     list: { gap: space[12] },
-    footer: { alignItems: 'center', gap: space[8] },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: space[8],
+      paddingTop: space[4],
+    },
     noneText: { ...typography.bodyMedium, color: t.text.secondary },
-    emptyWrap: { flex: 1, justifyContent: 'center', padding: space[16] },
+    // Figma's "Empty" frame: centred in the leftover height, lifted by 64pt.
+    emptyWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: space[16],
+      paddingBottom: 64,
+    },
+    state: { width: '100%' },
   });
