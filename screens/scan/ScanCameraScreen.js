@@ -397,7 +397,7 @@ const makeStyles = (t) =>
     shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: SHUTTER },
 
     analyzing: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(14,18,11,0.6)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -406,7 +406,7 @@ const makeStyles = (t) =>
     analyzingText: { ...typography.bodyLarge, color: OVER_TEXT },
 
     errorOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: t.background.primary,
       alignItems: 'center',
       justifyContent: 'center',

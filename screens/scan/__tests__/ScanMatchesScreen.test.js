@@ -134,6 +134,9 @@ test('an empty candidate list shows the no-match state instead of the list', () 
   const t = texts(tree);
   expect(t).toContain('No plant found');
   expect(t).not.toContain('Swiss cheese plant');
+  // Retake is the state's primary action, so the header pill is hidden —
+  // `find` throws unless exactly one Retake button is on screen.
+  expect(() => button(tree, 'Retake')).not.toThrow();
 });
 
 test('a pick in flight makes every row inert, so a second tap cannot relabel the scan', async () => {
@@ -164,6 +167,8 @@ test('a failed detail fetch shows a retry state instead of a placeholder product
   await press(tree, 'Golden pothos');
 
   expect(texts(tree)).toContain('You’re offline.');
+  // The error takes over the screen rather than stacking above the list.
+  expect(texts(tree)).not.toContain('Swiss cheese plant');
   expect(api.route).toBe('scan-matches');
 });
 

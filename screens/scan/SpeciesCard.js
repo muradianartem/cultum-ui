@@ -1,7 +1,8 @@
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { ConfidenceRing, Icon, List, ListItem, LoadingIndicator } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, space } from '../../theme/foundations';
+import { radius, space, typography } from '../../theme/foundations';
+import { fonts } from '../../theme/tokens';
 
 // How far a row fades while another row's pick is in flight. Enough to read as
 // "not right now" without hiding which plant the row is.
@@ -12,6 +13,10 @@ const DIMMED = 0.4;
  * screens. Built on List/ListItem to match the app's card rows (ProductPage's
  * TaskRow). Shows a thumbnail, name/latin subtitle, a chevron, and — on Matches
  * only (`showConfidence`) — a ConfidenceRing with the match probability.
+ *
+ * Figma "Card" (158:12492): 12pt padding, a Heading XS Emphasized (serif 18)
+ * name over a Body Large latin name, and a 4pt gap between ring and chevron —
+ * tighter and larger-set than the generic ListItem, hence the overrides.
  *
  * Opening a plant costs a round trip to GET /plants/{species_key}, and against
  * a cold backend that is seconds, so a pick has to look like it landed: the
@@ -41,7 +46,9 @@ export default function SpeciesCard({
     <List variant="card">
       <ListItem
         onPress={inert ? undefined : onPress}
-        style={inert && !loading ? styles.dimmed : null}
+        // Title is a node, so ListItem can't derive the row's label itself.
+        accessibilityLabel={card.title}
+        style={[styles.row, inert && !loading ? styles.dimmed : null]}
         before={
           card.thumbUri ? (
             <Image source={{ uri: card.thumbUri }} style={styles.thumb} />
@@ -49,8 +56,18 @@ export default function SpeciesCard({
             <View style={[styles.thumb, styles.thumbPlaceholder]} />
           )
         }
-        title={card.title}
-        subtitle={card.subtitle}
+        title={
+          <Text style={styles.title} numberOfLines={1}>
+            {card.title}
+          </Text>
+        }
+        subtitle={
+          card.subtitle ? (
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {card.subtitle}
+            </Text>
+          ) : null
+        }
         after={
           <View style={styles.after}>
             {ring ? <ConfidenceRing percent={card.percent} /> : null}
@@ -68,8 +85,17 @@ export default function SpeciesCard({
 
 const makeStyles = (t) =>
   StyleSheet.create({
+    row: { paddingHorizontal: space[12] },
     thumb: { width: 56, height: 56, borderRadius: radius[12] },
     thumbPlaceholder: { backgroundColor: t.surface.secondary },
-    after: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
+    title: {
+      fontFamily: fonts.display,
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: '700',
+      color: t.text.primary,
+    },
+    subtitle: { ...typography.bodyLarge, color: t.text.secondary },
+    after: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
     dimmed: { opacity: DIMMED },
   });
