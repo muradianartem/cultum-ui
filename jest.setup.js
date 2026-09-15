@@ -123,3 +123,16 @@ jest.mock('expo-application', () => ({
   nativeApplicationVersion: '1.0.6',
   nativeBuildVersion: '42',
 }));
+
+// expo-iap is the native StoreKit / Play Billing module. Inert here and never
+// connected, so a screen that mounts the purchase hook renders without a store.
+// billing/__tests__/useStorePurchase.test.js mocks it with callbacks it drives.
+jest.mock('expo-iap', () => ({
+  ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending', DeferredPayment: 'deferred-payment' },
+  useIAP: () => ({
+    connected: false,
+    fetchProducts: jest.fn(async () => {}),
+    requestPurchase: jest.fn(async () => {}),
+    finishTransaction: jest.fn(async () => {}),
+  }),
+}));

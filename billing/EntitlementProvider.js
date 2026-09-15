@@ -20,7 +20,7 @@ const STALE_MS = 5 * 60 * 1000;
 
 const UNKNOWN = { ready: false, plan: 'free', isPlus: false, limits: null, usage: null, subscription: null };
 
-const EntitlementContext = createContext({ ...UNKNOWN, refresh: async () => {} });
+const EntitlementContext = createContext({ ...UNKNOWN, refresh: async () => {}, apply: () => {} });
 
 const fromCache = () => {
   const cached = loadEntitlementSync();
@@ -37,6 +37,17 @@ export function EntitlementProvider({ children, initial = null }) {
   // the module singleton, not this context — is never a render behind.
   setEntitlement(entitlement);
 
+  // Adopt an EntitlementOut the server just sent: from the poll below, or from
+  // POST /billing/apple/verify, which answers a purchase with the new plan so
+  // the upgrade card and the guards flip without waiting on another GET.
+  const apply = useCallback((dto) => {
+    const next = { ...mapEntitlement(dto), ready: true };
+    fetchedAt.current = Date.now();
+    setEntitlement(next);
+    setState(next);
+    saveEntitlement(dto);
+  }, []);
+
   const refresh = useCallback(async () => {
     // A dev-bypass session has no real credentials: the fake tokens 401, and
     // apiFetch answers a 401 by rotating the session, which fails and signs the
@@ -44,12 +55,7 @@ export function EntitlementProvider({ children, initial = null }) {
     if (inFlight.current || status !== 'signedIn' || devSession) return;
     inFlight.current = true;
     try {
-      const dto = await getEntitlement();
-      const next = { ...mapEntitlement(dto), ready: true };
-      fetchedAt.current = Date.now();
-      setEntitlement(next);
-      setState(next);
-      saveEntitlement(dto);
+      apply(await getEntitlement());
     } catch (e) {
       // Offline, a timeout, a 5xx — none of them are news about this user's
       // plan, so the cached answer stands. A 401 is apiFetch's to handle: it
@@ -61,7 +67,7 @@ export function EntitlementProvider({ children, initial = null }) {
     } finally {
       inFlight.current = false;
     }
-  }, [status, devSession]);
+  }, [status, devSession, apply]);
 
   useEffect(() => {
     if (status === 'signedIn') refresh();
@@ -74,7 +80,7 @@ export function EntitlementProvider({ children, initial = null }) {
     return () => sub.remove();
   }, [refresh]);
 
-  const value = useMemo(() => ({ ...entitlement, refresh }), [entitlement, refresh]);
+  const value = useMemo(() => ({ ...entitlement, refresh, apply }), [entitlement, refresh, apply]);
 
   return <EntitlementContext.Provider value={value}>{children}</EntitlementContext.Provider>;
 }

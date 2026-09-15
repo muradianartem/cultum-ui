@@ -13,8 +13,9 @@
 // The rating and the reviews are NOT in that payload and stay local constants;
 // there is no endpoint to hunt for.
 //
-// Presentation only — there is no IAP dependency in the project yet, so
-// `onStartTrial` is a stub.
+// "Start free trial" buys the selected plan through billing/useStorePurchase:
+// StoreKit 2 plus POST /billing/apple/verify on iOS. Other platforms have no
+// store flow yet, and there the button just closes the screen.
 
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -25,6 +26,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
 import { usePaywallContent } from '../billing/paywallContent';
+import useStorePurchase from '../billing/useStorePurchase';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
@@ -85,6 +87,7 @@ function Paywall({ content }) {
 
   const [plansOpen, setPlansOpen] = useState(false);
   const [planKey, setPlanKey] = useState(content.defaultProductKey);
+  const store = useStorePurchase(content.products);
 
   // The cache is write-once (billing/paywallContent.js), so `content` cannot
   // change under an open screen and `planKey` cannot go stale. The `??` is the
@@ -96,18 +99,21 @@ function Paywall({ content }) {
   // Same shape as the scan flow's close: pop if there's history, else go home.
   const onClose = () => (canGoBack ? back() : reset('today'));
 
-  // TODO: hand off to StoreKit / Play Billing once an IAP module is added, then
-  // POST the resulting transaction to /billing/apple/verify. Today this only
-  // closes the paywall so the flow is walkable — but it logs the store product
-  // ids that call will need, so the swap is this function body and nothing else.
-  const onStartTrial = () => {
-    if (__DEV__) {
-      console.log('[paywall] start trial (stub) —', product.key, {
-        apple: product.appleProductId,
-        google: product.googleProductId,
-      });
+  // iOS: StoreKit sheet → backend verify → new entitlement. The paywall closes
+  // only once the backend has confirmed. A cancel leaves it open and silent, and
+  // any other failure shows above the button through the hook's `error`.
+  const onStartTrial = async () => {
+    if (!store.supported) {
+      // No store flow on this platform yet, so keep the screen walkable.
+      if (__DEV__) {
+        console.log('[paywall] start trial (no store flow here) —', product.key, {
+          google: product.googleProductId,
+        });
+      }
+      onClose();
+      return;
     }
-    onClose();
+    if (await store.purchase(product)) onClose();
   };
 
   return (
@@ -139,6 +145,8 @@ function Paywall({ content }) {
               variant="outline"
               icon={<Icon name="close" size={16} />}
               accessibilityLabel="Close"
+              // A StoreKit sheet is up; closing under it would orphan the purchase.
+              disabled={store.busy}
               onPress={onClose}
             />
           </View>
@@ -238,11 +246,18 @@ function Paywall({ content }) {
 
       <View style={styles.priceBar}>
         <Text style={styles.priceHeadline}>{headlineFor(product)}</Text>
-        <Button size="lg" label="Start free trial" onPress={onStartTrial} />
+        {store.error ? <Text style={styles.purchaseError}>{store.error}</Text> : null}
+        <Button
+          size="lg"
+          label="Start free trial"
+          loading={store.busy}
+          onPress={onStartTrial}
+        />
         <Button
           size="md"
           variant="ghost"
           label="See all plans"
+          disabled={store.busy}
           onPress={() => setPlansOpen(true)}
         />
       </View>
@@ -404,6 +419,11 @@ function makeStyles(t, insets) {
     priceHeadline: {
       ...typography.bodyMediumEmphasized,
       color: t.text.secondary,
+      textAlign: 'center',
+    },
+    purchaseError: {
+      ...typography.bodyMedium,
+      color: t.error.primary,
       textAlign: 'center',
     },
   });

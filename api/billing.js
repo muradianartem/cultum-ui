@@ -1,15 +1,13 @@
-// Billing — the paywall's content, and later the store receipt exchange.
+// Billing — the paywall's content and the store receipt exchange.
 //
 // GET /billing/plans is PUBLIC. The backend describes it as "everything the
 // paywall screen renders", shown during onboarding before there is an account,
 // so it needs no bearer token — which is what lets billing/paywallContent.js
 // prefetch it from the Login screen, before a session exists.
 //
-// Purchase is not here yet: POST /billing/apple/verify wants a StoreKit 2
-// `Transaction.jwsRepresentation` and there is no IAP module in the project
-// (see the stub in screens/PaywallScreen.js#onStartTrial). The product ids this
-// endpoint hands over are exactly what that call will need, which is why they
-// survive the mapping below even though nothing reads them yet.
+// POST /billing/apple/verify takes what StoreKit 2 hands back after a purchase
+// (billing/useStorePurchase.ios.js) and answers with the caller's new
+// entitlement. The Play equivalent is not wired: purchase is iOS-only for now.
 
 import { apiFetch } from './client';
 
@@ -41,6 +39,28 @@ export async function getPaywall({ timeoutMs = PAYWALL_TIMEOUT_MS } = {}) {
  */
 export async function getEntitlement() {
   return apiFetch('/users/me/subscription');
+}
+
+/**
+ * POST /billing/apple/verify → EntitlementOut. Authenticated.
+ *
+ * `signedTransaction` is StoreKit 2's `Transaction.jwsRepresentation`;
+ * `transactionId` alone is accepted too (a restore on a device with the id but
+ * no JWS). The backend is idempotent here — it is also the restore path — so a
+ * transaction left unfinished after a failed call is safe to send again.
+ *
+ * Same long deadline as the paywall: this is the request a paying user is
+ * staring at a spinner for, and a cold start must not turn it into an error.
+ */
+export async function verifyApplePurchase({ signedTransaction, transactionId } = {}) {
+  return apiFetch('/billing/apple/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      signed_transaction: signedTransaction ?? null,
+      transaction_id: transactionId ?? null,
+    }),
+    timeoutMs: PAYWALL_TIMEOUT_MS,
+  });
 }
 
 /**
