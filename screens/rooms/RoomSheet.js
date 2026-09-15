@@ -113,7 +113,11 @@ export default function RoomSheet({
       },
     };
     body = (
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <List variant="card">
           {otherRooms.map((r) => (
             <ListItem

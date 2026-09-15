@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
 import {
   Animated,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,6 +12,7 @@ import {
 } from 'react-native';
 import { sheet, shadow, motion } from '../theme/tokens';
 import Button from './Button';
+import { useKeyboardVisible } from './useKeyboardVisible';
 
 /**
  * BottomSheet — Cultum's slide-up panel, imported from Figma "Bottom Sheet – P2".
@@ -20,6 +24,10 @@ import Button from './Button';
  *
  * Interaction (Modal host, backdrop-to-dismiss, slide-in) is reconstructed for
  * RN — Figma only specifies the resting visual.
+ *
+ * Keyboard: the panel rides up above the keyboard, so a sheet with a field
+ * stays readable while typing. Tapping the panel hides the keyboard, and so
+ * does the first backdrop tap while it is up — only the next one closes.
  *
  * `sheetStyle` / `bodyStyle` restyle the surface and its content padding for
  * sheets the design gives a different ground or rhythm (the paywall's
@@ -47,6 +55,7 @@ export default function BottomSheet({
   ...rest
 }) {
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
+  const keyboardVisible = useKeyboardVisible();
 
   useEffect(() => {
     Animated.timing(translateY, {
@@ -55,6 +64,8 @@ export default function BottomSheet({
       useNativeDriver: true,
     }).start();
   }, [visible, translateY]);
+
+  const onBackdrop = () => (keyboardVisible ? Keyboard.dismiss() : onClose?.());
 
   return (
     <Modal
@@ -66,10 +77,13 @@ export default function BottomSheet({
       testID={testID}
       {...rest}
     >
-      <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <Pressable
           style={styles.backdrop}
-          onPress={onClose}
+          onPress={onBackdrop}
           accessibilityLabel="Close"
           accessibilityRole="button"
           testID="bottomsheet-backdrop"
@@ -78,6 +92,7 @@ export default function BottomSheet({
           style={[
             styles.sheet,
             shadow.sheet,
+            keyboardVisible && styles.sheetOverKeyboard,
             {
               transform: [
                 {
@@ -92,60 +107,62 @@ export default function BottomSheet({
           ]}
           accessibilityViewIsModal
         >
-          <View style={styles.top}>
-            <View style={styles.handle} />
-          </View>
-
-          {showClose && onClose ? (
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={styles.close}
-              testID="bottomsheet-close"
-            >
-              <Text style={styles.closeGlyph}>✕</Text>
-            </Pressable>
-          ) : null}
-
-          <View style={[styles.body, bodyStyle]}>
-            <View style={styles.textBlock}>
-              {statusIcon ? <View style={styles.statusIcon}>{statusIcon}</View> : null}
-              {title ? <Text style={styles.title}>{title}</Text> : null}
-              {description ? (
-                <Text style={styles.description}>{description}</Text>
-              ) : null}
+          <Pressable onPress={Keyboard.dismiss} accessible={false} testID="bottomsheet-panel">
+            <View style={styles.top}>
+              <View style={styles.handle} />
             </View>
 
-            {children}
-
-            {primaryAction || secondaryAction || caption ? (
-              <View style={styles.actions}>
-                {primaryAction ? (
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    label={primaryAction.label}
-                    onPress={primaryAction.onPress}
-                    {...primaryAction}
-                  />
-                ) : null}
-                {secondaryAction ? (
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    label={secondaryAction.label}
-                    onPress={secondaryAction.onPress}
-                    {...secondaryAction}
-                  />
-                ) : null}
-                {caption ? <Text style={styles.caption}>{caption}</Text> : null}
-              </View>
+            {showClose && onClose ? (
+              <Pressable
+                onPress={onClose}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                style={styles.close}
+                testID="bottomsheet-close"
+              >
+                <Text style={styles.closeGlyph}>✕</Text>
+              </Pressable>
             ) : null}
-          </View>
+
+            <View style={[styles.body, bodyStyle]}>
+              <View style={styles.textBlock}>
+                {statusIcon ? <View style={styles.statusIcon}>{statusIcon}</View> : null}
+                {title ? <Text style={styles.title}>{title}</Text> : null}
+                {description ? (
+                  <Text style={styles.description}>{description}</Text>
+                ) : null}
+              </View>
+
+              {children}
+
+              {primaryAction || secondaryAction || caption ? (
+                <View style={styles.actions}>
+                  {primaryAction ? (
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      label={primaryAction.label}
+                      onPress={primaryAction.onPress}
+                      {...primaryAction}
+                    />
+                  ) : null}
+                  {secondaryAction ? (
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      label={secondaryAction.label}
+                      onPress={secondaryAction.onPress}
+                      {...secondaryAction}
+                    />
+                  ) : null}
+                  {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+                </View>
+              ) : null}
+            </View>
+          </Pressable>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -159,6 +176,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: sheet.radiusTop,
     paddingBottom: 34, // Figma home-indicator inset
   },
+  // The keyboard covers the home indicator, so the inset would only be a gap.
+  sheetOverKeyboard: { paddingBottom: 0 },
   top: { paddingVertical: 8, alignItems: 'center' },
   handle: {
     width: 36,

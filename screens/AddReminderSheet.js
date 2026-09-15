@@ -14,7 +14,17 @@
 //   <AddReminderSheet visible onClose={…} onConfirm={(reminder) => …} />
 
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button,
@@ -24,6 +34,7 @@ import {
   ListItem,
   TextInput,
   WheelPicker,
+  useKeyboardVisible,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { fonts, motion, shadow, sheet } from '../theme/tokens';
@@ -52,6 +63,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
+  const keyboardVisible = useKeyboardVisible();
 
   const [step, setStep] = useState('label'); // 'label' | 'frequency' | 'date'
   const [label, setLabel] = useState('');
@@ -78,9 +90,18 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   }, [visible, today, translateY]);
 
   const back = PREVIOUS[step];
-  // Backdrop / hardware back steps backwards through the flow, and only closes
-  // the sheet from the first step.
-  const dismiss = () => (back ? setStep(back) : onClose?.());
+  // Hardware back steps backwards through the flow, and only closes the sheet
+  // from the first step. The backdrop does the same — unless the keyboard is
+  // up, when its first tap only puts the keyboard away.
+  const stepBack = () => (back ? setStep(back) : onClose?.());
+  const onBackdrop = () => (keyboardVisible ? Keyboard.dismiss() : stepBack());
+
+  // Leave the label step with the keyboard already on its way down, so it
+  // doesn't linger over the wheel.
+  const toFrequency = () => {
+    Keyboard.dismiss();
+    setStep('frequency');
+  };
 
   const confirm = () => {
     onConfirm?.(makeReminderDraft({ label, numberIndex, unitIndex, date }));
@@ -94,14 +115,18 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={dismiss}
+      onRequestClose={stepBack}
       statusBarTranslucent
       testID="add-reminder-sheet"
     >
-      <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <Pressable
           style={styles.backdrop}
-          onPress={dismiss}
+          onPress={onBackdrop}
+          testID="add-reminder-backdrop"
           accessibilityRole="button"
           accessibilityLabel={back ? 'Back' : 'Close'}
         />
@@ -110,7 +135,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
           style={[
             styles.sheet,
             shadow.sheet,
-            { paddingBottom: insets.bottom + 12 },
+            { paddingBottom: (keyboardVisible ? 0 : insets.bottom) + 12 },
             {
               transform: [
                 {
@@ -124,6 +149,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
           ]}
           accessibilityViewIsModal
         >
+          <Pressable onPress={Keyboard.dismiss} accessible={false}>
           {back ? (
             <ButtonIcon
               size="md"
@@ -158,14 +184,14 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
                 onChangeText={setLabel}
                 autoFocus
                 returnKeyType="next"
-                onSubmitEditing={() => canContinue && setStep('frequency')}
+                onSubmitEditing={() => canContinue && toFrequency()}
               />
               <Button
                 variant="primary"
                 size="lg"
                 label="Continue"
                 disabled={!canContinue}
-                onPress={() => setStep('frequency')}
+                onPress={toFrequency}
               />
             </View>
           ) : null}
@@ -251,8 +277,9 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
               />
             </View>
           ) : null}
+          </Pressable>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text, Pressable } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Text, Pressable } from 'react-native';
 import BottomSheet from '../BottomSheet';
 import { BottomSheet as BarrelBottomSheet } from '../index';
 
@@ -19,6 +19,29 @@ const texts = (tree) =>
 
 const byTestID = (tree, id) =>
   tree.root.findAll((n) => typeof n.type === 'string' && n.props.testID === id);
+
+// Capture the keyboard listeners so a test can raise the keyboard, and stub
+// dismiss so it can be asserted on.
+function mockKeyboard() {
+  const handlers = {};
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, fn) => {
+    handlers[event] = fn;
+    return { remove: () => delete handlers[event] };
+  });
+  const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  const show = () =>
+    act(() =>
+      Object.keys(handlers)
+        .filter((event) => event.endsWith('Show'))
+        .forEach((event) => handlers[event]({}))
+    );
+  return { dismiss, show };
+}
+
+// Host Pressables expose onClick under this renderer, onPress elsewhere.
+const tap = (node) => (node.props.onClick ?? node.props.onPress)?.({});
+
+afterEach(() => jest.restoreAllMocks());
 
 test('is exported from the components barrel', () => {
   expect(BarrelBottomSheet).toBe(BottomSheet);
@@ -78,7 +101,7 @@ test('backdrop and close both call onClose', () => {
   const onClose = jest.fn();
   const tree = create(<BottomSheet visible onClose={onClose} title="X" />);
   act(() => byTestID(tree, 'bottomsheet-backdrop')[0].props.onClick?.());
-  act(() => byTestID(tree, 'bottomsheet-backdrop')[0].props.onPress?.());
+  act(() => tap(byTestID(tree, 'bottomsheet-backdrop')[0]));
   expect(onClose).toHaveBeenCalled();
 });
 
@@ -106,4 +129,39 @@ test('sheetStyle and bodyStyle override the surface and its padding', () => {
     (n) => typeof n.type === 'string' && flat(n).paddingTop === 8 && flat(n).paddingBottom === 24
   );
   expect(body).toBeTruthy();
+});
+
+// A sheet with a field must stay readable while typing, and the keyboard must
+// be dismissable without losing the sheet.
+describe('keyboard', () => {
+  test('the sheet rides above the keyboard', () => {
+    const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+    expect(tree.root.findAllByType(KeyboardAvoidingView)).toHaveLength(1);
+  });
+
+  test('with the keyboard up, the backdrop hides it instead of closing', () => {
+    const { dismiss, show } = mockKeyboard();
+    const onClose = jest.fn();
+    const tree = create(<BottomSheet visible onClose={onClose} title="X" />);
+    show();
+    act(() => tap(byTestID(tree, 'bottomsheet-backdrop')[0]));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('with the keyboard down, the backdrop closes', () => {
+    const { dismiss } = mockKeyboard();
+    const onClose = jest.fn();
+    const tree = create(<BottomSheet visible onClose={onClose} title="X" />);
+    act(() => tap(byTestID(tree, 'bottomsheet-backdrop')[0]));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(dismiss).not.toHaveBeenCalled();
+  });
+
+  test('tapping the panel hides the keyboard', () => {
+    const { dismiss } = mockKeyboard();
+    const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+    act(() => tap(byTestID(tree, 'bottomsheet-panel')[0]));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
 });

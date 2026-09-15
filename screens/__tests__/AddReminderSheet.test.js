@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, TextInput as RNTextInput } from 'react-native';
+import { Keyboard, Text, TextInput as RNTextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AddReminderSheet from '../AddReminderSheet';
 
@@ -215,5 +215,58 @@ describe('dismissal', () => {
     // Back to step 1 with an empty field.
     expect(texts(tree)).toContain('Add new reminder');
     expect(tree.root.findByType(RNTextInput).props.value).toBe('');
+  });
+});
+
+// Capture the keyboard listeners so a test can raise the keyboard, and stub
+// dismiss so it can be asserted on.
+function mockKeyboard() {
+  const handlers = {};
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, fn) => {
+    handlers[event] = fn;
+    return { remove: () => delete handlers[event] };
+  });
+  const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  const show = () =>
+    act(() =>
+      Object.keys(handlers)
+        .filter((event) => event.endsWith('Show'))
+        .forEach((event) => handlers[event]({}))
+    );
+  return { dismiss, show };
+}
+
+describe('keyboard', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const backdrop = (tree) =>
+    tree.root.findAll(
+      (n) => typeof n.type === 'string' && n.props.testID === 'add-reminder-backdrop'
+    )[0];
+
+  test('with the keyboard up, the backdrop hides it and keeps the sheet', () => {
+    const { dismiss, show } = mockKeyboard();
+    const onClose = jest.fn();
+    const tree = create({ onClose });
+    show();
+    act(() => { const n = backdrop(tree); (n.props.onClick ?? n.props.onPress)({}); });
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('with the keyboard down, the backdrop still closes from the first step', () => {
+    mockKeyboard();
+    const onClose = jest.fn();
+    const tree = create({ onClose });
+    act(() => { const n = backdrop(tree); (n.props.onClick ?? n.props.onPress)({}); });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('Continue puts the keyboard away before the wheel shows', () => {
+    const { dismiss } = mockKeyboard();
+    const tree = create();
+    toFrequency(tree);
+    expect(dismiss).toHaveBeenCalled();
+    expect(texts(tree)).toContain('When to repeat');
   });
 });
