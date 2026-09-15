@@ -38,6 +38,7 @@ import {
   plantsInRoom,
   remindersForPlant,
   roomById,
+  sortedRooms,
 } from './model';
 import { importPhoto, reconcile, sweep } from './media';
 import { createSaver, loadState } from './persist';
@@ -389,14 +390,21 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
         return file;
       },
 
-      /** Create a room and hand back its id, so a caller can select it. */
-      addRoom(name, icon) {
-        const room = makeRoom(name, icon);
+      /**
+       * Create a room and hand back its id, so a caller can select it. The icon
+       * follows the name until the backend lets a user pick one.
+       */
+      addRoom(name) {
+        const room = makeRoom({ name, now: at() });
         commit({ type: 'room/add', room });
         return room.id;
       },
       renameRoom: (id, name) => commit({ type: 'room/rename', id, name }),
+      /** Delete a room; its plants stay, without a room. */
       deleteRoom: (id) => commit({ type: 'room/delete', id }),
+      /** "Move and delete room": re-home every plant in it, then delete it. */
+      deleteRoomMovingPlants: (id, toRoomId) =>
+        commit({ type: 'room/deleteMoving', id, toRoomId }),
 
       addReminder(plantId, { action = 'custom', title, intervalDays, startAt, timeOfDay }) {
         const reminder = makeReminder({
@@ -475,7 +483,7 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
       state,
       now,
       plants,
-      rooms: state.rooms,
+      rooms: sortedRooms(state),
       reminders: state.reminders,
       profileName: state.profileName,
       pendingSync: state.outbox.length,

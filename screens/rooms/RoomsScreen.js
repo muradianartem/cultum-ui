@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Button,
   Icon,
   NavigationBar,
   RoomCard,
@@ -16,13 +17,16 @@ import { searchBar } from '../../theme/tokens';
 import { useGarden } from '../../store/GardenProvider';
 import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
+import AddRoomSheet from '../addPlant/AddRoomSheet';
 import PlantGrid from './PlantGrid';
+import { useRoomGate } from './useRoomGate';
 
 /**
- * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8 and "Rooms / Search"
- * 377:9).
+ * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8, "Rooms / Search"
+ * 377:9, "Rooms / Search · No results" 516:108).
  *
- * Idle is a stack of room cards. Typing filters across both kinds of thing the
+ * Idle is "Create new room" over a stack of room cards — every room the server
+ * knows, empty ones included. Typing filters across both kinds of thing the
  * screen knows about: room names and plant names (nickname or species). The
  * filtering is local and synchronous — unlike the scan flow's manual search,
  * which debounces because it hits the API — so results land on every keystroke.
@@ -37,7 +41,10 @@ export default function RoomsScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
 
   const garden = useGarden();
+  const gate = useRoomGate();
   const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
+  const openCreate = () => gate(() => setCreating(true));
   const searching = query.trim().length > 0;
 
   const rooms = useMemo(
@@ -74,8 +81,8 @@ export default function RoomsScreen() {
         <SearchBar
           value={query}
           onChangeText={setQuery}
-          placeholder="Search your rooms"
-          accessibilityLabel="Search your rooms"
+          placeholder="Search your rooms or plants"
+          accessibilityLabel="Search your rooms or plants"
           leftIcon={<Icon name="search" size={20} color={searchBar.placeholder} />}
           clearIcon={<Icon name="close" size={20} color={searchBar.ink} />}
           onClear={() => setQuery('')}
@@ -87,7 +94,8 @@ export default function RoomsScreen() {
               icon={<Icon name="search" size={24} color={t.text.primary} />}
               iconVariant="secondary"
               title="No results found"
-              subtitle="Try another room or plant name."
+              subtitle="Try another name, or clear the search to see everything again."
+              primaryAction={{ label: 'Clear search', onPress: () => setQuery('') }}
             />
           </View>
         ) : (
@@ -124,28 +132,37 @@ export default function RoomsScreen() {
                 ) : null}
               </>
             ) : rooms.length > 0 ? (
-              rooms.map((room) => (
-                <RoomCard
-                  key={room.id}
-                  name={room.name}
-                  meta={room.meta}
-                  photos={room.photos}
-                  onPress={() => openRoom(room)}
+              <>
+                <Button
+                  label="Create new room"
+                  variant="outline"
+                  size="lg"
+                  leftIcon={<Icon name="add" size={20} color={t.text.primary} />}
+                  onPress={openCreate}
                 />
-              ))
+                {rooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    name={room.name}
+                    meta={room.meta}
+                    photos={room.photos}
+                    onPress={() => openRoom(room)}
+                  />
+                ))}
+              </>
             ) : (
-              // A room only exists once a plant lives in it, so an empty
-              // garden has nothing to list — point at the way in instead.
+              // Nothing yet: the server has no rooms for this user (or the
+              // first pull hasn't landed). Point at the one way in.
               <View style={styles.emptyWrap}>
                 <State
-                  icon={<Icon name="plant" size={24} color={t.text.primary} />}
+                  icon={<Icon name="home" size={24} color={t.text.primary} />}
                   iconVariant="secondary"
                   title="No rooms yet"
-                  subtitle="Add your first plant and its room appears here."
+                  subtitle="Create a room to group your plants by where they live."
                   primaryAction={{
-                    label: 'Add a plant',
-                    leftIcon: <Icon name="outlined-scan" size={16} color={t.brand.onPrimary} />,
-                    onPress: () => navigate('scan-camera'),
+                    label: 'Create new room',
+                    leftIcon: <Icon name="add" size={16} color={t.brand.onPrimary} />,
+                    onPress: openCreate,
                   }}
                 />
               </View>
@@ -153,6 +170,17 @@ export default function RoomsScreen() {
           </ScrollView>
         )}
       </View>
+
+      <AddRoomSheet
+        visible={creating}
+        onClose={() => setCreating(false)}
+        onConfirm={(name) => garden.addRoom(name)}
+        title="Create new room"
+        label="Room name"
+        placeholder="What's the room name?"
+        confirmLabel="Create"
+        testID="new-room-sheet"
+      />
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
         <TabBar

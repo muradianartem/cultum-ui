@@ -3,8 +3,8 @@
 // Three things happen on every write, and they happen here rather than in the
 // screens so they cannot be forgotten:
 //   1. the entity's `updatedAt` is stamped,
-//   2. fields the backend can't accept are marked dirty, so a sync pull won't
-//      clobber them (see the PATCH gap noted in store/sync.js),
+//   2. fields the backend has no column for are marked dirty, so a sync pull
+//      won't clobber them (today only a plant's `archived`),
 //   3. an outbox entry is queued so the change reaches the server whenever the
 //      device next has a connection.
 //
@@ -50,7 +50,34 @@ const stamp = (entity, now) => ({ ...entity, updatedAt: now });
 
 const mapById = (list, id, fn) => list.map((item) => (item.id === id ? fn(item) : item));
 
-/** Mark a locally-changed field the server has no endpoint to receive. */
+/**
+ * A rename or a move. Queued only for a plant the server already has; one still
+ * waiting on its create carries the new values in that create.
+ */
+function updatePlant(state, id, patch, now) {
+  const plant = state.plants.find((p) => p.id === id);
+  if (!plant) return state;
+  return {
+    ...state,
+    plants: mapById(state.plants, id, (p) => stamp({ ...p, ...patch }, now)),
+    outbox: plant.serverId
+      ? enqueue(state.outbox, 'plant.update', plant.id, plant.serverId)
+      : state.outbox,
+  };
+}
+
+function deleteRoom(state, id, now) {
+  const room = state.rooms.find((r) => r.id === id);
+  if (!room) return state;
+  return {
+    ...state,
+    rooms: state.rooms.filter((r) => r.id !== id),
+    plants: state.plants.map((p) => (p.roomId === id ? stamp({ ...p, roomId: null }, now) : p)),
+    outbox: enqueueDelete(state.outbox, 'room.delete', room.id, room.serverId),
+  };
+}
+
+/** Mark a locally-changed field the server has no column to receive. */
 const markDirty = (plant, field) => ({
   ...plant,
   dirty: { ...plant.dirty, [field]: true },
@@ -92,20 +119,10 @@ export function reducer(state, action) {
     }
 
     case 'plant/rename':
-      return {
-        ...state,
-        plants: mapById(state.plants, action.id, (p) =>
-          stamp(markDirty({ ...p, nickname: String(action.nickname).trim() }, 'nickname'), now),
-        ),
-      };
+      return updatePlant(state, action.id, { nickname: String(action.nickname).trim() }, now);
 
     case 'plant/move':
-      return {
-        ...state,
-        plants: mapById(state.plants, action.id, (p) =>
-          stamp(markDirty({ ...p, roomId: action.roomId }, 'roomId'), now),
-        ),
-      };
+      return updatePlant(state, action.id, { roomId: action.roomId ?? null }, now);
 
     case 'plant/archive':
       return {
@@ -169,34 +186,53 @@ export function reducer(state, action) {
       };
     }
 
-    // --- rooms (local-only: the server stores a plant's room as a string) ---
+    // --- rooms --------------------------------------------------------------
 
-    case 'room/add':
-      return { ...state, rooms: [...state.rooms, action.room ?? makeRoom(action.name)] };
-
-    case 'room/rename':
+    /** Append a room at the end of the server's ordering and queue its create. */
+    case 'room/add': {
+      const room = action.room ?? makeRoom({ name: action.name, now: new Date(now) });
+      const sortOrder = state.rooms.reduce((max, r) => Math.max(max, (r.sortOrder ?? 0) + 1), 0);
       return {
         ...state,
-        rooms: mapById(state.rooms, action.id, (r) => ({
-          ...r,
-          name: String(action.name).trim(),
-        })),
-        // The room's name is what the server knows as each plant's location, so
-        // renaming one makes every plant in it locally authoritative.
-        plants: state.plants.map((p) =>
-          p.roomId === action.id ? stamp(markDirty(p, 'roomId'), now) : p,
-        ),
+        rooms: [...state.rooms, { ...room, sortOrder }],
+        outbox: enqueue(state.outbox, 'room.create', room.id),
       };
+    }
 
-    /** Remove a room; its plants become roomless rather than disappearing. */
+    case 'room/rename': {
+      const room = state.rooms.find((r) => r.id === action.id);
+      if (!room) return state;
+      return {
+        ...state,
+        rooms: mapById(state.rooms, action.id, (r) =>
+          stamp({ ...r, name: String(action.name).trim() }, now),
+        ),
+        outbox: room.serverId
+          ? enqueue(state.outbox, 'room.update', room.id, room.serverId)
+          : state.outbox, // still un-created: its create will carry the new name
+      };
+    }
+
+    /**
+     * Remove a room; its plants become roomless rather than disappearing. The
+     * server does the same to its copy, so the plants need no push of their own.
+     */
     case 'room/delete':
-      return {
-        ...state,
-        rooms: state.rooms.filter((r) => r.id !== action.id),
-        plants: state.plants.map((p) =>
-          p.roomId === action.id ? stamp(markDirty({ ...p, roomId: null }, 'roomId'), now) : p,
-        ),
-      };
+      return deleteRoom(state, action.id, now);
+
+    /**
+     * "Move and delete room": every plant goes to `toRoomId` first, then the
+     * room goes. The moves are queued ahead of the delete, so the server never
+     * sees those plants roomless in between.
+     */
+    case 'room/deleteMoving': {
+      if (!state.rooms.some((r) => r.id === action.id)) return state;
+      let next = state;
+      for (const p of state.plants) {
+        if (p.roomId === action.id) next = updatePlant(next, p.id, { roomId: action.toRoomId }, now);
+      }
+      return deleteRoom(next, action.id, now);
+    }
 
     // --- reminders ---------------------------------------------------------
 

@@ -8,7 +8,7 @@
 // Pure — every function takes the whole state and a clock.
 
 import { frequencyLabel, roomMeta, roomSubtitle } from './format';
-import { livePlants, plantPhoto, plantSpecies, plantsInRoom } from './model';
+import { livePlants, plantPhoto, plantSpecies, plantsInRoom, roomIcon, sortedRooms } from './model';
 import { todayTasks } from './schedule';
 
 /**
@@ -37,16 +37,19 @@ export function roomCard(state, room, now = new Date()) {
   return {
     id: room.id,
     name: room.name,
+    icon: roomIcon(room),
     meta: roomMeta(plants.length, due),
     photos: plants.map(plantPhoto).filter(Boolean),
   };
 }
 
-/** Every room holding at least one plant, as cards. */
+/**
+ * Every room as a card, in the server's order. Empty rooms are listed too
+ * (Figma "Rooms / Idle" shows "0 plants") — a room is now something the user
+ * creates, not a by-product of a plant naming it.
+ */
 export const roomCards = (state, now = new Date()) =>
-  state.rooms
-    .filter((room) => plantsInRoom(state, room.id).length > 0)
-    .map((room) => roomCard(state, room, now));
+  sortedRooms(state).map((room) => roomCard(state, room, now));
 
 /** "3 plants" — the room-detail nav subtitle. */
 export const roomDetailSubtitle = (state, roomId) =>
@@ -69,8 +72,8 @@ export function searchGarden(state, query = '', now = new Date()) {
   const q = norm(query);
   if (!q) return { rooms: [], plants: [] };
 
-  const rooms = state.rooms
-    .filter((room) => norm(room.name).includes(q) && plantsInRoom(state, room.id).length > 0)
+  const rooms = sortedRooms(state)
+    .filter((room) => norm(room.name).includes(q))
     .map((room) => roomCard(state, room, now));
 
   const plants = livePlants(state)

@@ -12,7 +12,8 @@
 // rather than a truncated one.
 
 import { File, Paths } from 'expo-file-system';
-import { STATE_VERSION, emptyState } from './model';
+import { LEGACY_DEFAULT_ROOM_IDS, STATE_VERSION, emptyState, iconForRoomName } from './model';
+import { enqueue } from './reducer';
 
 const FILE_NAME = 'cultum-garden.json';
 const TMP_NAME = 'cultum-garden.tmp.json';
@@ -33,7 +34,7 @@ export function migrate(doc) {
   if (Number(doc.version) > STATE_VERSION) return emptyState();
 
   const base = emptyState();
-  return {
+  const migrated = {
     ...base,
     ...doc,
     version: STATE_VERSION,
@@ -41,9 +42,54 @@ export function migrate(doc) {
       ? doc.plants.map((p) => ({ dirty: {}, imageFile: null, ...p }))
       : [],
     reminders: Array.isArray(doc.reminders) ? doc.reminders : [],
-    rooms: Array.isArray(doc.rooms) && doc.rooms.length ? doc.rooms : base.rooms,
+    rooms: Array.isArray(doc.rooms) ? doc.rooms : base.rooms,
     outbox: Array.isArray(doc.outbox) ? doc.outbox : [],
   };
+  return Number(doc.version ?? 0) < 2 ? roomsFromV1(migrated) : migrated;
+}
+
+/**
+ * v1 → v2: rooms stop being local-only.
+ *
+ * v1 seeded every install with five stock rooms and told the server a plant's
+ * room only as a free-text `location`. So: the stock rooms nobody used go; the
+ * rest are queued for creation (sync adopts a same-named server room rather
+ * than duplicating it); and every synced plant with a room is queued for a
+ * PATCH, because the server has no `room_id` for it yet and the first pull
+ * would otherwise take its room away. Local rename/move dirt is folded into
+ * that same push, leaving `dirty` for `archived` alone.
+ */
+function roomsFromV1(doc) {
+  const used = new Set(doc.plants.map((p) => p.roomId).filter(Boolean));
+  const rooms = doc.rooms
+    .filter((r) => r && (!LEGACY_DEFAULT_ROOM_IDS.includes(r.id) || used.has(r.id)))
+    .map((r, i) => ({
+      ...r,
+      serverId: r.serverId ?? null,
+      icon: r.icon ?? iconForRoomName(r.name),
+      light: r.light ?? 'unknown',
+      sortOrder: r.sortOrder ?? i,
+      createdAt: r.createdAt ?? null,
+      updatedAt: r.updatedAt ?? null,
+    }));
+  const known = new Set(rooms.map((r) => r.id));
+
+  let outbox = doc.outbox;
+  for (const r of rooms) if (!r.serverId) outbox = enqueue(outbox, 'room.create', r.id);
+
+  const plants = doc.plants.map((p) => {
+    const { nickname: _n, roomId: _r, ...dirty } = p.dirty ?? {};
+    const next = { ...p, dirty };
+    // A plant pointing at a stock room that was just dropped can't have been
+    // using it — but guard anyway rather than leave a dangling id.
+    if (p.roomId && !known.has(p.roomId)) next.roomId = null;
+    if (p.serverId && (next.roomId || p.dirty?.nickname || p.dirty?.roomId)) {
+      outbox = enqueue(outbox, 'plant.update', p.id, p.serverId);
+    }
+    return next;
+  });
+
+  return { ...doc, rooms, plants, outbox };
 }
 
 /**

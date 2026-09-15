@@ -11,9 +11,9 @@ import { apiFetch } from './client';
  * why store/sync.js pulls the whole garden rather than diffing per entity.
  *
  * Two gaps shape store/sync.js and are worth stating here rather than being
- * rediscovered: there is no PATCH for a user plant (so a rename, a move between
- * rooms or an archive cannot be pushed), and a reminder carries no title (so a
- * custom reminder's name lives only on the device).
+ * rediscovered: a plant has no archived column (so an archive stays on the
+ * device), and a reminder carries no title (so a custom reminder's name lives
+ * only on the device). Rooms have their own resource — see api/rooms.js.
  */
 
 /** GET /users/me/plants → UserPlantOut[] */
@@ -24,18 +24,34 @@ export async function getGarden() {
 /**
  * POST /users/me/plants → UserPlantOut (201)
  *
- * `location` is the room's *name*: the backend has no room entity, so the
- * rooms list is assembled client-side from these strings.
+ * `roomId` is the room's *server* id (RoomOut.id). The legacy free-text
+ * `location` is no longer sent.
  */
-export async function addPlant({ speciesKey, nickname, location, acquiredAt }) {
+export async function addPlant({ speciesKey, nickname, roomId, acquiredAt }) {
   return apiFetch('/users/me/plants', {
     method: 'POST',
     body: JSON.stringify({
       species_key: speciesKey,
       nickname: nickname ?? null,
-      location: location ?? null,
+      room_id: roomId ?? null,
       acquired_at: acquiredAt ?? null,
     }),
+  });
+}
+
+/**
+ * PATCH /users/me/plants/{id} → UserPlantOut
+ *
+ * A rename or a move. `roomId: null` is sent as an explicit null, which takes
+ * the plant out of its room; `undefined` leaves the field alone.
+ */
+export async function updatePlant(userPlantId, { nickname, roomId }) {
+  const body = {};
+  if (nickname !== undefined) body.nickname = nickname;
+  if (roomId !== undefined) body.room_id = roomId;
+  return apiFetch(`/users/me/plants/${encodeURIComponent(userPlantId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
   });
 }
 

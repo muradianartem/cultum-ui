@@ -1,6 +1,6 @@
 // "Rename" from the product page's Actions list (Figma "Product page" 1:11377).
 //
-// The same shape as screens/rooms/RenameRoomSheet.js — the <BottomSheet>
+// The same shape as the rename step in screens/rooms/RoomSheet.js — the <BottomSheet>
 // primitive owns the modal, backdrop and close button; this supplies one field
 // and a Save that stays disabled until the name has content.
 

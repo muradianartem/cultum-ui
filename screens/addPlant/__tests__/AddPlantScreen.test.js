@@ -30,7 +30,12 @@ function create(props = {}) {
       <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} {...props} />} />
       <Route name="product" component={ProductPage} />
     </>,
-    { state: seedGarden({ now: TODAY }), initial: 'add-plant', clock: TODAY },
+    {
+      // Rooms come from the server now; seed the five the design draws.
+      state: seedGarden({ now: TODAY, rooms: ['Living Room', 'Kitchen', 'Bedroom', 'Bathroom', 'Office'] }),
+      initial: 'add-plant',
+      clock: TODAY,
+    },
   );
   return harness;
 }

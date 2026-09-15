@@ -29,6 +29,7 @@ const VM = speciesDetailToVM(DETAIL);
 const owned = (over = {}) =>
   seedGarden({
     now: NOW,
+    rooms: ['Kitchen', 'Bedroom'],
     plants: [
       {
         nickname: 'Mo',

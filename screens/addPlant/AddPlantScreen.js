@@ -28,6 +28,7 @@ import { useGarden } from '../../store/GardenProvider';
 import { parseFrequency } from '../../store/format';
 import AddReminderSheet from '../AddReminderSheet';
 import AddRoomSheet from './AddRoomSheet';
+import { useRoomGate } from '../rooms/useRoomGate';
 import NameStep from './NameStep';
 import RemindersStep from './RemindersStep';
 import RoomStep from './RoomStep';
@@ -57,6 +58,7 @@ export default function AddPlantScreen({ plant, today }) {
   const insets = useSafeAreaInsets();
   const { back, replace, reset } = useRouter();
   const garden = useGarden();
+  const gate = useRoomGate();
 
   const vm = plant;
 
@@ -103,11 +105,13 @@ export default function AddPlantScreen({ plant, today }) {
   };
 
   // Both sheets are Modals, and iOS won't present a second over an open one —
-  // so only one of them is ever mounted visible at a time.
-  const openRoomSheet = () => {
-    setReminderSheet(false);
-    setRoomSheet(true);
-  };
+  // so only one of them is ever mounted visible at a time. At the plan's room
+  // limit the paywall opens instead.
+  const openRoomSheet = () =>
+    gate(() => {
+      setReminderSheet(false);
+      setRoomSheet(true);
+    });
   const openReminderSheet = () => {
     setRoomSheet(false);
     setReminderSheet(true);

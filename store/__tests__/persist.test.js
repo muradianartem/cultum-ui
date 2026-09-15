@@ -1,4 +1,4 @@
-import { STATE_VERSION, emptyState } from '../model';
+import { STATE_VERSION, emptyState, makeRoom } from '../model';
 import { clearState, createSaver, loadState, migrate, saveState } from '../persist';
 import { seedGarden } from '../testing';
 
@@ -55,12 +55,13 @@ describe('migrate', () => {
       imageFile: null,
     });
     expect(migrated.outbox).toEqual([]);
-    expect(migrated.rooms.length).toBeGreaterThan(0);
+    // Rooms come from the server now; nothing is seeded.
+    expect(migrated.rooms).toEqual([]);
   });
 
   test('an existing dirty map is not overwritten by the default', () => {
-    const migrated = migrate({ version: 1, plants: [{ id: 'p1', dirty: { nickname: true } }] });
-    expect(migrated.plants[0].dirty).toEqual({ nickname: true });
+    const migrated = migrate({ version: 2, plants: [{ id: 'p1', dirty: { archived: true } }] });
+    expect(migrated.plants[0].dirty).toEqual({ archived: true });
   });
 
   test('garbage, or nothing at all, is an empty garden rather than a crash', () => {
@@ -71,6 +72,49 @@ describe('migrate', () => {
 
   test('a document from a newer build is not guessed at', () => {
     expect(migrate({ version: STATE_VERSION + 1, plants: [{ id: 'p' }] }).plants).toEqual([]);
+  });
+});
+
+describe('migrate v1 → v2 (rooms move to the server)', () => {
+  const v1 = () => ({
+    version: 1,
+    rooms: [
+      { id: 'living-room', name: 'Living Room', icon: 'living-room' },
+      { id: 'kitchen', name: 'Kitchen', icon: 'kitchen' },
+      { id: 'room_x', name: 'Balcony', icon: 'home' },
+    ],
+    plants: [
+      { id: 'p1', serverId: 'S1', roomId: 'kitchen', dirty: { roomId: true, archived: true } },
+      { id: 'p2', serverId: null, roomId: 'room_x', dirty: {} },
+      { id: 'p3', serverId: 'S3', roomId: null, dirty: {} },
+    ],
+    outbox: [],
+  });
+
+  test('stock rooms nobody used go; used and custom rooms stay, queued for creation', () => {
+    const m = migrate(v1());
+    expect(m.rooms.map((r) => r.name)).toEqual(['Kitchen', 'Balcony']);
+    expect(m.rooms[0]).toMatchObject({ serverId: null, light: 'unknown', icon: 'kitchen', sortOrder: 0 });
+    const creates = m.outbox.filter((e) => e.op === 'room.create').map((e) => e.localId);
+    expect(creates).toEqual(['kitchen', 'room_x']);
+  });
+
+  test('a synced plant with a room is queued for a PATCH, and rename/move dirt folds into it', () => {
+    // The server only ever saw p1's room as a location string, so without the
+    // push the first pull would read room_id null and take its room away.
+    const m = migrate(v1());
+    const updates = m.outbox.filter((e) => e.op === 'plant.update');
+    expect(updates).toEqual([{ op: 'plant.update', localId: 'p1', serverId: 'S1', attempts: 0 }]);
+    expect(m.plants[0].dirty).toEqual({ archived: true });
+    // Queued after the room creates, so the room has a server id by then.
+    expect(m.outbox.map((e) => e.op)).toEqual(['room.create', 'room.create', 'plant.update']);
+  });
+
+  test('a v2 document is not migrated again', () => {
+    const room = { ...makeRoom({ name: 'Kitchen' }), serverId: 'RK' };
+    const doc = { ...emptyState(), rooms: [room] };
+    expect(migrate(doc).rooms).toEqual([room]);
+    expect(migrate(doc).outbox).toEqual([]);
   });
 });
 

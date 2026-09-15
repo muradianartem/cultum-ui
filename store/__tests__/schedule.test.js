@@ -1,4 +1,4 @@
-import { emptyState, makePlant, makeReminder } from '../model';
+import { emptyState, makePlant, makeReminder, makeRoom } from '../model';
 import {
   addDays,
   dueLabel,
@@ -18,6 +18,7 @@ function garden({ reminders = [], roomId = 'kitchen', archived = false } = {}) {
   const plant = { ...makePlant({ speciesKey: 'monstera', nickname: 'Penny', roomId }), archived };
   return {
     ...base,
+    rooms: [{ ...makeRoom({ name: 'Kitchen' }), id: 'kitchen' }],
     plants: [plant],
     // Anchored to the fixed clock, not the wall clock, so a reminder with no
     // explicit start doesn't drift out of the day the test is reasoning about.
