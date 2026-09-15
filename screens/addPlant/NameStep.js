@@ -5,15 +5,16 @@
 // Chrome-less — AddPlantScreen supplies the nav bar and the Continue footer,
 // the way SnoozeContent leans on its host sheet.
 
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, Icon, TextInput } from '../../components';
 import { space } from '../../theme/foundations';
 import { list, textInput } from '../../theme/tokens';
 import { HERO } from '../placeholderPhotos';
 
 export default function NameStep({ photo, name, onChangeName, suggestions }) {
+  // Tapping anywhere off the field puts the keyboard away.
   return (
-    <View style={styles.body}>
+    <Pressable style={styles.body} onPress={Keyboard.dismiss} accessible={false}>
       <Image source={photo ? { uri: photo } : HERO} style={styles.photo} />
 
       <TextInput
@@ -50,7 +51,7 @@ export default function NameStep({ photo, name, onChangeName, suggestions }) {
           ))}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

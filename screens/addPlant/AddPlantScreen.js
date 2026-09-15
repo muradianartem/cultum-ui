@@ -17,9 +17,9 @@
 // whole flow and there is no state there to call back into.
 
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Icon, NavigationBar } from '../../components';
+import { Button, Icon, NavigationBar, useKeyboardVisible } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
@@ -56,6 +56,7 @@ const TITLES = {
 export default function AddPlantScreen({ plant, today }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisible();
   const { back, replace, reset } = useRouter();
   const garden = useGarden();
   const gate = useRoomGate();
@@ -135,81 +136,93 @@ export default function AddPlantScreen({ plant, today }) {
         divider={false}
       />
 
-      {step === 'name' ? (
-        <NameStep
-          photo={vm?.heroUri}
-          name={name}
-          onChangeName={setName}
-          suggestions={nameSuggestions(vm ?? {})}
-        />
-      ) : null}
+      {/* The Name step autofocuses its field — keep Continue above the keyboard. */}
+      <KeyboardAvoidingView
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
 
-      {step === 'room' ? (
-        <RoomStep
-          rooms={rooms}
-          selectedId={roomId}
-          onSelect={setRoomId}
-          onAddRoom={openRoomSheet}
-        />
-      ) : null}
-
-      {step === 'reminders' ? (
-        <RemindersStep
-          reminders={reminders}
-          onToggle={toggleReminder}
-          onAddCustom={openReminderSheet}
-        />
-      ) : null}
-
-      {step === 'success' ? (
-        <SuccessStep
-          photo={vm?.heroUri}
-          title={successTitle(name, room?.name ?? '')}
-          subtitle={successSubtitle(reminders, today ?? new Date())}
-        />
-      ) : null}
-
-      <View style={[styles.footer, { paddingBottom: space[16] + insets.bottom }]}>
         {step === 'name' ? (
-          <Button
-            label="Continue"
-            size="lg"
-            disabled={name.trim().length === 0}
-            onPress={() => setStep('room')}
+          <NameStep
+            photo={vm?.heroUri}
+            name={name}
+            onChangeName={setName}
+            suggestions={nameSuggestions(vm ?? {})}
           />
         ) : null}
 
         {step === 'room' ? (
-          <Button
-            label="Continue"
-            size="lg"
-            disabled={!room}
-            onPress={() => setStep('reminders')}
+          <RoomStep
+            rooms={rooms}
+            selectedId={roomId}
+            onSelect={setRoomId}
+            onAddRoom={openRoomSheet}
           />
         ) : null}
 
         {step === 'reminders' ? (
-          <Button
-            label={cta.label}
-            variant={cta.variant}
-            size="lg"
-            onPress={() => setStep('success')}
+          <RemindersStep
+            reminders={reminders}
+            onToggle={toggleReminder}
+            onAddCustom={openReminderSheet}
           />
         ) : null}
 
         {step === 'success' ? (
-          <>
-            <Button
-              label="Scan another plant"
-              variant="secondary"
-              size="lg"
-              leftIcon={<Icon name="outlined-scan" size={20} color={t.text.primary} />}
-              onPress={() => reset('scan-camera')}
-            />
-            <Button label="Done" size="lg" onPress={done} />
-          </>
+          <SuccessStep
+            photo={vm?.heroUri}
+            title={successTitle(name, room?.name ?? '')}
+            subtitle={successSubtitle(reminders, today ?? new Date())}
+          />
         ) : null}
-      </View>
+
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: space[16] + (keyboardVisible ? 0 : insets.bottom) },
+          ]}
+        >
+          {step === 'name' ? (
+            <Button
+              label="Continue"
+              size="lg"
+              disabled={name.trim().length === 0}
+              onPress={() => setStep('room')}
+            />
+          ) : null}
+
+          {step === 'room' ? (
+            <Button
+              label="Continue"
+              size="lg"
+              disabled={!room}
+              onPress={() => setStep('reminders')}
+            />
+          ) : null}
+
+          {step === 'reminders' ? (
+            <Button
+              label={cta.label}
+              variant={cta.variant}
+              size="lg"
+              onPress={() => setStep('success')}
+            />
+          ) : null}
+
+          {step === 'success' ? (
+            <>
+              <Button
+                label="Scan another plant"
+                variant="secondary"
+                size="lg"
+                leftIcon={<Icon name="outlined-scan" size={20} color={t.text.primary} />}
+                onPress={() => reset('scan-camera')}
+              />
+              <Button label="Done" size="lg" onPress={done} />
+            </>
+          ) : null}
+        </View>
+      </KeyboardAvoidingView>
 
       <AddRoomSheet
         visible={roomSheet}
@@ -229,6 +242,7 @@ export default function AddPlantScreen({ plant, today }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  content: { flex: 1 },
   footer: {
     paddingHorizontal: space[16],
     paddingTop: space[8],

@@ -52,7 +52,11 @@ export default function MovePlantSheet({ visible, rooms = [], roomId, onClose, o
       testID="move-plant-sheet"
       primaryAction={{ label: 'Move plant', onPress: move, disabled: !selected }}
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+      >
         <List variant="card">
           {rooms.map((room) => (
             <ListItem
