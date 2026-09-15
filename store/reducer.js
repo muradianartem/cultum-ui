@@ -222,6 +222,44 @@ export function reducer(state, action) {
     }
 
     /**
+     * Move every reminder to a new time of day — the global "Reminder time" in
+     * Settings → Notifications.
+     *
+     * Returning state *by identity* when nothing changed is load-bearing, not
+     * an optimisation: GardenProvider's persist, sync, media and reschedule
+     * effects all key off the state object, so a no-op re-save would otherwise
+     * cost a disk write, a sync round and a full rebuild of the OS notification
+     * queue for a setting the user re-picked without changing.
+     *
+     * Only reminders the server already knows are queued. One still awaiting
+     * its create needs nothing: `pushOne`'s `reminder.create` reads current
+     * state at drain time, so it carries the new time by itself.
+     *
+     * FORWARD HAZARD: this is only safe because nothing in the UI sets a
+     * reminder's time individually today, so there is no per-reminder intent to
+     * destroy. The day a per-reminder time picker ships, this has to become
+     * "rewrite only the ones the user never re-timed" — which needs a
+     * `timeOfDayCustom` flag on the reminder and a gap-fill in
+     * store/persist.js#migrate.
+     */
+    case 'reminders/timeOfDay': {
+      const timeOfDay = String(action.timeOfDay);
+      const changed = state.reminders.filter((r) => r.timeOfDay !== timeOfDay);
+      if (changed.length === 0) return state;
+      let outbox = state.outbox;
+      for (const r of changed) {
+        if (r.serverId) outbox = enqueue(outbox, 'reminder.update', r.id, r.serverId);
+      }
+      return {
+        ...state,
+        reminders: state.reminders.map((r) =>
+          r.timeOfDay === timeOfDay ? r : stamp({ ...r, timeOfDay }, now),
+        ),
+        outbox,
+      };
+    }
+
+    /**
      * Mark a reminder done. `lastDoneAt` re-anchors the cadence (store/schedule.js
      * derives the next date from it) and any active snooze is spent.
      *

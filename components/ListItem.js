@@ -1,6 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { list, divider as dividerToken } from '../theme/tokens';
 
+// The one red in the design system's settings surface (Figma #DA3737). The
+// token layer's `colors.danger` is the warmer orange used on scan errors, so
+// this is spelled out rather than borrowed.
+const destructiveInk = '#DA3737';
+
 /**
  * ListItem — one row of a List, imported from Figma "List – P2" (List Item).
  *
@@ -8,15 +13,24 @@ import { list, divider as dividerToken } from '../theme/tokens';
  * area, and an optional hairline divider beneath. Figma axes → props:
  *   Show Area Before / After → `before` / `after` (arbitrary nodes)
  *   Show Subtitle            → `subtitle`
+ *   Show Label               → `value` (the muted text before the after area)
  *   Show Divider             → `divider`
  *   State (Pressed)          → tap feedback when `onPress` is set
  *   Style (List / Card)      → `variant` (padding + pressed colour)
+ *   Destructive              → `destructive` (title turns red)
+ *
+ * `value` is its own prop rather than something the caller stuffs into `after`
+ * because it is a distinct Figma slot with its own colour and alignment, and the
+ * settings screens use it six times over (`App`, `System`, `1.0`, `9:00 AM`, a
+ * legal URL). It sits between the title block and the after area, as drawn.
  */
 export default function ListItem({
   title,
   subtitle,
   before,
   after,
+  value,
+  destructive = false,
   divider = false,
   onPress,
   variant = 'list',
@@ -57,7 +71,10 @@ export default function ListItem({
 
       <View style={styles.middle}>
         {typeof title === 'string' ? (
-          <Text style={styles.title} numberOfLines={1}>
+          <Text
+            style={[styles.title, destructive && styles.titleDestructive]}
+            numberOfLines={1}
+          >
             {title}
           </Text>
         ) : (
@@ -69,6 +86,12 @@ export default function ListItem({
           </Text>
         ) : null}
       </View>
+
+      {value != null && value !== '' ? (
+        <Text style={styles.value} numberOfLines={1}>
+          {value}
+        </Text>
+      ) : null}
 
       {after ? <View style={styles.after}>{after}</View> : null}
 
@@ -89,6 +112,10 @@ const styles = StyleSheet.create({
   before: { justifyContent: 'center' },
   middle: { flex: 1, gap: 2 },
   title: { fontSize: 16, lineHeight: 22, color: list.titleInk },
+  // Figma overrides the title's fill rather than using the component's own
+  // Destructive variant, so the leading badge and chevron stay untinted.
+  titleDestructive: { color: destructiveInk },
+  value: { fontSize: 14, lineHeight: 20, color: list.subtitleInk, flexShrink: 0 },
   subtitle: { fontSize: 14, lineHeight: 20, color: list.subtitleInk },
   after: { justifyContent: 'center' },
   divider: {

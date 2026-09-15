@@ -5,7 +5,7 @@
 // mode), never from colorTokens/primitives directly. Mode follows the OS by
 // default and can be overridden with useThemeMode().setMode('light'|'dark'|'system').
 
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { colorTokens, interaction } from './colorTokens';
 
@@ -43,9 +43,32 @@ const DEFAULT_CONTEXT = {
 
 const ThemeContext = createContext(DEFAULT_CONTEXT);
 
-export function ThemeProvider({ children, initialMode = 'system' }) {
+/**
+ * @param {object} p
+ * @param {'system'|'light'|'dark'} [p.initialMode]  uncontrolled starting mode
+ * @param {'system'|'light'|'dark'} [p.mode]         controlled mode; when given,
+ *   this provider holds no state of its own and `setMode` calls `onModeChange`
+ *   instead. That is how the persisted preference stays the single source of
+ *   truth — passing it as `initialMode` would fork it, because `initialMode` is
+ *   read once by useState and never again.
+ * @param {(mode: string) => void} [p.onModeChange]
+ *
+ * Never remount this to change the mode (`key={mode}`): a remount resets the
+ * Router's route and stack, every screen's state, and re-runs the auth and
+ * garden hydrations. A prop change is a re-render, and `resolveTokens` is
+ * already memoized.
+ */
+export function ThemeProvider({ children, initialMode = 'system', mode: modeProp, onModeChange }) {
   // 'system' follows the OS; 'light'/'dark' pin it.
-  const [mode, setMode] = useState(initialMode);
+  const [internalMode, setInternalMode] = useState(initialMode);
+  const mode = modeProp ?? internalMode;
+  const setMode = useCallback(
+    (next) => {
+      if (onModeChange) onModeChange(next);
+      else setInternalMode(next);
+    },
+    [onModeChange],
+  );
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const effective = mode === 'system' ? colorScheme : mode;
 
@@ -57,7 +80,7 @@ export function ThemeProvider({ children, initialMode = 'system' }) {
       effective,
       t: resolveTokens(TOKENS, effective),
     }),
-    [mode, colorScheme, effective]
+    [mode, setMode, colorScheme, effective]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

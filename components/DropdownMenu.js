@@ -56,7 +56,9 @@ export default function DropdownMenu({ items, children, style, ...rest }) {
   return (
     <View accessibilityRole="menu" style={[styles.surface, shadow.low, style]} {...rest}>
       {items
-        ? items.map((it, i) => <MenuItem key={it.key ?? i} {...it} />)
+        ? // `key` is pulled out rather than spread: React 19 warns when a props
+          // object carries one, and MenuItem has no use for it anyway.
+          items.map(({ key, ...item }, i) => <MenuItem key={key ?? i} {...item} />)
         : children}
     </View>
   );

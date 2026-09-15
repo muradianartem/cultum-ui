@@ -22,6 +22,7 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from '../auth/AuthProvider';
+import { usePrefs } from '../prefs';
 import { ensurePermission, rescheduleAll } from '../notifications';
 import {
   DEFAULT_TIME_OF_DAY,
@@ -83,6 +84,14 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   const saver = useRef(null);
   if (!saver.current) saver.current = createSaver(SAVE_DEBOUNCE_MS);
 
+  // Device preferences, read through a ref rather than closed over: the action
+  // object below is memoized, and depending on prefs directly would rebuild
+  // every bound action — and re-render every screen holding one — each time any
+  // preference changed.
+  const prefs = usePrefs();
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+
   // The latest state, for the timers below — they fire outside a render and
   // would otherwise close over a stale snapshot.
   const latest = useRef(state);
@@ -119,10 +128,20 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   // read it and it survives a relaunch.
   useEffect(() => {
     const name = auth?.profileName ?? null;
-    if (ready && name && name !== state.profileName) {
+    // Only once auth has actually settled. Both providers hydrate from disk
+    // asynchronously and independently, so the garden can be `ready` while
+    // `profileName` is still null simply because loadTokens has not resolved —
+    // and without this guard the mirror would take that null as an edit and
+    // wipe the stored name, then write it straight back a moment later.
+    //
+    // Null-tolerant beyond that window on purpose: clearing the name has to
+    // propagate too, or the document keeps a stale one forever. It cannot
+    // ping-pong, because auth is the only writer — the Edit profile sheet goes
+    // through auth.updateProfileName() precisely so this mirror never races it.
+    if (ready && auth?.status === 'signedIn' && name !== state.profileName) {
       dispatch({ type: 'profile/name', name });
     }
-  }, [ready, auth?.profileName, state.profileName]);
+  }, [ready, auth?.status, auth?.profileName, state.profileName]);
 
   // --- sync ---------------------------------------------------------------
   const syncing = useRef(false);
@@ -195,11 +214,33 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   }, [state.plants, ready]);
 
   // --- notifications ------------------------------------------------------
+  //
+  // Keyed on what scheduling actually reads, not on the whole document. Two
+  // things made `[state]` wrong: every pull stamps `updatedAt` on every plant
+  // (store/sync.js#mergeGarden), so a sync that changed nothing still tore down
+  // and rebuilt the OS's entire queue; and re-timing every reminder at once
+  // would have cost three full rebuilds instead of one.
+  const scheduleKey = useMemo(
+    () =>
+      state.reminders
+        .map((r) => `${r.id}|${r.enabled ? 1 : 0}|${r.intervalDays}|${r.timeOfDay}|${r.lastDoneAt}|${r.snoozedUntil}`)
+        .join(';') +
+      '#' +
+      state.plants
+        .map((p) => `${p.id}|${p.archived ? 1 : 0}|${p.nickname}|${p.roomId}`)
+        .join(';'),
+    [state.reminders, state.plants],
+  );
+
+  const notificationsEnabled = prefs.notificationsEnabled;
   useEffect(() => {
     if (!ready) return undefined;
-    const timer = setTimeout(() => rescheduleAll(latest.current), RESCHEDULE_DEBOUNCE_MS);
+    const timer = setTimeout(
+      () => rescheduleAll(latest.current, undefined, { notificationsEnabled }),
+      RESCHEDULE_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timer);
-  }, [state, ready]);
+  }, [scheduleKey, ready, notificationsEnabled]);
 
   // --- clock + foreground -------------------------------------------------
   useEffect(() => {
@@ -301,7 +342,9 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
             action: r.action,
             title: r.title,
             intervalDays: r.intervalDays ?? actionMeta(r.action).defaultIntervalDays,
-            timeOfDay: r.timeOfDay ?? DEFAULT_TIME_OF_DAY,
+            // The user's global reminder time is the default; DEFAULT_TIME_OF_DAY
+            // is only the last resort when there is no provider (isolated tests).
+            timeOfDay: r.timeOfDay ?? prefsRef.current.reminderTime ?? DEFAULT_TIME_OF_DAY,
             enabled: r.enabled !== false,
             now: when,
           }),
@@ -362,7 +405,7 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
           title,
           intervalDays,
           startAt,
-          timeOfDay,
+          timeOfDay: timeOfDay ?? prefsRef.current.reminderTime ?? DEFAULT_TIME_OF_DAY,
           now: at(),
         });
         commit({ type: 'reminder/add', reminder });
@@ -403,7 +446,21 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
         return undoable(entries);
       },
 
-      setProfileName: (name) => commit({ type: 'profile/name', name }),
+      /**
+       * Move every reminder to a new time of day (Settings → Notifications).
+       *
+       * The name is deliberately blunt: the setting reads "Reminders arrive at
+       * this time", and nothing in the UI sets a reminder's time individually,
+       * so there is no user intent to preserve. See the reducer case — the day
+       * a per-reminder time picker ships, this has to learn to leave customised
+       * ones alone.
+       */
+      retimeAllReminders: (timeOfDay) =>
+        commit({ type: 'reminders/timeOfDay', timeOfDay, now: at() }),
+
+      // No setProfileName: auth owns the name (auth.updateProfileName) and the
+      // effect above mirrors it here. A second public writer is how that
+      // invariant gets broken.
       sync: runSync,
     };
   }, [runSync, holdSync, clock]);

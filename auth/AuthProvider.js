@@ -35,24 +35,67 @@ const DEV_BYPASS_AUTH = false;
 const bypassAuth = () => __DEV__ && DEV_BYPASS_AUTH && typeof jest === 'undefined';
 
 /**
- * The `name` claim out of a Google ID token.
+ * The claims out of a provider ID token.
  *
- * There is no profile endpoint on the backend, and the ID token already
- * carries the user's name — so read it once at sign-in rather than adding a
- * round trip. This does NOT verify the token: the backend does that in
- * POST /auth/google, and by the time we get here it has already accepted it.
- * The value is only ever used to say hello.
+ * There is no profile endpoint on the backend — no GET /users/me, and the
+ * TokenResponse it mints carries neither a name nor an email — but the
+ * provider's ID token already has both, so read them once at sign-in rather
+ * than adding a round trip that does not exist.
+ *
+ * This does NOT verify the token: the backend does that in POST /auth/google
+ * and POST /auth/apple, and by the time we get here it has already accepted
+ * it. The values are only ever used to say hello, and to show the user which
+ * account they are signed in to.
+ *
+ * Returns {} on anything malformed, so every reader below is a plain lookup.
  */
-export function nameFromIdToken(idToken) {
+export function claimsFromIdToken(idToken) {
   try {
     const payload = String(idToken).split('.')[1];
-    if (!payload) return null;
-    const json = decodeBase64Url(payload);
-    const claims = JSON.parse(json);
-    return claims.given_name ?? claims.name ?? null;
+    if (!payload) return {};
+    return JSON.parse(decodeBase64Url(payload)) ?? {};
   } catch {
-    return null;
+    return {};
   }
+}
+
+/** The user's given name, for the greeting. */
+export function nameFromIdToken(idToken) {
+  const claims = claimsFromIdToken(idToken);
+  return claims.given_name ?? claims.name ?? null;
+}
+
+/**
+ * The user's email.
+ *
+ * One extractor covers both providers, which is what makes this cheap. Unlike
+ * the name — which Apple hands over exactly once, in the credential, and never
+ * again — Apple's identity token carries `email` on *every* sign-in, and the
+ * Login screen already requests the EMAIL scope. So nothing has to be plumbed
+ * through the screen the way `firstNameOf(credential)` had to be.
+ */
+export function emailFromIdToken(idToken) {
+  const email = claimsFromIdToken(idToken).email;
+  return typeof email === 'string' && email ? email : null;
+}
+
+/**
+ * Whether Apple's "Hide My Email" is in play (a @privaterelay.appleid.com
+ * address). Shown verbatim either way — it is the address the user chose, and
+ * the one that actually receives mail — but the UI may want to say so.
+ */
+export function emailIsPrivate(idToken) {
+  const flag = claimsFromIdToken(idToken).is_private_email;
+  return flag === true || flag === 'true';
+}
+
+/** The profile fields we keep beside the tokens, read off an ID token. */
+function profileFromIdToken(idToken, name) {
+  return {
+    name: name ?? nameFromIdToken(idToken),
+    email: emailFromIdToken(idToken),
+    emailIsPrivate: emailIsPrivate(idToken),
+  };
 }
 
 // Hermes has atob, but the JWT payload is base64url and may carry non-ASCII
@@ -79,8 +122,10 @@ export function AuthProvider({ children }) {
   // 'loading' until we know whether a session was persisted.
   const [status, setStatus] = useState('loading');
   const [tokens, setTokens] = useState(null);
-  // Read off the Google ID token at sign-in; there is no profile endpoint.
+  // Read off the provider ID token at sign-in; there is no profile endpoint.
   const [profileName, setProfileName] = useState(null);
+  const [profileEmail, setProfileEmail] = useState(null);
+  const [profileEmailIsPrivate, setProfileEmailIsPrivate] = useState(false);
   // True while the session is the DEV_BYPASS_AUTH fake one. Anything that would
   // call an authenticated endpoint has to sit it out: the fake tokens 401, and
   // apiFetch answers a 401 by rotating the session — which fails too, and signs
@@ -99,6 +144,23 @@ export function AuthProvider({ children }) {
   function applyTokens(next) {
     tokensRef.current = next;
     setTokens(next);
+  }
+
+  // The profile travels with the tokens under one storage key, and every writer
+  // re-serialises the whole record — so it has to be read from a ref, not from
+  // render state. `rotate()` in particular is invoked from currentAccessToken
+  // and from apiFetch's 401 handler, either of which can fire before this
+  // provider re-renders after a name edit; reading `profileName` out of a stale
+  // closure there would persist the old name, and re-saving only `name` would
+  // drop the email on the first refresh — which happens within the hour.
+  const profileRef = useRef({ name: null, email: null, emailIsPrivate: false });
+
+  // Same synchronous-write discipline as applyTokens, for the same reason.
+  function applyProfile(next) {
+    profileRef.current = next;
+    setProfileName(next.name ?? null);
+    setProfileEmail(next.email ?? null);
+    setProfileEmailIsPrivate(!!next.emailIsPrivate);
   }
 
   // One rotation at a time. The proactive path below and apiFetch's 401 handler
@@ -156,7 +218,14 @@ export function AuthProvider({ children }) {
       if (cancelled) return;
       if (stored) {
         applyTokens(stored);
-        setProfileName(stored.name ?? null);
+        // `email` is absent from a session established before it was recorded.
+        // Null is the honest answer; the UI renders nothing rather than a
+        // placeholder, and the next sign-in fills it in.
+        applyProfile({
+          name: stored.name ?? null,
+          email: stored.email ?? null,
+          emailIsPrivate: !!stored.emailIsPrivate,
+        });
         originRef.current = 'restore';
         setStatus('signedIn');
       } else {
@@ -171,9 +240,12 @@ export function AuthProvider({ children }) {
   // Exchange a Google ID token for app tokens, persist, and flip to signedIn.
   // Throws on failure so the Login screen can surface an error.
   async function completeGoogleLogin(idToken) {
-    // Google's ID token carries the name, so read it here rather than making
-    // the screen dig the claim out.
-    await establishSession(await authApi.loginGoogle(idToken), nameFromIdToken(idToken));
+    // Google's ID token carries both the name and the email, so read them here
+    // rather than making the screen dig the claims out.
+    await establishSession(
+      await authApi.loginGoogle(idToken),
+      profileFromIdToken(idToken),
+    );
   }
 
   // Exchange an Apple identity token for app tokens. Unlike Google's, Apple's
@@ -181,17 +253,23 @@ export function AuthProvider({ children }) {
   // credential, so it arrives as an argument here. It is `null` on every sign-in
   // after the first — see `loginApple` in api/auth.js.
   async function completeAppleLogin(idToken, name) {
-    await establishSession(await authApi.loginApple(idToken, name), name ?? null);
+    // The name arrives as an argument (Apple gives it once, in the credential);
+    // the email is read from the token like Google's, because Apple *does* put
+    // that claim in every identity token it issues.
+    await establishSession(
+      await authApi.loginApple(idToken, name),
+      profileFromIdToken(idToken, name ?? null),
+    );
   }
 
-  async function establishSession(response, name) {
+  async function establishSession(response, profile) {
     const minted = withExpiry(response);
-    // The name is kept alongside the tokens so the greeting survives a relaunch
-    // — the app tokens the backend mints carry no name of their own, and for
+    // The profile is kept alongside the tokens so the greeting survives a
+    // relaunch — the app tokens the backend mints carry neither field, and for
     // Apple this device is the only place the name is written down at all.
-    await saveTokens({ ...minted, name });
+    applyProfile(profile);
+    await saveTokens({ ...minted, ...profile });
     applyTokens(minted);
-    setProfileName(name);
     setDevSession(false);
     originRef.current = 'login';
     setStatus('signedIn');
@@ -214,8 +292,8 @@ export function AuthProvider({ children }) {
   async function rotate() {
     try {
       const rotated = withExpiry(await authApi.refresh(tokensRef.current?.refresh_token));
-      // The refresh response has no name; carry the stored one forward.
-      await saveTokens({ ...rotated, name: profileName ?? null });
+      // The refresh response carries no profile; carry the stored one forward.
+      await saveTokens({ ...rotated, ...profileRef.current });
       applyTokens(rotated);
       // `originRef` is deliberately untouched: this fires mid-session with the
       // Router already mounted, and claiming a new origin here would re-arm the
@@ -240,16 +318,42 @@ export function AuthProvider({ children }) {
     } catch { }
     await clearTokens();
     applyTokens(null);
-    setProfileName(null);
+    applyProfile({ name: null, email: null, emailIsPrivate: false });
     originRef.current = null;
     setStatus('signedOut');
+  }
+
+  /**
+   * Rename the signed-in user, from the Edit profile sheet.
+   *
+   * Auth owns the name outright. GardenProvider mirrors `profileName` into the
+   * garden document on every render, so a write that went only to the garden
+   * would be overwritten by the mirror on the very next one — the edit would
+   * appear to take and then snap back. There is exactly one writer, and this
+   * is it.
+   *
+   * Device-local: there is no PATCH /users/me, and POST /auth/apple accepts a
+   * name only at sign-in. Signing in on a second device shows the provider's
+   * name again, not this one.
+   */
+  async function updateProfileName(name) {
+    const clean = String(name ?? '').trim() || null;
+    const next = { ...profileRef.current, name: clean };
+    applyProfile(next);
+    // Nothing to write beside, and the dev session's fake tokens are not worth
+    // persisting.
+    if (!tokensRef.current || devSession) return;
+    await saveTokens({ ...tokensRef.current, ...next });
   }
 
   const value = {
     status,
     tokens,
     profileName,
+    profileEmail,
+    profileEmailIsPrivate,
     devSession,
+    updateProfileName,
     signedInVia: originRef.current,
     completeGoogleLogin,
     completeAppleLogin,
