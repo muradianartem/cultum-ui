@@ -1,5 +1,4 @@
 import { careActions } from '../../../api/mapPlant';
-import { DEFAULT_ROOMS } from '../../../store/model';
 import {
   customReminderRow,
   defaultReminders,
@@ -88,16 +87,6 @@ describe('remindersCta', () => {
       variant: 'primary',
     });
   });
-});
-
-test('the default room catalog is the five Figma rooms', () => {
-  expect(DEFAULT_ROOMS.map((r) => r.name)).toEqual([
-    'Living Room',
-    'Kitchen',
-    'Bedroom',
-    'Bathroom',
-    'Office',
-  ]);
 });
 
 describe('customReminderRow', () => {

@@ -15,7 +15,7 @@
 import { fileUri } from './media';
 
 /** Bump when a stored document's shape changes; store/persist.js migrates. */
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 // Ids only have to be unique within one device's document. A timestamp gives
 // them a natural sort order, the counter separates two made in the same
@@ -138,16 +138,36 @@ export const ACTION_ORDER = [
   'custom',
 ];
 
-// The rooms a fresh install offers. They are only a pick-list: a room does not
-// exist for the Rooms screen until a plant names it, and the user can add their
-// own. `icon` values are Cultum icon names (components/iconRegistry.js).
-export const DEFAULT_ROOMS = [
-  { id: 'living-room', name: 'Living Room', icon: 'living-room' },
-  { id: 'kitchen', name: 'Kitchen', icon: 'kitchen' },
-  { id: 'bedroom', name: 'Bedroom', icon: 'bedroom' },
-  { id: 'bathroom', name: 'Bathroom', icon: 'shower' },
-  { id: 'office', name: 'Office', icon: 'office' },
-];
+// Rooms come from the backend (GET /users/me/rooms); a fresh install has none
+// until the first pull lands. `icon` values are Cultum icon names
+// (components/iconRegistry.js).
+
+/**
+ * The ids v1 builds seeded every install with. Only store/persist.js reads
+ * this, to tell a room the user actually used from stock scenery.
+ */
+export const LEGACY_DEFAULT_ROOM_IDS = ['living-room', 'kitchen', 'bedroom', 'bathroom', 'office'];
+
+/** A room's icon when the server hasn't sent one: matched on its name. */
+const ROOM_ICON_BY_NAME = {
+  'living room': 'living-room',
+  kitchen: 'kitchen',
+  bedroom: 'bedroom',
+  bathroom: 'shower',
+  office: 'office',
+};
+
+const DEFAULT_ROOM_ICON = 'home';
+
+/** The icon for a room name — what a new room is created with. */
+export const iconForRoomName = (name) =>
+  ROOM_ICON_BY_NAME[String(name ?? '').trim().toLowerCase()] ?? DEFAULT_ROOM_ICON;
+
+/**
+ * The icon to draw for a room. RoomOut does not carry `icon` yet (the backend
+ * is adding it), so the name mapping stands in until it does.
+ */
+export const roomIcon = (room) => room?.icon || iconForRoomName(room?.name);
 
 /** Reminders fire mid-morning unless the user moves them. */
 export const DEFAULT_TIME_OF_DAY = '09:00';
@@ -157,7 +177,7 @@ export const emptyState = () => ({
   version: STATE_VERSION,
   plants: [],
   reminders: [],
-  rooms: DEFAULT_ROOMS.map((r) => ({ ...r })),
+  rooms: [],
   outbox: [],
   lastSyncAt: null,
   profileName: null,
@@ -171,9 +191,9 @@ export const emptyState = () => ({
  * A plant the user owns.
  *
  * `care` is the cached SpeciesDetail the whole product page renders from, so an
- * owned plant stays fully readable offline. `dirty` records which fields the
- * user has changed locally; because the backend has no PATCH for a user plant,
- * those changes cannot be pushed and must survive every pull (store/sync.js).
+ * owned plant stays fully readable offline. `dirty` records local-only fields
+ * the server has no column for (today just `archived`), which must survive
+ * every pull (store/sync.js). A rename or a move is pushed instead.
  */
 export const makePlant = ({
   speciesKey,
@@ -241,12 +261,24 @@ export const makeReminder = ({
   };
 };
 
-/** A room. Local-only: the server stores just its name, as a plant's location. */
-export const makeRoom = (name, icon = 'home') => ({
-  id: uid('room'),
-  name: String(name ?? '').trim(),
-  icon,
-});
+/**
+ * A room. `serverId` is RoomOut.id once the create has been pushed; `light` and
+ * `sortOrder` mirror the server's fields. `sortOrder` is assigned by the
+ * reducer when the room is added, so callers leave it out.
+ */
+export const makeRoom = ({ name, icon, light = 'unknown', sortOrder = 0, now = new Date() }) => {
+  const trimmed = String(name ?? '').trim();
+  return {
+    id: uid('room'),
+    serverId: null,
+    name: trimmed,
+    icon: icon ?? iconForRoomName(trimmed),
+    light,
+    sortOrder,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+};
 
 // ---------------------------------------------------------------------------
 // Selectors — everything the screens read, derived rather than stored, so
@@ -266,6 +298,12 @@ export const plantById = (state, id) => state.plants.find((p) => p.id === id) ??
 export const roomById = (state, id) => state.rooms.find((r) => r.id === id) ?? null;
 
 export const roomName = (state, id) => roomById(state, id)?.name ?? null;
+
+/** Rooms in the order the server keeps them, ties broken by name. */
+export const sortedRooms = (state) =>
+  [...state.rooms].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name),
+  );
 
 export const remindersForPlant = (state, plantId) =>
   state.reminders.filter((r) => r.plantId === plantId);

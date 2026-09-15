@@ -35,31 +35,100 @@ describe('plant/add', () => {
   });
 });
 
-describe('local-only edits', () => {
-  test('rename marks the field dirty — the backend has no PATCH to push it', () => {
+describe('plant edits', () => {
+  test('renaming a synced plant queues a PATCH rather than marking it dirty', () => {
     const s0 = seeded();
     const s = reducer(s0, { type: 'plant/rename', id: s0.plant.id, nickname: '  Figgy  ', now: NOW });
     expect(s.plants[0].nickname).toBe('Figgy');
-    expect(s.plants[0].dirty).toEqual({ nickname: true });
-    expect(s.outbox).toEqual([]); // nothing to send
+    expect(s.plants[0].dirty).toEqual({});
+    expect(s.outbox).toEqual([{ op: 'plant.update', localId: s0.plant.id, serverId: 'S1', attempts: 0 }]);
   });
 
-  test('renaming a room makes every plant in it locally authoritative', () => {
-    const s0 = { ...seeded(), rooms: [makeRoom('Kitchen')] };
-    const room = s0.rooms[0];
-    const withPlant = { ...s0, plants: [{ ...s0.plant, roomId: room.id }] };
-    const s = reducer(withPlant, { type: 'room/rename', id: room.id, name: 'Galley', now: NOW });
-    expect(s.rooms[0].name).toBe('Galley');
-    expect(s.plants[0].dirty).toEqual({ roomId: true });
-  });
-
-  test('deleting a room leaves its plants roomless rather than deleting them', () => {
-    const room = makeRoom('Kitchen');
+  test('moving a synced plant queues a PATCH', () => {
     const s0 = seeded();
-    const withPlant = { ...s0, rooms: [room], plants: [{ ...s0.plant, roomId: room.id }] };
-    const s = reducer(withPlant, { type: 'room/delete', id: room.id, now: NOW });
+    const s = reducer(s0, { type: 'plant/move', id: s0.plant.id, roomId: 'bedroom', now: NOW });
+    expect(s.plants[0].roomId).toBe('bedroom');
+    expect(s.outbox.map((e) => e.op)).toEqual(['plant.update']);
+  });
+
+  test('an unsynced plant queues nothing — its create carries the new values', () => {
+    const s0 = seeded();
+    const unsynced = { ...s0, plants: [{ ...s0.plant, serverId: null }] };
+    const s = reducer(unsynced, { type: 'plant/move', id: s0.plant.id, roomId: 'bedroom', now: NOW });
+    expect(s.plants[0].roomId).toBe('bedroom');
+    expect(s.outbox).toEqual([]);
+  });
+
+  test('archiving is still local-only, so the field is marked dirty', () => {
+    const s0 = seeded();
+    const s = reducer(s0, { type: 'plant/archive', id: s0.plant.id, now: NOW });
+    expect(s.plants[0].dirty).toEqual({ archived: true });
+    expect(s.outbox).toEqual([]);
+  });
+});
+
+describe('rooms', () => {
+  const synced = (name, serverId) => ({ ...makeRoom({ name }), serverId });
+
+  test('adding a room puts it after the others and queues its create', () => {
+    const s0 = { ...emptyState(), rooms: [{ ...synced('Kitchen', 'RK'), sortOrder: 4 }] };
+    const room = makeRoom({ name: 'Balcony' });
+    const s = reducer(s0, { type: 'room/add', room, now: NOW });
+    expect(s.rooms.map((r) => [r.name, r.sortOrder])).toEqual([['Kitchen', 4], ['Balcony', 5]]);
+    expect(s.outbox).toEqual([{ op: 'room.create', localId: room.id, serverId: null, attempts: 0 }]);
+  });
+
+  test('renaming a synced room queues an update, and touches none of its plants', () => {
+    const room = synced('Kitchen', 'RK');
+    const s0 = seeded();
+    const withRoom = { ...s0, rooms: [room], plants: [{ ...s0.plant, roomId: room.id }] };
+    const s = reducer(withRoom, { type: 'room/rename', id: room.id, name: ' Galley ', now: NOW });
+    expect(s.rooms[0].name).toBe('Galley');
+    expect(s.plants[0]).toBe(withRoom.plants[0]);
+    expect(s.outbox).toEqual([{ op: 'room.update', localId: room.id, serverId: 'RK', attempts: 0 }]);
+  });
+
+  test('renaming a room still waiting on its create queues nothing more', () => {
+    const room = makeRoom({ name: 'Kitchen' });
+    const s0 = reducer(emptyState(), { type: 'room/add', room, now: NOW });
+    const s = reducer(s0, { type: 'room/rename', id: room.id, name: 'Galley', now: NOW });
+    expect(s.outbox.map((e) => e.op)).toEqual(['room.create']);
+  });
+
+  test('deleting a room leaves its plants roomless and queues the delete', () => {
+    const room = synced('Kitchen', 'RK');
+    const s0 = seeded();
+    const withRoom = { ...s0, rooms: [room], plants: [{ ...s0.plant, roomId: room.id }] };
+    const s = reducer(withRoom, { type: 'room/delete', id: room.id, now: NOW });
     expect(s.rooms).toEqual([]);
+    expect(s.plants).toHaveLength(1);
     expect(s.plants[0].roomId).toBeNull();
+    // The server empties the room itself, so the plant needs no push of its own.
+    expect(s.outbox).toEqual([{ op: 'room.delete', localId: room.id, serverId: 'RK', attempts: 0 }]);
+  });
+
+  test('deleting a room the server never saw just forgets it', () => {
+    const room = makeRoom({ name: 'Kitchen' });
+    const s0 = reducer(emptyState(), { type: 'room/add', room, now: NOW });
+    const s = reducer(s0, { type: 'room/delete', id: room.id, now: NOW });
+    expect(s.rooms).toEqual([]);
+    expect(s.outbox).toEqual([]);
+  });
+
+  test('move-and-delete re-homes every plant, queued ahead of the delete', () => {
+    const from = synced('Living Room', 'RL');
+    const to = synced('Kitchen', 'RK');
+    const s0 = seeded();
+    const other = { ...s0.plant, id: 'plant_2', serverId: 'S2' };
+    const state = {
+      ...s0,
+      rooms: [from, to],
+      plants: [{ ...s0.plant, roomId: from.id }, { ...other, roomId: from.id }],
+    };
+    const s = reducer(state, { type: 'room/deleteMoving', id: from.id, toRoomId: to.id, now: NOW });
+    expect(s.rooms.map((r) => r.name)).toEqual(['Kitchen']);
+    expect(s.plants.map((p) => p.roomId)).toEqual([to.id, to.id]);
+    expect(s.outbox.map((e) => e.op)).toEqual(['plant.update', 'plant.update', 'room.delete']);
   });
 });
 

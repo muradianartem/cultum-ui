@@ -5,7 +5,7 @@
 // GardenProvider seeded with real plants and reminders, so what they assert is
 // what the store would actually produce.
 
-import { emptyState, makePlant, makeReminder } from './model';
+import { emptyState, makePlant, makeReminder, makeRoom } from './model';
 
 /**
  * Build a garden document from a compact description.
@@ -13,18 +13,34 @@ import { emptyState, makePlant, makeReminder } from './model';
  * Reminders are anchored to the caller's clock rather than the wall clock, so a
  * test that reasons about "today" stays true tomorrow.
  *
- *   seedGarden({ now, plants: [{ nickname: 'Penny', room: 'Kitchen',
- *                                reminders: [{ action: 'water', dueInDays: 0 }] }] })
+ *   seedGarden({ now, rooms: ['Office'],
+ *                plants: [{ nickname: 'Penny', room: 'Kitchen',
+ *                           reminders: [{ action: 'water', dueInDays: 0 }] }] })
+ *
+ * Rooms are created on first mention — `rooms` first, then each plant's `room`
+ * — with a readable id slugged from the name ("Living Room" → "living-room"),
+ * so a test can address one without digging it out of the document.
  */
-export function seedGarden({ plants = [], now = new Date() } = {}) {
+export function seedGarden({ plants = [], rooms = [], now = new Date() } = {}) {
   const base = emptyState();
+  const outRooms = [];
   const outPlants = [];
   const outReminders = [];
 
+  const roomNamed = (name) => {
+    if (!name) return null;
+    const want = String(name).toLowerCase();
+    let room = outRooms.find((r) => r.name.toLowerCase() === want);
+    if (!room) {
+      room = { ...makeRoom({ name, now, sortOrder: outRooms.length }), id: slug(name) };
+      outRooms.push(room);
+    }
+    return room;
+  };
+  for (const name of rooms) roomNamed(name);
+
   for (const spec of plants) {
-    const room = base.rooms.find(
-      (r) => r.name.toLowerCase() === String(spec.room ?? '').toLowerCase(),
-    );
+    const room = roomNamed(spec.room);
     const plant = {
       ...makePlant({
         speciesKey: spec.speciesKey ?? 'monstera-deliciosa',
@@ -55,8 +71,11 @@ export function seedGarden({ plants = [], now = new Date() } = {}) {
     }
   }
 
-  return { ...base, plants: outPlants, reminders: outReminders };
+  return { ...base, rooms: outRooms, plants: outPlants, reminders: outReminders };
 }
+
+const slug = (name) =>
+  String(name).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const shift = (from, n) =>
   new Date(from.getFullYear(), from.getMonth(), from.getDate() + n, from.getHours());
