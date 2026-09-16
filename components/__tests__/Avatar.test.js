@@ -2,7 +2,6 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Image, Text } from 'react-native';
 import Avatar, { AvatarGroup } from '../Avatar';
 import { Avatar as BarrelAvatar, AvatarGroup as BarrelGroup } from '../index';
-import { avatar } from '../../theme/tokens';
 
 function create(el) {
   let tree;

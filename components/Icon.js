@@ -1,5 +1,5 @@
 import { SvgXml } from 'react-native-svg';
-import { colors } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import { ICON_XML, ICON_NAMES } from './iconRegistry';
 
 /**
@@ -17,9 +17,11 @@ import { ICON_XML, ICON_NAMES } from './iconRegistry';
  *
  * @param {keyof typeof ICON_XML} name  icon name, e.g. "mail" (see ICON_NAMES)
  * @param {number} size   width/height in px (default 24 — the native art size)
- * @param {string} color  glyph colour for monochrome icons (default ink)
+ * @param {string} color  glyph colour for monochrome icons (default text-primary
+ *                        for the active theme)
  */
-export default function Icon({ name, size = 24, color = colors.ink, style, ...rest }) {
+export default function Icon({ name, size = 24, color, style, ...rest }) {
+  const t = useTheme();
   const xml = ICON_XML[name];
   if (!xml) {
     if (__DEV__) {
@@ -32,7 +34,7 @@ export default function Icon({ name, size = 24, color = colors.ink, style, ...re
       xml={xml}
       width={size}
       height={size}
-      color={color}
+      color={color ?? t.text.primary}
       style={style}
       {...rest}
     />

@@ -3,6 +3,11 @@ import { Text } from 'react-native';
 import Overlay from '../Overlay';
 import { Overlay as BarrelOverlay } from '../index';
 import { overlay } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -32,7 +37,7 @@ test('renders nothing when not visible', () => {
 
 test('uses the Figma scrim colour and opacity by default', () => {
   const s = scrimStyle(create(<Overlay onPress={() => {}} />));
-  expect(s.backgroundColor).toBe(overlay.color);
+  expect(s.backgroundColor).toBe(t.background.primary);
   expect(s.opacity).toBe(overlay.opacity);
 });
 

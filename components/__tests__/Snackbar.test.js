@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import Snackbar from '../Snackbar';
 import { Snackbar as BarrelSnackbar } from '../index';
-import { snackbar } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -32,7 +36,7 @@ test('renders its copy as an alert with the dark surface', () => {
     (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'alert'
   );
   const s = Object.assign({}, ...[].concat(bar.props.style).filter(Boolean));
-  expect(s.backgroundColor).toBe(snackbar.bg);
+  expect(s.backgroundColor).toBe(t.background.primaryInverse);
 });
 
 test('action renders and fires', () => {

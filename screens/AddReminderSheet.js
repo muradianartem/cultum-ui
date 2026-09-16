@@ -13,7 +13,7 @@
 //
 //   <AddReminderSheet visible onClose={…} onConfirm={(reminder) => …} />
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
@@ -51,7 +51,6 @@ import {
 
 const ITEM_H = 44;
 const WHEEL_H = 176;
-const BG = '#ECEDEC'; // Figma sheet ground for all three steps
 const HELPER = 'This will help you to distinguish reminders from each other.';
 const DATE_CAPTION = 'The reminder starts on this day and repeats from there.';
 
@@ -61,6 +60,7 @@ const PREVIOUS = { label: null, frequency: 'label', date: 'frequency' };
 
 export default function AddReminderSheet({ visible, onClose, onConfirm, today }) {
   const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
   const keyboardVisible = useKeyboardVisible();
@@ -239,7 +239,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
                 after={
                   <View style={styles.after}>
                     <Text style={styles.afterText}>{shortDate(date)}</Text>
-                    <Icon name="chevron-right" size={20} color={sheet.bodyInk} />
+                    <Icon name="chevron-right" size={20} color={t.text.secondary} />
                   </View>
                 }
               />
@@ -284,11 +284,11 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(14,18,11,0.4)' },
   sheet: {
-    backgroundColor: BG,
+    backgroundColor: t.surface.primary, // Figma sheet ground for all three steps
     borderTopLeftRadius: sheet.radiusTop,
     borderTopRightRadius: sheet.radiusTop,
     paddingTop: 32,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   cornerLeft: { position: 'absolute', top: 12, left: 12, zIndex: 1 },
   cornerRight: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
   grabber: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
-  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: sheet.handle },
+  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: t.text.placeholder },
 
   content: { paddingHorizontal: 16, gap: 16 },
   header: { gap: 4 },
@@ -305,13 +305,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 23,
     fontWeight: '700',
-    color: sheet.titleInk,
+    color: t.text.primary,
     textAlign: 'center',
   },
   caption: {
     fontSize: 14,
     lineHeight: 20,
-    color: sheet.bodyInk,
+    color: t.text.secondary,
     textAlign: 'center',
   },
 
@@ -323,24 +323,24 @@ const styles = StyleSheet.create({
     top: (WHEEL_H - ITEM_H) / 2,
     height: ITEM_H,
     borderRadius: 9999,
-    backgroundColor: '#DADBDA',
+    backgroundColor: t.surface.secondary,
   },
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   numberCol: { width: 120 },
   unitCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: sheet.titleInk },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: sheet.titleInk },
-  active: { fontSize: 20, opacity: 1, color: sheet.titleInk },
-  dim: { fontSize: 18, opacity: 0.45, color: sheet.bodyInk },
+  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
+  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
+  active: { fontSize: 20, opacity: 1, color: t.text.primary },
+  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
 
   after: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  afterText: { fontSize: 14, lineHeight: 20, color: sheet.bodyInk },
+  afterText: { fontSize: 14, lineHeight: 20, color: t.text.secondary },
 
   // Figma wraps the #FAFAFA calendar card in a bordered 20px-radius frame.
   calendarWrap: {
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#B6B9B6',
+    borderColor: t.border.primary,
     borderRadius: 20,
   },
 });

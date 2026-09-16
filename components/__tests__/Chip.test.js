@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, View } from 'react-native';
 import Chip from '../Chip';
 import { Chip as BarrelChip } from '../index';
-import { chip } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -35,18 +39,18 @@ test('renders its label', () => {
 
 test('enabled uses the base fill and dark ink', () => {
   const tree = create(<Chip label="x" />);
-  expect(nodeStyle(tree).backgroundColor).toBe(chip.bg);
+  expect(nodeStyle(tree).backgroundColor).toBe(t.surface.primary);
   expect(tree.root.findByType(Text).props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ color: chip.ink })])
+    expect.arrayContaining([expect.objectContaining({ color: t.text.primary })])
   );
 });
 
 test('selected darkens the fill and ink', () => {
   const tree = create(<Chip label="x" selected />);
-  expect(nodeStyle(tree).backgroundColor).toBe(chip.bgSelected);
+  expect(nodeStyle(tree).backgroundColor).toBe(t.surface.secondary);
   expect(node(tree).props.accessibilityState.selected).toBe(true);
   expect(tree.root.findByType(Text).props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ color: chip.inkSelected })])
+    expect.arrayContaining([expect.objectContaining({ color: t.text.primary })])
   );
 });
 
@@ -67,5 +71,5 @@ test('press fires; disabled blocks it', () => {
   const off = create(<Chip label="x" onPress={onPress} disabled />);
   act(() => press(off));
   expect(onPress).toHaveBeenCalledTimes(1);
-  expect(nodeStyle(off).backgroundColor).toBe(chip.bgDisabled);
+  expect(nodeStyle(off).backgroundColor).toBe(t.disabled.surface);
 });

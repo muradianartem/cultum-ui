@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { View } from 'react-native';
 import RadioButton from '../RadioButton';
 import { RadioButton as BarrelRadio } from '../index';
-import { radio } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -25,7 +29,7 @@ const hasDot = (tree) =>
     .findAll((n) => typeof n.type === 'string' && n.type === 'View')
     .some((v) => {
       const s = Object.assign({}, ...[].concat(v.props.style).filter(Boolean));
-      return s.backgroundColor === radio.dot || s.backgroundColor === radio.dotDisabled;
+      return s.backgroundColor === t.brand.primary || s.backgroundColor === t.disabled.surface;
     });
 
 test('is exported from the components barrel', () => {

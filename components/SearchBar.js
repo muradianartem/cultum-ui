@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { searchBar, radius } from '../theme/tokens';
+import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 
 /**
  * SearchBar — pill search field, imported from Figma "Search Bar – P2".
@@ -12,8 +13,7 @@ import { searchBar, radius } from '../theme/tokens';
  *
  * Controlled: `value` + `onChangeText`. `onClear` (defaults to clearing via
  * onChangeText). `leftIcon` / `clearIcon` override the default 🔍 and ✕ text
- * glyphs, so callers can pass real <Icon>s without this primitive depending on
- * react-native-svg.
+ * glyphs, so callers can pass real <Icon>s.
  */
 export default function SearchBar({
   value = '',
@@ -28,6 +28,8 @@ export default function SearchBar({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
+  const { effective } = useThemeMode();
   const [focused, setFocused] = useState(false);
   const filled = value.length > 0;
 
@@ -36,9 +38,9 @@ export default function SearchBar({
       style={[
         styles.field,
         {
-          backgroundColor: disabled ? searchBar.bgDisabled : searchBar.bg,
+          backgroundColor: disabled ? t.disabled.surface : t.surface.primary,
         },
-        focused && !disabled && styles.focused,
+        focused && !disabled && { borderWidth: 1, borderColor: t.text.primary },
         style,
       ]}
     >
@@ -50,12 +52,17 @@ export default function SearchBar({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={searchBar.placeholder}
+        placeholderTextColor={t.text.placeholder}
+        keyboardAppearance={effective}
         editable={!disabled}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         accessibilityLabel={accessibilityLabel ?? placeholder}
-        style={[styles.input, disabled && { color: '#404140' }, inputStyle]}
+        style={[
+          styles.input,
+          { color: disabled ? t.disabled.on : t.text.primary },
+          inputStyle,
+        ]}
         returnKeyType="search"
         {...rest}
       />
@@ -66,9 +73,9 @@ export default function SearchBar({
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel="Clear search"
-          style={styles.clear}
+          style={[styles.clear, { backgroundColor: t.brand.secondary }]}
         >
-          {clearIcon ?? <Text style={styles.clearGlyph}>✕</Text>}
+          {clearIcon ?? <Text style={[styles.clearGlyph, { color: t.text.primary }]}>✕</Text>}
         </Pressable>
       ) : null}
     </View>
@@ -84,22 +91,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: radius.pill,
   },
-  focused: { borderWidth: 1, borderColor: searchBar.focusBorder },
   leadingIcon: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   searchGlyph: { fontSize: 15 },
   input: {
     flex: 1,
     fontSize: 16,
-    color: searchBar.ink,
     padding: 0,
   },
   clear: {
     width: 40,
     height: 40,
     borderRadius: 9999,
-    backgroundColor: searchBar.clearBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearGlyph: { fontSize: 13, color: searchBar.ink },
+  clearGlyph: { fontSize: 13 },
 });

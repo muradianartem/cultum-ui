@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, View } from 'react-native';
 import Badge from '../Badge';
 import { Badge as BarrelBadge } from '../index';
-import { badge } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 // --- tiny query helpers over the react-test-renderer tree ---
 function create(el) {
@@ -42,15 +46,15 @@ test('accepts children in place of label', () => {
 
 test('primary + neutral is the filled brand-green pill with dark ink', () => {
   const tree = create(<Badge label="9" intent="neutral" variant="primary" />);
-  expect(pillStyle(tree).backgroundColor).toBe(badge.neutral.solid);
+  expect(pillStyle(tree).backgroundColor).toBe(t.brand.primary);
   expect(tree.root.findByType(Text).props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ color: badge.neutral.onSolid })])
+    expect.arrayContaining([expect.objectContaining({ color: t.brand.onPrimary })])
   );
 });
 
 test('secondary uses the tinted soft fill and soft ink per intent', () => {
   const tree = create(<Badge label="Late" intent="negative" variant="secondary" />);
-  expect(pillStyle(tree).backgroundColor).toBe(badge.negative.soft);
+  expect(pillStyle(tree).backgroundColor).toBe(t.error.secondary);
 });
 
 test('outline is transparent with a 1px border in the intent line colour', () => {
@@ -58,7 +62,7 @@ test('outline is transparent with a 1px border in the intent line colour', () =>
   const s = pillStyle(tree);
   expect(s.backgroundColor).toBe('transparent');
   expect(s.borderWidth).toBe(1);
-  expect(s.borderColor).toBe(badge.positive.line);
+  expect(s.borderColor).toBe(t.success.primary);
 });
 
 test('ghost has no fill and no border', () => {
@@ -93,5 +97,5 @@ test('exposes the label to assistive tech', () => {
 
 test('unknown intent falls back to neutral', () => {
   const tree = create(<Badge label="x" intent="bogus" variant="primary" />);
-  expect(pillStyle(tree).backgroundColor).toBe(badge.neutral.solid);
+  expect(pillStyle(tree).backgroundColor).toBe(t.brand.primary);
 });

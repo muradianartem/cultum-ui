@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { View, ActivityIndicator } from 'react-native';
 import ButtonIcon from '../ButtonIcon';
 import { ButtonIcon as BarrelButtonIcon } from '../index';
-import { button } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -36,7 +40,7 @@ test('renders the icon node and forwards the a11y label', () => {
 test('reuses the button colours (primary green) and is square', () => {
   const tree = create(<ButtonIcon accessibilityLabel="x" icon={<View />} />);
   const s = btnStyle(tree);
-  expect(s.backgroundColor).toBe(button.primary.bg);
+  expect(s.backgroundColor).toBe(t.brand.primary);
   expect(s.width).toBe(s.height);
 });
 
@@ -52,7 +56,7 @@ test('destructive outline draws the red border', () => {
   );
   const s = btnStyle(tree);
   expect(s.borderWidth).toBe(1);
-  expect(s.borderColor).toBe(button.dangerOutline.border);
+  expect(s.borderColor).toBe(t.error.primary);
 });
 
 test('loading shows a spinner and marks busy', () => {

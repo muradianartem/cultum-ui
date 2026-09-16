@@ -7,7 +7,7 @@
 //   <TaskSheet task={task} visible onClose={…} onMarkDone={…}
 //              onSnoozeConfirm={(n, unit) => …} onOpenPlant={…} onSettings={…} />
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, ButtonIcon, Icon } from '../components';
@@ -28,6 +28,7 @@ export default function TaskSheet({
   onSettings,
 }) {
   const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
   const [step, setStep] = useState(initialStep); // 'detail' | 'snooze'
@@ -63,7 +64,7 @@ export default function TaskSheet({
         <Animated.View
           style={[
             styles.sheet,
-            { backgroundColor: snoozing ? '#ECEDEC' : sheet.bg },
+            { backgroundColor: snoozing ? t.surface.primary : t.background.secondary },
             shadow.sheet,
             { paddingBottom: insets.bottom + 12 },
             {
@@ -163,7 +164,7 @@ export default function TaskSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(14,18,11,0.4)' },
   sheet: {
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
   cornerLeft: { position: 'absolute', top: 12, left: 12, zIndex: 1 },
   cornerRight: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
   grabber: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
-  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: sheet.handle },
+  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: t.text.placeholder },
   content: { paddingBottom: 8, gap: 24 },
   header: { paddingHorizontal: 16, alignItems: 'center', gap: 12 },
   photo: { width: 144, height: 144, borderRadius: 28 },
@@ -184,15 +185,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 29,
     fontWeight: '700',
-    color: sheet.titleInk,
+    color: t.text.primary,
     textAlign: 'center',
   },
-  subtitle: { fontSize: 16, lineHeight: 22, color: sheet.bodyInk, textAlign: 'center' },
+  subtitle: { fontSize: 16, lineHeight: 22, color: t.text.secondary, textAlign: 'center' },
   actions: { paddingHorizontal: 16, gap: 12 },
   caption: {
     fontSize: 12,
     lineHeight: 16,
-    color: sheet.bodyInk,
+    color: t.text.secondary,
     textAlign: 'center',
     marginTop: 4,
   },

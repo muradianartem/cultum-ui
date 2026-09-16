@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { badge, radius } from '../theme/tokens';
+import { radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Badge — Cultum's small status pill, imported from Figma "Badge – P2".
@@ -18,6 +19,35 @@ import { badge, radius } from '../theme/tokens';
  *   primary   → filled pill        secondary → tinted pill
  *   outline   → hairline + text    ghost     → text only, no chrome
  */
+
+// Each intent's colour family, resolved from the active theme:
+//   solid/onSolid — Style=Primary; soft/softInk — Style=Secondary;
+//   line — the hairline and text of Outlined / No background.
+function families(t) {
+  return {
+    neutral: {
+      solid: t.brand.primary,
+      onSolid: t.brand.onPrimary,
+      soft: t.brand.secondary,
+      softInk: t.brand.onSecondary,
+      line: t.brand.primary,
+    },
+    positive: {
+      solid: t.success.primary,
+      onSolid: t.success.onPrimary,
+      soft: t.success.secondary,
+      softInk: t.success.onSecondary,
+      line: t.success.primary,
+    },
+    negative: {
+      solid: t.error.primary,
+      onSolid: t.error.onPrimary,
+      soft: t.error.secondary,
+      softInk: t.error.onSecondary,
+      line: t.error.primary,
+    },
+  };
+}
 
 const VARIANTS = {
   primary: (c) => ({ bg: c.solid, fg: c.onSolid }),
@@ -50,7 +80,9 @@ export default function Badge({
   accessibilityLabel,
   ...rest
 }) {
-  const family = badge[intent] || badge.neutral;
+  const t = useTheme();
+  const all = families(t);
+  const family = all[intent] || all.neutral;
   const v = (VARIANTS[variant] || VARIANTS.primary)(family);
   const height = SIZES[size] || SIZES.md;
 

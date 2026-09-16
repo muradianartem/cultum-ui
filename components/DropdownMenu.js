@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { menu, shadow } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * MenuItem — one row of a DropdownMenu (Figma "_Dropdown Menu Item").
@@ -19,6 +20,7 @@ export function MenuItem({
   style,
   ...rest
 }) {
+  const t = useTheme();
   return (
     <Pressable
       onPress={() => !disabled && onPress?.()}
@@ -28,7 +30,7 @@ export function MenuItem({
       accessibilityLabel={typeof title === 'string' ? title : undefined}
       style={({ pressed }) => [
         styles.item,
-        pressed && !disabled && styles.itemPressed,
+        pressed && !disabled && { backgroundColor: t.interaction.pressed },
         disabled && styles.disabled,
         style,
       ]}
@@ -36,8 +38,14 @@ export function MenuItem({
     >
       {leading !== undefined ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.text}>
-        {typeof title === 'string' ? <Text style={styles.title}>{title}</Text> : title}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {typeof title === 'string' ? (
+          <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text>
+        ) : (
+          title
+        )}
+        {subtitle ? (
+          <Text style={[styles.subtitle, { color: t.text.secondary }]}>{subtitle}</Text>
+        ) : null}
       </View>
       {icon ? <View style={styles.icon}>{icon}</View> : null}
     </Pressable>
@@ -53,8 +61,18 @@ export function MenuItem({
  * `{ title, subtitle, icon, onPress }`) or compose <MenuItem> children.
  */
 export default function DropdownMenu({ items, children, style, ...rest }) {
+  const t = useTheme();
   return (
-    <View accessibilityRole="menu" style={[styles.surface, shadow.low, style]} {...rest}>
+    <View
+      accessibilityRole="menu"
+      style={[
+        styles.surface,
+        { backgroundColor: t.background.primary, borderColor: t.border.secondary },
+        shadow.low,
+        style,
+      ]}
+      {...rest}
+    >
       {items
         ? // `key` is pulled out rather than spread: React 19 warns when a props
           // object carries one, and MenuItem has no use for it anyway.
@@ -68,10 +86,8 @@ const styles = StyleSheet.create({
   surface: {
     width: menu.width,
     maxWidth: '100%',
-    backgroundColor: menu.bg,
     borderRadius: menu.radius,
     borderWidth: 1,
-    borderColor: menu.border,
     padding: 8,
     gap: 4,
   },
@@ -84,12 +100,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: menu.itemRadius,
   },
-  itemPressed: { backgroundColor: menu.pressed },
   leading: { width: 24, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 2 },
   // Figma "_Dropdown Menu Item": title Body Large 16, subtitle Body Medium 14.
-  title: { fontSize: 16, lineHeight: 22, color: menu.titleInk },
-  subtitle: { fontSize: 14, lineHeight: 20, color: menu.subtitleInk },
+  title: { fontSize: 16, lineHeight: 22 },
+  subtitle: { fontSize: 14, lineHeight: 20 },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.5 },
 });

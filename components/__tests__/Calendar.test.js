@@ -9,7 +9,11 @@ import Calendar, {
   startOfMonth,
 } from '../Calendar';
 import { Calendar as BarrelCalendar } from '../index';
-import { calendar } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -110,10 +114,10 @@ describe('rendering', () => {
   test('the selected day takes the brand fill; today takes the grey one', () => {
     const tree = create(<Calendar value={SEP} today={new Date(2026, 8, 3)} month={SEP} />);
     expect(dayStyle(tree, '10 September 2026').backgroundColor).toBe(
-      calendar.daySelectedBg
+      t.brand.primary
     );
     expect(dayStyle(tree, '3 September 2026').backgroundColor).toBe(
-      calendar.dayTodayBg
+      t.surface.secondary
     );
     expect(day(tree, '10 September 2026').props.accessibilityState.selected).toBe(true);
   });

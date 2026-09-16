@@ -4,10 +4,11 @@
 // button, grabber) is provided by the hosting TaskSheet, so this renders no
 // Modal of its own — that's what lets the whole flow live in one Modal.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, WheelPicker } from '../components';
-import { sheet, fonts } from '../theme/tokens';
+import { fonts } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
   FREQUENCY_UNITS as UNITS,
@@ -19,6 +20,8 @@ const ITEM_H = 44;
 const WHEEL_H = 176;
 
 export default function SnoozeContent({ onConfirm }) {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   // Default to "2 days", matching the Figma.
   const [numberIndex, setNumberIndex] = useState(1);
   const [unitIndex, setUnitIndex] = useState(DEFAULT_FREQUENCY_UNIT_INDEX);
@@ -68,14 +71,14 @@ export default function SnoozeContent({ onConfirm }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   wrap: { paddingHorizontal: 16, gap: 16 },
   title: {
     fontFamily: fonts.display, // serif, matching the app's titles (Literata in Figma)
     fontSize: 20,
     lineHeight: 26,
     fontWeight: '700',
-    color: sheet.titleInk,
+    color: t.text.primary,
     textAlign: 'center',
   },
   picker: { height: WHEEL_H, justifyContent: 'center' },
@@ -86,13 +89,13 @@ const styles = StyleSheet.create({
     top: (WHEEL_H - ITEM_H) / 2,
     height: ITEM_H,
     borderRadius: 9999,
-    backgroundColor: '#DADBDA',
+    backgroundColor: t.surface.secondary,
   },
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   numberCol: { width: 120 },
   unitCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: sheet.titleInk },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: sheet.titleInk },
-  active: { fontSize: 20, opacity: 1, color: sheet.titleInk },
-  dim: { fontSize: 18, opacity: 0.45, color: sheet.bodyInk },
+  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
+  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
+  active: { fontSize: 20, opacity: 1, color: t.text.primary },
+  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
 });

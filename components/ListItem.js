@@ -1,10 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { list, divider as dividerToken } from '../theme/tokens';
-
-// The one red in the design system's settings surface (Figma #DA3737). The
-// token layer's `colors.danger` is the warmer orange used on scan errors, so
-// this is spelled out rather than borrowed.
-const destructiveInk = '#DA3737';
+import { list } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * ListItem — one row of a List, imported from Figma "List – P2" (List Item).
@@ -16,8 +12,12 @@ const destructiveInk = '#DA3737';
  *   Show Label               → `value` (the muted text before the after area)
  *   Show Divider             → `divider`
  *   State (Pressed)          → tap feedback when `onPress` is set
- *   Style (List / Card)      → `variant` (padding + pressed colour)
- *   Destructive              → `destructive` (title turns red)
+ *   Style (List / Card)      → `variant` (padding)
+ *   Destructive              → `destructive` (title turns error-primary)
+ *
+ * Pressed is the translucent `interaction.pressed` layer rather than a fixed
+ * grey, so it reads on both the page ground (List) and the card panel (Card) in
+ * either theme.
  *
  * `value` is its own prop rather than something the caller stuffs into `after`
  * because it is a distinct Figma slot with its own colour and alignment, and the
@@ -38,8 +38,8 @@ export default function ListItem({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const isCard = variant === 'card';
-  const pressedColor = isCard ? list.pressedCard : list.pressedList;
 
   const Row = onPress ? Pressable : View;
   const rowProps = onPress
@@ -57,7 +57,7 @@ export default function ListItem({
   const rowStyle = ({ pressed } = {}) => [
     styles.row,
     isCard ? styles.padCard : styles.padList,
-    pressed && { backgroundColor: pressedColor, borderRadius: list.rowRadius },
+    pressed && { backgroundColor: t.interaction.pressed, borderRadius: list.rowRadius },
     style,
   ];
 
@@ -72,7 +72,12 @@ export default function ListItem({
       <View style={styles.middle}>
         {typeof title === 'string' ? (
           <Text
-            style={[styles.title, destructive && styles.titleDestructive]}
+            style={[
+              styles.title,
+              // Figma overrides the title's fill rather than using the component's
+              // own Destructive variant, so the leading badge and chevron stay untinted.
+              { color: destructive ? t.error.primary : t.text.primary },
+            ]}
             numberOfLines={1}
           >
             {title}
@@ -81,21 +86,23 @@ export default function ListItem({
           title
         )}
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={[styles.subtitle, { color: t.text.secondary }]} numberOfLines={1}>
             {subtitle}
           </Text>
         ) : null}
       </View>
 
       {value != null && value !== '' ? (
-        <Text style={styles.value} numberOfLines={1}>
+        <Text style={[styles.value, { color: t.text.secondary }]} numberOfLines={1}>
           {value}
         </Text>
       ) : null}
 
       {after ? <View style={styles.after}>{after}</View> : null}
 
-      {divider ? <View style={styles.divider} /> : null}
+      {divider ? (
+        <View style={[styles.divider, { backgroundColor: t.border.primary }]} />
+      ) : null}
     </Row>
   );
 }
@@ -111,12 +118,9 @@ const styles = StyleSheet.create({
   padCard: { paddingVertical: 12, paddingHorizontal: 16 },
   before: { justifyContent: 'center' },
   middle: { flex: 1, gap: 2 },
-  title: { fontSize: 16, lineHeight: 22, color: list.titleInk },
-  // Figma overrides the title's fill rather than using the component's own
-  // Destructive variant, so the leading badge and chevron stay untinted.
-  titleDestructive: { color: destructiveInk },
-  value: { fontSize: 14, lineHeight: 20, color: list.subtitleInk, flexShrink: 0 },
-  subtitle: { fontSize: 14, lineHeight: 20, color: list.subtitleInk },
+  title: { fontSize: 16, lineHeight: 22 },
+  value: { fontSize: 14, lineHeight: 20, flexShrink: 0 },
+  subtitle: { fontSize: 14, lineHeight: 20 },
   after: { justifyContent: 'center' },
   divider: {
     position: 'absolute',
@@ -124,6 +128,5 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 1,
-    backgroundColor: dividerToken.hairline,
   },
 });

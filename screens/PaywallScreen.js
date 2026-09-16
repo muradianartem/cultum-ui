@@ -21,6 +21,7 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Button, ButtonIcon, Icon } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
@@ -118,6 +119,8 @@ function Paywall({ content }) {
 
   return (
     <View style={styles.root}>
+      {/* The hero photo runs under the status bar in both themes. */}
+      <StatusBar style="light" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

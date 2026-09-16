@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { list } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * List — vertical stack of ListItems, imported from Figma "List – P2" (List Group).
@@ -10,6 +11,7 @@ import { list } from '../theme/tokens';
  * pressed colour match. Compose with <ListItem> children.
  */
 export default function List({ variant = 'list', children, style, ...rest }) {
+  const t = useTheme();
   const items = Children.map(children, (child) =>
     isValidElement(child) && child.props.variant == null
       ? cloneElement(child, { variant })
@@ -19,7 +21,11 @@ export default function List({ variant = 'list', children, style, ...rest }) {
   return (
     <View
       accessibilityRole="list"
-      style={[variant === 'card' ? styles.card : styles.plain, style]}
+      style={[
+        variant === 'card' ? styles.card : styles.plain,
+        variant === 'card' && { backgroundColor: t.surface.primary },
+        style,
+      ]}
       {...rest}
     >
       {items}
@@ -31,7 +37,6 @@ const styles = StyleSheet.create({
   plain: { alignSelf: 'stretch' },
   card: {
     alignSelf: 'stretch',
-    backgroundColor: list.cardBg,
     borderRadius: list.cardRadius,
     overflow: 'hidden',
   },

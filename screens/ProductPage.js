@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import {
   Badge,
   Button,
@@ -253,6 +254,8 @@ export default function ProductPage({ plantId, plant, owned = false }) {
 
   return (
     <View style={styles.screen}>
+      {/* The hero photo runs under the status bar in both themes. */}
+      <StatusBar style="light" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: space[24] }}

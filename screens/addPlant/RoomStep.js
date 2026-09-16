@@ -7,7 +7,6 @@
 import { ScrollView, StyleSheet } from 'react-native';
 import { Icon, RadioButton } from '../../components';
 import { space } from '../../theme/foundations';
-import { list } from '../../theme/tokens';
 import { roomIcon } from '../../store/model';
 import CardRow from './CardRow';
 

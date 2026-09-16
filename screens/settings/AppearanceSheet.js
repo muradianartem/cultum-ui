@@ -3,12 +3,8 @@
 // A single-select list with a check on the chosen row, not radio controls: that
 // is what the design draws, and it is what iOS does elsewhere.
 //
-// THE CHOICE IS SAVED BUT NOT YET APPLIED. Dark mode is a separate project —
-// most of the component library still reads fixed light hexes out of
-// theme/tokens.js rather than useTheme() — so App.js's DARK_MODE_READY gate
-// keeps the theme pinned to light for now, and the caption below says so rather
-// than letting the user conclude the app is broken. Deleting the caption is the
-// only change this file needs when the gate opens.
+// The choice is saved to preferences and applied at once: App.js hands it to
+// <ThemeProvider> as the controlled mode.
 
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -36,7 +32,6 @@ export default function AppearanceSheet({ visible, onClose }) {
       visible={visible}
       onClose={onClose}
       title="Appearance"
-      caption="Dark mode is on its way — your choice is saved and will apply as soon as it lands."
       testID="appearance-sheet"
     >
       <View style={styles.body}>

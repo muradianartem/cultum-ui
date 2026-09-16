@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { checkbox } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Checkbox — multi-select control, imported from Figma "Checkbox – P1".
@@ -10,8 +11,8 @@ import { checkbox } from '../theme/tokens';
  *   State         → `disabled`, plus the pressed "Active" halo via Pressable
  *
  * The box is grey-outlined when empty and green-filled with a glyph when
- * checked/indeterminate. Figma ships the box as an SVG; with no react-native-svg
- * in the project we render it with Views + a text glyph.
+ * checked/indeterminate. Figma ships the box as an SVG; we render it with
+ * Views + a text glyph.
  */
 export default function Checkbox({
   checked = false,
@@ -22,6 +23,7 @@ export default function Checkbox({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const on = checked || indeterminate;
 
   return (
@@ -34,29 +36,27 @@ export default function Checkbox({
         disabled,
       }}
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.hit,
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.hit, disabled && styles.disabled, style]}
       {...rest}
     >
       {({ pressed }) => (
         <View style={styles.center}>
-          {pressed && !disabled ? <View style={styles.halo} /> : null}
+          {pressed && !disabled ? (
+            <View style={[styles.halo, { backgroundColor: t.interaction.pressed }]} />
+          ) : null}
           <View
             style={[
               styles.box,
               on
-                ? { backgroundColor: disabled ? checkbox.disabledFill : checkbox.fill }
-                : { borderWidth: 2, borderColor: checkbox.border },
+                ? { backgroundColor: disabled ? t.disabled.surface : t.brand.primary }
+                : { borderWidth: 2, borderColor: t.border.primary },
             ]}
           >
             {on ? (
               <Text
                 style={[
                   styles.glyph,
-                  { color: disabled ? checkbox.disabledGlyph : checkbox.glyph },
+                  { color: disabled ? t.disabled.on : t.brand.onPrimary },
                 ]}
               >
                 {indeterminate ? '–' : '✓'}
@@ -77,7 +77,6 @@ const styles = StyleSheet.create({
     width: checkbox.haloSize,
     height: checkbox.haloSize,
     borderRadius: 9999,
-    backgroundColor: checkbox.halo,
   },
   box: {
     width: checkbox.size,

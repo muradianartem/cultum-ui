@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, sheet, shadow, fonts } from '../theme/tokens';
+import { shadow, fonts } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import Overlay from './Overlay';
 import Button from './Button';
 
@@ -16,6 +17,7 @@ export default function Dialog({
   testID,
   ...rest
 }) {
+  const t = useTheme();
   return (
     <Modal
       visible={visible}
@@ -28,24 +30,24 @@ export default function Dialog({
     >
       <Overlay onPress={onClose} style={styles.overlay}>
         {/* Stop scrim taps from closing when they land on the card itself. */}
-        <Pressable style={styles.card} accessibilityViewIsModal onPress={() => { }}>
+        <Pressable style={[styles.card, { backgroundColor: t.background.primary }]} accessibilityViewIsModal onPress={() => { }}>
           {showClose && onClose ? (
             <Pressable
               onPress={onClose}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Close"
-              style={styles.close}
+              style={[styles.close, { backgroundColor: t.brand.secondary }]}
               testID="dialog-close"
             >
-              <Text style={styles.closeGlyph}>✕</Text>
+              <Text style={[styles.closeGlyph, { color: t.text.primary }]}>✕</Text>
             </Pressable>
           ) : null}
 
           <View style={styles.textBlock}>
-            {statusIcon ? <View style={styles.statusIcon}>{statusIcon}</View> : null}
-            {title ? <Text style={styles.title}>{title}</Text> : null}
-            {description ? <Text style={styles.description}>{description}</Text> : null}
+            {statusIcon ? <View style={[styles.statusIcon, { backgroundColor: t.brand.secondary }]}>{statusIcon}</View> : null}
+            {title ? <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text> : null}
+            {description ? <Text style={[styles.description, { color: t.text.secondary }]}>{description}</Text> : null}
           </View>
 
           {children}
@@ -83,7 +85,6 @@ const styles = StyleSheet.create({
   card: {
     alignSelf: 'stretch',
     maxWidth: 400,
-    backgroundColor: colors.surface,
     borderRadius: 28,
     padding: 24,
     paddingTop: 32,
@@ -97,16 +98,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 9999,
-    backgroundColor: sheet.closeBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeGlyph: { fontSize: 15, color: sheet.titleInk, lineHeight: 18 },
+  closeGlyph: { fontSize: 15, lineHeight: 18 },
   statusIcon: {
     width: 48,
     height: 48,
     borderRadius: 9999,
-    backgroundColor: sheet.statusIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -116,13 +115,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: '700',
-    color: sheet.titleInk,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: sheet.bodyInk,
     textAlign: 'center',
   },
   actions: { gap: 12 },
