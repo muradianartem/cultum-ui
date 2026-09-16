@@ -1,6 +1,12 @@
 import { Children, cloneElement, isValidElement } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { avatar, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
+
+// The "+N" overflow sits on a dark scrim laid over a photo, so it stays light
+// on dark in both themes rather than following the page.
+const OVERFLOW_SCRIM = 'rgba(21,21,21,0.4)';
+const OVERFLOW_INK = '#FAFAFA';
 
 /**
  * Avatar — person/entity mark, imported from Figma "Avatar - P3".
@@ -11,7 +17,7 @@ import { avatar, radius } from '../theme/tokens';
  *   Size (Extra small / Small / Medium / Large) → `size`: xs 24 / sm 32 / md 40 / lg 56
  *
  * Overflow dims a photo (or the plain fill) with a dark scrim and light "+N".
- * `ring` draws the light separator used inside <AvatarGroup>.
+ * `ring` draws the page-coloured separator used inside <AvatarGroup>.
  */
 export default function Avatar({
   source,
@@ -23,14 +29,15 @@ export default function Avatar({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const dim = avatar.sizes[size] ?? avatar.sizes.md;
   const fontSize = avatar.fontSizes[size] ?? avatar.fontSizes.md;
   const isOverflow = overflow != null;
 
   const box = [
     styles.base,
-    { width: dim, height: dim, borderRadius: radius.pill },
-    ring && { borderWidth: 1, borderColor: avatar.ring },
+    { width: dim, height: dim, borderRadius: radius.pill, backgroundColor: t.surface.primary },
+    ring && { borderWidth: 1, borderColor: t.background.primary },
     style,
   ];
 
@@ -53,7 +60,7 @@ export default function Avatar({
           <Text style={[styles.overflow, { fontSize }]}>+{overflow}</Text>
         </>
       ) : !source && initials ? (
-        <Text style={[styles.initials, { fontSize }]}>{initials}</Text>
+        <Text style={[styles.initials, { fontSize, color: t.text.primary }]}>{initials}</Text>
       ) : null}
     </View>
   );
@@ -62,7 +69,7 @@ export default function Avatar({
 /**
  * AvatarGroup — an overlapping cluster of Avatars with an optional "+N" overflow.
  * Pass <Avatar> children (or `avatars` data) and a `max`; extras collapse into
- * an overflow avatar. Each avatar gets a light ring and negative overlap.
+ * an overflow avatar. Each avatar gets a ring and negative overlap.
  */
 export function AvatarGroup({ children, avatars, max = 5, size = 'md', style, ...rest }) {
   const overlap = -Math.round((avatar.sizes[size] ?? avatar.sizes.md) * 0.28);
@@ -99,14 +106,13 @@ export function AvatarGroup({ children, avatars, max = 5, size = 'md', style, ..
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: avatar.bg,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   image: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: avatar.overflowScrim },
-  initials: { fontWeight: '600', color: avatar.initialsInk },
-  overflow: { fontWeight: '600', color: avatar.overflowInk },
+  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: OVERFLOW_SCRIM },
+  initials: { fontWeight: '600' },
+  overflow: { fontWeight: '600', color: OVERFLOW_INK },
   group: { flexDirection: 'row', alignItems: 'center' },
 });

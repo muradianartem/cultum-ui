@@ -126,13 +126,27 @@ if a component needs a token that doesn't exist yet.
 Figma is the source of truth for *this* import. Map mechanically so a bulk
 agent needs no judgement:
 
-- **Exact hex match to an existing `colors.*` token → reuse the token.**
-  (Badge's neutral solid `#93EC7C` **is** `colors.green`, so it reuses it.)
-- **No exact match → add a new, clearly-labelled token** to `theme/tokens.js`,
-  grouped by component (e.g. the `badge` export), then reference it. Never
-  hard-code a hex inside a component.
+- **Colours are semantic roles, never hexes.** Every Figma fill is a variable
+  from the Design System's Color Tokens page (`27465:14108`), and each one has a
+  light and a dark value. Read it from `useTheme()` (`t.surface.primary`,
+  `t.text.secondary`, …) — `theme/colorTokens.js` holds the `{ light, dark }`
+  pairs. If a Figma hex has no role in the light column, find its role before
+  writing code; don't invent a token.
+- **Apply colours inline, keep geometry static.** `StyleSheet.create` holds
+  sizes/padding/radius; colours go in the style array at render from `t` (see
+  `Button.js`). For screens with many coloured styles, build them with
+  `makeStyles(t)` + `useMemo`.
+- **Pressed is `t.interaction.pressed`**, a translucent layer over the base
+  fill — not a darker grey — so it works on any ground in either theme.
+- **Geometry goes in `theme/tokens.js`**, grouped by component. That file holds
+  no colours, and `theme/__tests__/noHardcodedColors.test.js` fails on any hex or
+  `rgba()` in `components/` or `screens/` that isn't on its allowlist (photo
+  scrims, the modal backdrop — colours that must not follow the theme).
 - Reference `radius`/`spacing`/`fontSize` tokens where an exact one exists
   (Badge's pill uses `radius.pill`).
+- **Check the dark frame too.** Screen sections in the App Design file have
+  `[Dark Mode]` twins (Auth & Paywall `381:27008`, Today `567:8000`, Product page
+  `335:8214`) — compare against them, not only the light frame.
 
 ## Naming: Figma axis → prop
 
@@ -149,8 +163,8 @@ Keep prop names consistent across the library, not literal to Figma:
 
 - **Figma:** page "Badge – P2" (`26744:5100`), component set `Badge`
   (`27817:7465`), 4 Styles × 4 Types × 3 Functions × 3 Sizes.
-- **Tokens added:** `badge` in [`theme/tokens.js`](../theme/tokens.js) — `neutral`
-  reuses `colors.green`; `positive`/`negative` are new Figma values.
+- **Colours:** `intent` → a semantic family — neutral is `brand.*`, positive
+  `success.*`, negative `error.*` — resolved from `useTheme()`.
 - **Component:** [`components/Badge.js`](../components/Badge.js) —
   `intent × variant` resolves fill/text/border; `size` sets pill height
   (16/20/24), label stays Body/Body Small (12px).

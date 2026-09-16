@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { navbar, fonts, divider as dividerToken } from '../theme/tokens';
+import { navbar, fonts } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import ButtonIcon from './ButtonIcon';
 import Icon from './Icon';
 
@@ -17,11 +18,12 @@ import Icon from './Icon';
  * use in Figma).
  */
 function LeadingButton({ leading, onPress, variant }) {
+  const t = useTheme();
   if (!leading) return null;
   const name =
     leading === 'back' ? 'chevron-left' : leading === 'close' ? 'close' : null;
   const icon = name ? (
-    <Icon name={name} size={20} color={navbar.titleInk} />
+    <Icon name={name} size={20} color={t.text.primary} />
   ) : (
     leading
   );
@@ -65,16 +67,24 @@ export default function NavigationBar({
   style,
   ...rest
 }) {
+  const t = useTheme();
   const isLarge = size === 'lg';
   // Figma's large bar drops the button row entirely when it has neither a
   // leading icon nor actions (the Rooms header) — rendering it anyway would
   // push the title down by an empty 56pt.
   const hasButtons = Boolean(leading) || (actions?.length ?? 0) > 0;
+  const ink = { color: t.text.primary };
 
   return (
     <View
       accessibilityRole="header"
-      style={[styles.bar, divider && styles.withDivider, style]}
+      style={[
+        styles.bar,
+        { backgroundColor: t.background.primary },
+        divider && styles.withDivider,
+        divider && { borderBottomColor: t.border.primary },
+        style,
+      ]}
       {...rest}
     >
       {isLarge ? (
@@ -87,7 +97,7 @@ export default function NavigationBar({
             </View>
           ) : null}
           <View style={[styles.largeTitleRow, !hasButtons && styles.largeTitleRowAlone]}>
-            {title ? <Text style={styles.largeTitle}>{title}</Text> : null}
+            {title ? <Text style={[styles.largeTitle, ink]}>{title}</Text> : null}
           </View>
         </>
       ) : (
@@ -97,12 +107,12 @@ export default function NavigationBar({
           </View>
           <View style={styles.center}>
             {title ? (
-              <Text style={styles.title} numberOfLines={1}>
+              <Text style={[styles.title, ink]} numberOfLines={1}>
                 {title}
               </Text>
             ) : null}
             {subtitle ? (
-              <Text style={styles.subtitle} numberOfLines={1}>
+              <Text style={[styles.subtitle, { color: t.text.secondary }]} numberOfLines={1}>
                 {subtitle}
               </Text>
             ) : null}
@@ -117,8 +127,8 @@ export default function NavigationBar({
 }
 
 const styles = StyleSheet.create({
-  bar: { alignSelf: 'stretch', backgroundColor: navbar.bg },
-  withDivider: { borderBottomWidth: 1, borderBottomColor: dividerToken.hairline },
+  bar: { alignSelf: 'stretch' },
+  withDivider: { borderBottomWidth: 1 },
   rowSmall: {
     minHeight: navbar.height,
     flexDirection: 'row',
@@ -133,10 +143,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 20,
     lineHeight: 26,
-    color: navbar.titleInk,
     textAlign: 'center',
   },
-  subtitle: { fontSize: 14, fontWeight: '500', color: navbar.subtitleInk, textAlign: 'center' },
+  subtitle: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
   rowLarge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -153,6 +162,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 32,
     lineHeight: 38,
-    color: navbar.titleInk,
   },
 });

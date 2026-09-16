@@ -36,6 +36,15 @@ describe('color tokens', () => {
     expect(colorTokens.border.primary.light).toBe(primitives.primaryNeutral[400]);
   });
 
+  // Both drifted from the code between the 2026-08-25 and 2026-09-15 extractions.
+  test('background-brand and warning-primary match the 2026-09-15 Figma pull', () => {
+    expect(colorTokens.background.brand).toEqual({
+      light: primitives.primary[100],
+      dark: primitives.primary[800],
+    });
+    expect(colorTokens.warning.primary.dark).toBe(primitives.warning[300]);
+  });
+
   test('all 12 semantic sections are present', () => {
     for (const section of COLOR_SECTIONS) {
       expect(colorTokens[section]).toBeDefined();

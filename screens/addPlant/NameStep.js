@@ -5,13 +5,16 @@
 // Chrome-less — AddPlantScreen supplies the nav bar and the Continue footer,
 // the way SnoozeContent leans on its host sheet.
 
+import { useMemo } from 'react';
 import { Image, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, Icon, TextInput } from '../../components';
 import { space } from '../../theme/foundations';
-import { list, textInput } from '../../theme/tokens';
+import { useTheme } from '../../theme/ThemeProvider';
 import { HERO } from '../placeholderPhotos';
 
 export default function NameStep({ photo, name, onChangeName, suggestions }) {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   // Tapping anywhere off the field puts the keyboard away.
   return (
     <Pressable style={styles.body} onPress={Keyboard.dismiss} accessible={false}>
@@ -32,7 +35,7 @@ export default function NameStep({ photo, name, onChangeName, suggestions }) {
               accessibilityRole="button"
               accessibilityLabel="Clear name"
             >
-              <Icon name="close" size={20} color={textInput.placeholder} />
+              <Icon name="close" size={20} color={t.text.placeholder} />
             </Pressable>
           ) : null
         }
@@ -55,7 +58,7 @@ export default function NameStep({ photo, name, onChangeName, suggestions }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   body: {
     flex: 1,
     alignItems: 'center',
@@ -65,6 +68,6 @@ const styles = StyleSheet.create({
   },
   photo: { width: 152, height: 152, borderRadius: 18 },
   suggestions: { alignSelf: 'stretch', gap: 10 },
-  suggestionsLabel: { fontSize: 14, lineHeight: 20, fontWeight: '500', color: list.subtitleInk },
+  suggestionsLabel: { fontSize: 14, lineHeight: 20, fontWeight: '500', color: t.text.secondary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
 });

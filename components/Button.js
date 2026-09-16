@@ -46,9 +46,8 @@ function palette(t, variant, destructive) {
     // brand green (primary-500) in light / primary-400 in dark.
     primary: { bg: t.brand.primary, fg: t.brand.onPrimary },
     secondary: { bg: t.brand.secondary, fg: t.brand.onSecondary },
-    // Figma's outline button is opaque, not see-through (theme/tokens.js
-    // button.outline.bg === '#FAFAFA' in light, '#151515' in dark) — both are
-    // background.primary. It has to be opaque so outline buttons laid over
+    // Figma's outline button is opaque, not see-through — its fill is
+    // background.primary in both modes. It has to be opaque so outline buttons laid over
     // photography (the auth Welcome screen) read as solid pills.
     outline: { bg: t.background.primary, fg: t.text.primary, border: t.border.primary },
     ghost: { bg: 'transparent', fg: t.text.primary },

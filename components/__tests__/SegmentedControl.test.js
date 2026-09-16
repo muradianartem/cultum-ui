@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import SegmentedControl from '../SegmentedControl';
 import { SegmentedControl as BarrelSC } from '../index';
-import { segmented } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -45,7 +49,7 @@ test('the selected segment gets the white thumb and selected a11y', () => {
   );
   const week = tabs(tree)[1];
   expect(week.props.accessibilityState.selected).toBe(true);
-  expect(tabStyle(week).backgroundColor).toBe(segmented.thumbBg);
+  expect(tabStyle(week).backgroundColor).toBe(t.background.primary);
   expect(tabStyle(tabs(tree)[0]).backgroundColor).toBeUndefined();
 });
 

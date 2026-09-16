@@ -1,13 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { segmented, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * SegmentedControl — horizontal single-select switch, imported from Figma
  * "Segmented Control – P2".
  *
- * A pill track of equal-width segments; the selected one becomes a white pill.
- * Figma axes → props: Has Icon → per-segment `icon`; State (Active/Pressed) →
- * pressed feedback + the selected fill; disabled → `disabled`.
+ * A surface-primary pill track of equal-width segments; the selected one becomes
+ * a background-primary pill. Figma axes → props: Has Icon → per-segment `icon`;
+ * State (Active/Pressed) → pressed feedback + the selected fill; disabled →
+ * `disabled`.
  *
  * `segments` is an array of strings or `{ label, value, icon }`. Controlled via
  * `value` + `onChange(value, index)`.
@@ -26,12 +28,18 @@ export default function SegmentedControl({
   style,
   ...rest
 }) {
+  const t = useTheme();
   const items = normalize(segments);
 
   return (
     <View
       accessibilityRole="tablist"
-      style={[styles.track, disabled && styles.disabled, style]}
+      style={[
+        styles.track,
+        { backgroundColor: t.surface.primary },
+        disabled && styles.disabled,
+        style,
+      ]}
       {...rest}
     >
       {items.map((item, i) => {
@@ -46,15 +54,15 @@ export default function SegmentedControl({
             accessibilityLabel={typeof item.label === 'string' ? item.label : String(item.value)}
             style={({ pressed }) => [
               styles.segment,
-              isSelected && styles.segmentSelected,
-              !isSelected && pressed && !disabled && styles.segmentPressed,
+              isSelected && { backgroundColor: t.background.primary },
+              !isSelected && pressed && !disabled && { backgroundColor: t.interaction.pressed },
             ]}
           >
             {item.icon ? <View style={styles.icon}>{item.icon}</View> : null}
             {typeof item.label === 'string' ? (
               <Text
                 numberOfLines={1}
-                style={[styles.label, disabled && { color: segmented.inkDisabled }]}
+                style={[styles.label, { color: disabled ? t.disabled.on : t.text.primary }]}
               >
                 {item.label}
               </Text>
@@ -77,7 +85,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     padding: segmented.pad,
-    backgroundColor: segmented.trackBg,
     borderRadius: radius.pill,
   },
   segment: {
@@ -90,9 +97,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: radius.pill,
   },
-  segmentSelected: { backgroundColor: segmented.thumbBg },
-  segmentPressed: { backgroundColor: segmented.pressedBg },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 14, fontWeight: '500', color: segmented.ink },
+  label: { fontSize: 14, fontWeight: '500' },
   disabled: { opacity: 0.6 },
 });

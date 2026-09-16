@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
@@ -61,6 +62,8 @@ const MOSAIC = [
 export default function LoginScreen() {
   return (
     <ThemeProvider initialMode="dark">
+      {/* The collage and its dark scrim sit under the status bar. */}
+      <StatusBar style="light" />
       <WelcomeScreen />
     </ThemeProvider>
   );

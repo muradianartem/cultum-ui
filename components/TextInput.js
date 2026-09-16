@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { textInput } from '../theme/tokens';
+import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 
 /**
  * TextInput — labelled form field, imported from Figma "Text Input – P2".
@@ -17,7 +18,8 @@ import { textInput } from '../theme/tokens';
  *   Leading/Trailing Area          → `leftIcon` / `rightIcon`
  *
  * `error` may be a boolean or a string; a string replaces the helper text and
- * turns it red. Controlled via `value` + `onChangeText`.
+ * turns it red. Controlled via `value` + `onChangeText`. The keyboard follows
+ * the active theme.
  */
 export default function TextInput({
   label,
@@ -35,22 +37,26 @@ export default function TextInput({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
+  const { effective } = useThemeMode();
   const [focused, setFocused] = useState(false);
   const hasError = !!error;
   const helperText = typeof error === 'string' ? error : helper;
 
   const borderColor = hasError
-    ? textInput.borderError
+    ? t.error.primary
     : focused && !disabled
-    ? textInput.borderFocus
-    : textInput.border;
+    ? t.text.primary
+    : t.border.primary;
 
   return (
     <View style={[styles.wrap, style]}>
       {label ? (
         <View style={styles.labelRow}>
-          <Text style={styles.label}>{label}</Text>
-          {optional ? <Text style={styles.optional}>Optional</Text> : null}
+          <Text style={[styles.label, { color: t.text.primary }]}>{label}</Text>
+          {optional ? (
+            <Text style={[styles.optional, { color: t.text.secondary }]}>Optional</Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -60,7 +66,7 @@ export default function TextInput({
           {
             borderColor,
             borderWidth: focused && !disabled && !hasError ? 1.5 : 1,
-            backgroundColor: disabled ? textInput.bgDisabled : textInput.bg,
+            backgroundColor: disabled ? t.disabled.surface : t.background.primary,
           },
         ]}
       >
@@ -69,19 +75,22 @@ export default function TextInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={textInput.placeholder}
+          placeholderTextColor={t.text.placeholder}
+          keyboardAppearance={effective}
           editable={!disabled}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           accessibilityLabel={accessibilityLabel ?? label}
-          style={[styles.input, inputStyle]}
+          style={[styles.input, { color: t.text.primary }, inputStyle]}
           {...rest}
         />
         {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
       </View>
 
       {helperText ? (
-        <Text style={[styles.helper, hasError && styles.helperError]}>{helperText}</Text>
+        <Text style={[styles.helper, { color: hasError ? t.error.primary : t.text.secondary }]}>
+          {helperText}
+        </Text>
       ) : null}
     </View>
   );
@@ -90,8 +99,8 @@ export default function TextInput({
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: 'stretch' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, lineHeight: 17, color: textInput.labelInk },
-  optional: { fontSize: 12, lineHeight: 17, color: textInput.optionalInk },
+  label: { fontSize: 12, lineHeight: 17 },
+  optional: { fontSize: 12, lineHeight: 17 },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -101,7 +110,6 @@ const styles = StyleSheet.create({
     borderRadius: textInput.radius,
   },
   icon: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, fontSize: 14, color: textInput.ink, padding: 0 },
-  helper: { fontSize: 12, lineHeight: 17, color: textInput.helperInk },
-  helperError: { color: textInput.errorInk },
+  input: { flex: 1, fontSize: 14, padding: 0 },
+  helper: { fontSize: 12, lineHeight: 17 },
 });

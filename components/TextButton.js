@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * TextButton — low-emphasis, chrome-less tappable text.
@@ -8,16 +8,18 @@ import { colors } from '../theme/tokens';
  * label used inline in rows and at the foot of sheets ("Not now", "Undo",
  * "Skip"). Distinct from <Button>, which is the sized pill.
  *
- * tone:   default (green-deep) | danger (burnt orange — destructive text) | muted
+ * tone:   default (success green) | danger (error — destructive text) | muted
  * size:   md (15) | sm (13.5)
  * inline: tighter padding for sitting beside other text.
  */
 
-const TONES = {
-  default: colors.greenDeep,
-  danger: colors.danger,
-  muted: colors.ink2,
-};
+// The prototype's green-deep / burnt-orange / ink-2 have no Figma counterpart;
+// these are the nearest semantic roles, which also carry a dark value.
+const tones = (t) => ({
+  default: t.success.primary,
+  danger: t.error.primary,
+  muted: t.text.secondary,
+});
 
 export default function TextButton({
   label,
@@ -34,7 +36,9 @@ export default function TextButton({
   accessibilityLabel,
   ...rest
 }) {
-  const color = TONES[tone] || TONES.default;
+  const t = useTheme();
+  const palette = tones(t);
+  const color = palette[tone] || palette.default;
   const content = children ?? label;
 
   return (

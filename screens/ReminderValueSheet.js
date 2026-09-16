@@ -11,10 +11,11 @@
 // On confirm it hands the parent a formatted value string to write back into
 // local state. V1 mock — no scheduling, no persistence.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Calendar, BottomSheet, WheelPicker } from '../components';
-import { sheet, fonts } from '../theme/tokens';
+import { fonts } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
   FREQUENCY_NUMBERS,
@@ -96,6 +97,8 @@ export default function ReminderValueSheet({
   onConfirm,
   today, // injectable for deterministic tests; defaults to now
 }) {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const cfg = field ? FIELD[field] : null;
   const currentValue =
     reminder && field
@@ -192,21 +195,21 @@ export default function ReminderValueSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   wrap: { paddingHorizontal: 16, gap: 16 },
   title: {
     fontFamily: fonts.display,
     fontSize: 20,
     lineHeight: 26,
     fontWeight: '700',
-    color: sheet.titleInk,
+    color: t.text.primary,
     textAlign: 'center',
   },
   // Figma wraps the #FAFAFA calendar card in a bordered 20px-radius frame.
   calendarWrap: {
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#B6B9B6',
+    borderColor: t.border.primary,
     borderRadius: 20,
   },
   picker: { height: WHEEL_H, justifyContent: 'center' },
@@ -217,13 +220,13 @@ const styles = StyleSheet.create({
     top: (WHEEL_H - ITEM_H) / 2,
     height: ITEM_H,
     borderRadius: 9999,
-    backgroundColor: '#DADBDA', // copied from SnoozeContent's selection band
+    backgroundColor: t.surface.secondary, // same selection band as SnoozeContent
   },
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   leftCol: { width: 120 },
   rightCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: sheet.titleInk },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: sheet.titleInk },
-  active: { fontSize: 20, opacity: 1, color: sheet.titleInk },
-  dim: { fontSize: 18, opacity: 0.45, color: sheet.bodyInk },
+  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
+  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
+  active: { fontSize: 20, opacity: 1, color: t.text.primary },
+  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
 });

@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, View } from 'react-native';
 import NavigationBar from '../NavigationBar';
 import { NavigationBar as BarrelNav } from '../index';
-import { divider } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -65,7 +69,7 @@ test('renders up to two trailing actions and fires them', () => {
 
 test('divider is on by default and can be turned off', () => {
   const withD = Object.assign({}, ...[].concat(header(create(<NavigationBar title="x" />)).props.style).filter(Boolean));
-  expect(withD.borderBottomColor).toBe(divider.hairline);
+  expect(withD.borderBottomColor).toBe(t.border.primary);
   const noD = Object.assign({}, ...[].concat(header(create(<NavigationBar title="x" divider={false} />)).props.style).filter(Boolean));
   expect(noD.borderBottomColor).toBeUndefined();
 });
