@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import Tabs from '../Tabs';
 import { Tabs as BarrelTabs } from '../index';
-import { tabs as tk } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -41,7 +45,7 @@ test('renders a labelled tab per item', () => {
 
 test('the active tab gets the green underline; others are transparent', () => {
   const tree = create(<Tabs items={ITEMS} value="care" />);
-  expect(style(hostTabs(tree)[1]).borderBottomColor).toBe(tk.underline);
+  expect(style(hostTabs(tree)[1]).borderBottomColor).toBe(t.brand.primary);
   expect(style(hostTabs(tree)[0]).borderBottomColor).toBe('transparent');
   expect(hostTabs(tree)[1].props.accessibilityState.selected).toBe(true);
 });

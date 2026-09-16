@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { chip, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Chip — compact, selectable pill, imported from Figma "Chip – P1".
@@ -8,8 +9,8 @@ import { chip, radius } from '../theme/tokens';
  *   State     → `selected` (Figma "Active"), `disabled`, + pressed feedback
  *   Show icon → `leftIcon` (a 24px leading node; icon-agnostic like <Button>)
  *
- * Selected and pressed both darken the fill; selected also darkens the ink.
- * Used in groups for filters / multi-select tags.
+ * Selected and pressed both step the fill up from surface-primary to
+ * surface-secondary. Used in groups for filters / multi-select tags.
  */
 export default function Chip({
   label,
@@ -23,9 +24,10 @@ export default function Chip({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const content = children ?? label;
 
-  const ink = disabled ? chip.inkDisabled : selected ? chip.inkSelected : chip.ink;
+  const ink = disabled ? t.disabled.on : t.text.primary;
 
   return (
     <Pressable
@@ -41,10 +43,10 @@ export default function Chip({
         leftIcon ? styles.padIcon : styles.padText,
         {
           backgroundColor: disabled
-            ? chip.bgDisabled
+            ? t.disabled.surface
             : selected || pressed
-            ? chip.bgSelected
-            : chip.bg,
+            ? t.surface.secondary
+            : t.surface.primary,
         },
         style,
       ]}

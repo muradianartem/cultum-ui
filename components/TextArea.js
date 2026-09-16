@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput as RNTextInput, View } from 'react-native';
-import { textInput } from '../theme/tokens';
+import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 
 /**
  * TextArea — multi-line input, imported from Figma "Text Area" (node 486:27425).
@@ -13,7 +13,8 @@ import { textInput } from '../theme/tokens';
  * So it deliberately repeats <TextInput>'s prop surface rather than wrapping it:
  * the box is a different shape (fixed height, top-aligned text, 12px radius
  * against the field's 8) and multiline RNTextInput needs `textAlignVertical`
- * and its own padding, none of which the single-line field wants.
+ * and its own padding, none of which the single-line field wants. Colours are
+ * the same semantic roles as <TextInput>.
  *
  * `maxLength` drives the counter; pass null to hide it.
  */
@@ -33,22 +34,25 @@ export default function TextArea({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
+  const { effective } = useThemeMode();
   const [focused, setFocused] = useState(false);
   const hasError = !!error;
   const helperText = typeof error === 'string' ? error : helper;
 
   const borderColor = hasError
-    ? textInput.borderError
+    ? t.error.primary
     : focused && !disabled
-    ? textInput.borderFocus
-    : textInput.border;
+    ? t.text.primary
+    : t.border.primary;
+  const muted = { color: t.text.secondary };
 
   return (
     <View style={[styles.wrap, style]}>
       {label ? (
         <View style={styles.labelRow}>
-          <Text style={styles.label}>{label}</Text>
-          {optional ? <Text style={styles.optional}>Optional</Text> : null}
+          <Text style={[styles.label, { color: t.text.primary }]}>{label}</Text>
+          {optional ? <Text style={[styles.optional, muted]}>Optional</Text> : null}
         </View>
       ) : null}
 
@@ -59,7 +63,7 @@ export default function TextArea({
             height,
             borderColor,
             borderWidth: focused && !disabled && !hasError ? 1.5 : 1,
-            backgroundColor: disabled ? textInput.bgDisabled : textInput.bg,
+            backgroundColor: disabled ? t.disabled.surface : t.background.primary,
           },
         ]}
       >
@@ -67,7 +71,8 @@ export default function TextArea({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={textInput.placeholder}
+          placeholderTextColor={t.text.placeholder}
+          keyboardAppearance={effective}
           editable={!disabled}
           multiline
           textAlignVertical="top"
@@ -75,19 +80,21 @@ export default function TextArea({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           accessibilityLabel={accessibilityLabel ?? label}
-          style={[styles.input, inputStyle]}
+          style={[styles.input, { color: t.text.primary }, inputStyle]}
           {...rest}
         />
       </View>
 
       <View style={styles.footer}>
         {helperText ? (
-          <Text style={[styles.helper, hasError && styles.helperError]}>{helperText}</Text>
+          <Text style={[styles.helper, hasError ? { color: t.error.primary } : muted]}>
+            {helperText}
+          </Text>
         ) : (
           <View />
         )}
         {maxLength ? (
-          <Text style={styles.counter}>{`${value?.length ?? 0}/${maxLength}`}</Text>
+          <Text style={[styles.counter, muted]}>{`${value?.length ?? 0}/${maxLength}`}</Text>
         ) : null}
       </View>
     </View>
@@ -97,12 +104,11 @@ export default function TextArea({
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: 'stretch' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, lineHeight: 17, color: textInput.labelInk },
-  optional: { fontSize: 12, lineHeight: 17, color: textInput.optionalInk },
+  label: { fontSize: 12, lineHeight: 17 },
+  optional: { fontSize: 12, lineHeight: 17 },
   field: { padding: 16, borderRadius: 12 },
-  input: { flex: 1, fontSize: 14, lineHeight: 20, color: textInput.ink, padding: 0 },
+  input: { flex: 1, fontSize: 14, lineHeight: 20, padding: 0 },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  helper: { flex: 1, fontSize: 12, lineHeight: 17, color: textInput.helperInk },
-  helperError: { color: textInput.errorInk },
-  counter: { fontSize: 12, lineHeight: 17, color: textInput.helperInk },
+  helper: { flex: 1, fontSize: 12, lineHeight: 17 },
+  counter: { fontSize: 12, lineHeight: 17 },
 });

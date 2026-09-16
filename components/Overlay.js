@@ -1,31 +1,37 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { overlay } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Overlay — full-screen dimming scrim, imported from Figma "Overlay - P3".
  *
  * A layer placed behind modal content (sheets, dialogs, takeovers) to focus
  * attention and mark the rest of the screen inactive. Tapping it usually
- * dismisses what's above — wire `onPress`. Figma's scrim is a #FAFAFA layer at
- * 0.85; `color`/`opacity` override it. `children` render on top, undimmed.
+ * dismisses what's above — wire `onPress`. Figma's scrim is the page ground
+ * (background-primary: #FAFAFA light, #151515 dark) at 0.85; `color`/`opacity`
+ * override it. `children` render on top, undimmed.
  *
  * Renders as an absolute fill — place it inside a Modal or a positioned parent.
  */
 export default function Overlay({
   visible = true,
   onPress,
-  color = overlay.color,
+  color,
   opacity = overlay.opacity,
   children,
   style,
   ...rest
 }) {
+  const t = useTheme();
   if (!visible) return null;
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.root, style]} {...rest}>
       <Pressable
-        style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity }]}
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: color ?? t.background.primary, opacity },
+        ]}
         onPress={onPress}
         accessibilityRole={onPress ? 'button' : 'none'}
         accessibilityLabel={onPress ? 'Dismiss' : undefined}

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
-import { tabs as tk } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Tabs — in-screen underline tabs, imported from Figma "Tabs - P3".
@@ -13,6 +13,7 @@ import { tabs as tk } from '../theme/tokens';
  * `value` + `onChange(value)`. Scrolls horizontally when the tabs overflow.
  */
 export default function Tabs({ items = [], value, onChange, scrollable = true, style, ...rest }) {
+  const t = useTheme();
   const Container = scrollable ? ScrollView : View;
   const containerProps = scrollable
     ? { horizontal: true, showsHorizontalScrollIndicator: false, contentContainerStyle: styles.row }
@@ -30,15 +31,16 @@ export default function Tabs({ items = [], value, onChange, scrollable = true, s
         accessibilityLabel={tab.label}
         style={({ pressed }) => [
           styles.tab,
-          { borderBottomColor: active ? tk.underline : 'transparent' },
+          { borderBottomColor: active ? t.brand.primary : 'transparent' },
           pressed && !tab.disabled && styles.pressed,
+          pressed && !tab.disabled && { backgroundColor: t.interaction.pressed },
         ]}
       >
         {tab.icon ? <View style={styles.icon}>{tab.icon}</View> : null}
         {tab.label ? (
           <Text
             numberOfLines={1}
-            style={[styles.label, tab.disabled && { color: tk.inkDisabled }]}
+            style={[styles.label, { color: tab.disabled ? t.disabled.on : t.text.primary }]}
           >
             {tab.label}
           </Text>
@@ -48,7 +50,11 @@ export default function Tabs({ items = [], value, onChange, scrollable = true, s
   });
 
   return (
-    <View accessibilityRole="tablist" style={[styles.bar, style]} {...rest}>
+    <View
+      accessibilityRole="tablist"
+      style={[styles.bar, { borderBottomColor: t.border.primary }, style]}
+      {...rest}
+    >
       <Container {...containerProps}>{inner}</Container>
     </View>
   );
@@ -58,7 +64,6 @@ const styles = StyleSheet.create({
   bar: {
     alignSelf: 'stretch',
     borderBottomWidth: 1,
-    borderBottomColor: tk.border,
   },
   row: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16 },
   tab: {
@@ -70,7 +75,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     marginBottom: -1,
   },
-  pressed: { backgroundColor: tk.pressed, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  pressed: { borderTopLeftRadius: 8, borderTopRightRadius: 8 },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 14, color: tk.ink },
+  label: { fontSize: 14 },
 });

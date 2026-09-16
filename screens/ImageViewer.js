@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -11,7 +11,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from '../routing';
 import { PHOTOS } from './placeholderPhotos';
-import { badge, colors, radius } from '../theme/tokens';
+import { radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * ⚠️ V2 — not wired into the V1 flow. The `image-viewer` route in App.js and the
@@ -28,6 +29,8 @@ import { badge, colors, radius } from '../theme/tokens';
 const { width } = Dimensions.get('window');
 
 export default function ImageViewer({ subtitle = '' }) {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const insets = useSafeAreaInsets();
   const { back, params } = useRouter();
   const start = Math.min(Math.max(params?.index ?? 0, 0), PHOTOS.length - 1);
@@ -83,8 +86,8 @@ export default function ImageViewer({ subtitle = '' }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
+const makeStyles = (t) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.background.primary },
   pager: { flex: 1 },
   page: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   photo: { width: '100%', height: '70%' },
@@ -107,18 +110,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closePressed: { backgroundColor: colors.surface2 },
-  closeGlyph: { fontSize: 18, color: colors.ink, lineHeight: 20 },
+  closePressed: { backgroundColor: t.surface.primary },
+  closeGlyph: { fontSize: 18, color: t.text.primary, lineHeight: 20 },
   headerText: { flex: 1, alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  subtitle: { fontSize: 13, color: colors.ink3 },
+  title: { fontSize: 16, fontWeight: '700', color: t.text.primary },
+  subtitle: { fontSize: 13, color: t.text.secondary },
 
   counterRow: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   counter: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radius.pill,
-    backgroundColor: badge.neutral.soft,
+    backgroundColor: t.brand.secondary,
   },
-  counterText: { fontSize: 12, color: badge.neutral.softInk },
+  counterText: { fontSize: 12, color: t.brand.onSecondary },
 });

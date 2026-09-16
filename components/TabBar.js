@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { tabBar } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * TabBar — bottom navigation, imported from Figma "Tab Bar – P2".
@@ -13,14 +13,23 @@ import { tabBar } from '../theme/tokens';
  * Controlled via `value` + `onChange(value)`. Icons are nodes (icon-agnostic).
  */
 export default function TabBar({ tabs = [], value, onChange, style, ...rest }) {
+  const t = useTheme();
   return (
-    <View accessibilityRole="tablist" style={[styles.bar, style]} {...rest}>
+    <View
+      accessibilityRole="tablist"
+      style={[
+        styles.bar,
+        { backgroundColor: t.background.primary, borderTopColor: t.border.primary },
+        style,
+      ]}
+      {...rest}
+    >
       {tabs.map((tab, i) => {
         const active = value != null ? value === tab.value : i === 0;
         const pill = tab.emphasized
-          ? tabBar.emphasizedPill
+          ? t.brand.primary
           : active
-          ? tabBar.activePill
+          ? t.surface.primary
           : 'transparent';
 
         return (
@@ -31,10 +40,7 @@ export default function TabBar({ tabs = [], value, onChange, style, ...rest }) {
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !!tab.disabled }}
             accessibilityLabel={tab.label}
-            style={({ pressed }) => [
-              styles.tab,
-              tab.disabled && styles.disabled,
-            ]}
+            style={[styles.tab, tab.disabled && styles.disabled]}
           >
             {({ pressed }) => (
               <>
@@ -44,7 +50,7 @@ export default function TabBar({ tabs = [], value, onChange, style, ...rest }) {
                     {
                       backgroundColor:
                         pressed && !tab.disabled && !tab.emphasized
-                          ? tabBar.pressedPill
+                          ? t.interaction.pressed
                           : pill,
                     },
                   ]}
@@ -56,7 +62,7 @@ export default function TabBar({ tabs = [], value, onChange, style, ...rest }) {
                     numberOfLines={1}
                     style={[
                       styles.label,
-                      { color: active ? tabBar.labelActive : tabBar.labelInactive },
+                      { color: active ? t.text.primary : t.text.secondary },
                     ]}
                   >
                     {tab.label}
@@ -79,9 +85,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     gap: 8,
-    backgroundColor: tabBar.bg,
     borderTopWidth: 1,
-    borderTopColor: tabBar.borderTop,
   },
   tab: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 8 },
   iconWrap: {

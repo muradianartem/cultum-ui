@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, View } from 'react-native';
 import State from '../State';
 import { State as BarrelState } from '../index';
-import { emptyState } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -30,7 +34,7 @@ test('renders title and subtitle', () => {
 
 test('card variant applies the grey panel', () => {
   expect(rootStyle(create(<State variant="card" title="x" />)).backgroundColor).toBe(
-    emptyState.cardBg
+    t.surface.primary
   );
   expect(rootStyle(create(<State title="x" />)).backgroundColor).toBeUndefined();
 });

@@ -4,15 +4,17 @@
 //
 // Chrome-less — AddPlantScreen supplies the nav bar and the two footer actions.
 
+import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
-import { fonts, list } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { HERO } from '../placeholderPhotos';
 
 export default function SuccessStep({ photo, title, subtitle }) {
   const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   return (
     <View style={styles.body}>
@@ -36,7 +38,7 @@ export default function SuccessStep({ photo, title, subtitle }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t) => StyleSheet.create({
   body: {
     flex: 1,
     alignItems: 'center',
@@ -62,13 +64,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 20,
     lineHeight: 26,
-    color: list.titleInk,
+    color: t.text.primary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: list.subtitleInk,
+    color: t.text.secondary,
     textAlign: 'center',
   },
 });

@@ -11,7 +11,6 @@ import {
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
-import { searchBar } from '../../theme/tokens';
 import { searchPlants } from '../../api/plants';
 import { summaryToCard } from '../../api/mapPlant';
 import SpeciesCard from './SpeciesCard';
@@ -111,8 +110,8 @@ export default function ScanSearchScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="e.g Monstera"
-          leftIcon={<Icon name="search" size={20} color={searchBar.placeholder} />}
-          clearIcon={<Icon name="close" size={20} color={searchBar.ink} />}
+          leftIcon={<Icon name="search" size={20} color={t.text.placeholder} />}
+          clearIcon={<Icon name="close" size={20} color={t.text.primary} />}
         />
 
         {loading ? (

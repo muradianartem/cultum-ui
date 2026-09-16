@@ -23,7 +23,6 @@ import { Button, Icon, NavigationBar, useKeyboardVisible } from '../../component
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
-import { navbar } from '../../theme/tokens';
 import { useGarden } from '../../store/GardenProvider';
 import { parseFrequency } from '../../store/format';
 import AddReminderSheet from '../AddReminderSheet';
@@ -119,8 +118,8 @@ export default function AddPlantScreen({ plant, today }) {
   };
 
   const addAction = {
-    room: { icon: <Icon name="add" size={20} color={navbar.titleInk} />, onPress: openRoomSheet, accessibilityLabel: 'Add a new room' },
-    reminders: { icon: <Icon name="add" size={20} color={navbar.titleInk} />, onPress: openReminderSheet, accessibilityLabel: 'Add custom reminder' },
+    room: { icon: <Icon name="add" size={20} color={t.text.primary} />, onPress: openRoomSheet, accessibilityLabel: 'Add a new room' },
+    reminders: { icon: <Icon name="add" size={20} color={t.text.primary} />, onPress: openReminderSheet, accessibilityLabel: 'Add custom reminder' },
   }[step];
 
   const cta = remindersCta(reminders);

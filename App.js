@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
-import { ThemeProvider } from './theme/ThemeProvider';
+import { ThemeProvider, useTheme, useThemeMode } from './theme/ThemeProvider';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { GardenProvider } from './store/GardenProvider';
 import { clearState } from './store/persist';
@@ -35,7 +35,6 @@ import ScanSearchScreen from './screens/scan/ScanSearchScreen';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
 // the V1 flow — re-enable this import and its route below when V2 ships.
 // import ImageViewer from './screens/ImageViewer';
-import { colors } from './theme/tokens';
 
 // A reminder that arrives while the user happens to be in the app is still a
 // reminder, so notifications show a banner in the foreground too. Set once, at
@@ -47,6 +46,7 @@ configureNotifications();
 // no context access), so the Router only ever mounts once authenticated.
 function AuthGate() {
   const { status, signedInVia } = useAuth();
+  const t = useTheme();
 
   // Signing out has to take the garden with it: the document on disk, the
   // pictures beside it and the notifications already queued with the OS all
@@ -71,7 +71,7 @@ function AuthGate() {
 
   if (status === 'loading') {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { backgroundColor: t.background.primary }]}>
         <LoadingIndicator />
       </View>
     );
@@ -129,23 +129,14 @@ function AuthGate() {
   );
 }
 
-/**
- * Dark mode is not ready, and this is the switch that turns it on.
- *
- * 28 of the app's 31 components — List, ListItem, Divider, NavigationBar,
- * BottomSheet, Dialog, TabBar, Avatar among them — still read fixed light hexes
- * out of theme/tokens.js instead of useTheme(). Honouring a 'dark' preference
- * today therefore darkens only the handful of surfaces that are themed and
- * leaves every card, row and sheet light on top of them, which looks broken
- * rather than unfinished.
- *
- * So the preference is stored and the picker works; it just is not consulted
- * yet. When the component migration lands, flip this to true and set app.json's
- * `userInterfaceStyle` to "automatic" (it pins "light" today, which forces
- * useColorScheme() to 'light' and would strand 'system' on light forever).
- * Those two edits are the whole activation.
- */
-const DARK_MODE_READY = false;
+// Status-bar glyphs contrast with the page: dark on the light theme, light on
+// the dark one. Screens whose header is a photo (ProductPage, LoginScreen,
+// PaywallScreen, ScanCameraScreen) mount their own light <StatusBar>, and the
+// most recently mounted one wins while they are on screen.
+function ThemedStatusBar() {
+  const { effective } = useThemeMode();
+  return <StatusBar style={effective === 'dark' ? 'light' : 'dark'} />;
+}
 
 // The theme's mode is a stored preference, so it has to be read below
 // <PrefsProvider> — which App() itself renders and therefore cannot read.
@@ -157,9 +148,10 @@ function AppShell() {
   const { appearance, setAppearance } = usePrefs();
   return (
     <ThemeProvider
-      mode={DARK_MODE_READY ? appearance : 'light'}
+      mode={appearance}
       onModeChange={setAppearance}
     >
+      <ThemedStatusBar />
       <AuthProvider>
         <AuthGate />
       </AuthProvider>
@@ -177,8 +169,6 @@ export default function App() {
       <PrefsProvider>
         <AppShell />
       </PrefsProvider>
-      {/* Light hero photo behind the status bar → light status-bar text. */}
-      <StatusBar style="light" />
     </SafeAreaProvider>
   );
 }
@@ -188,6 +178,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.paper,
   },
 });

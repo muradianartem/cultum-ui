@@ -13,7 +13,6 @@ import {
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
-import { searchBar } from '../../theme/tokens';
 import { useGarden } from '../../store/GardenProvider';
 import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
@@ -83,8 +82,8 @@ export default function RoomsScreen() {
           onChangeText={setQuery}
           placeholder="Search your rooms or plants"
           accessibilityLabel="Search your rooms or plants"
-          leftIcon={<Icon name="search" size={20} color={searchBar.placeholder} />}
-          clearIcon={<Icon name="close" size={20} color={searchBar.ink} />}
+          leftIcon={<Icon name="search" size={20} color={t.text.placeholder} />}
+          clearIcon={<Icon name="close" size={20} color={t.text.primary} />}
           onClear={() => setQuery('')}
         />
 

@@ -1,7 +1,7 @@
 // Cultum semantic color tokens — the role layer components consume via useTheme().
 //
 // Source of truth: Figma "Cultum.app – Design System", page "Color Tokens"
-// (fileKey JyrSo87oacbcbALO8JO9At, node 27465:14108). Re-extracted 2026-08-25.
+// (fileKey JyrSo87oacbcbALO8JO9At, node 27465:14108). Re-extracted 2026-09-15.
 //
 // GENERATED from the Figma page. Every token carries a { light, dark } pair and
 // references a primitive (theme/primitives.js) — never a raw hex — except the
@@ -29,7 +29,7 @@ export const colorTokens = {
     primaryInverse: { light: p.primaryNeutral[950], dark: p.primaryNeutral[25] },
     secondary: { light: p.primaryNeutral[75], dark: p.primaryNeutral[900] },
     secondaryInverse: { light: p.primaryNeutral[950], dark: p.primaryNeutral[100] },
-    brand: { light: p.primary[50], dark: p.primary[850] },
+    brand: { light: p.primary[100], dark: p.primary[800] },
     brandInverse: { light: p.primary[850], dark: p.primary[50] },
   },
   // ---- Surface ----
@@ -83,7 +83,7 @@ export const colorTokens = {
   },
   // ---- Feedback / Warning ----
   warning: {
-    primary: { light: p.warning[500], dark: p.warning[150] },
+    primary: { light: p.warning[500], dark: p.warning[300] },
     onPrimary: { light: p.warning[925], dark: p.warning[900] },
     secondary: { light: p.warning[150], dark: p.warning[750] },
     onSecondary: { light: p.warning[925], dark: p.warning[25] },
