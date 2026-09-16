@@ -282,14 +282,30 @@ export function AuthProvider({ children }) {
   // and replays once through this.
   function refreshSession() {
     if (!rotationRef.current) {
-      rotationRef.current = rotate().finally(() => {
-        rotationRef.current = null;
-      });
+      // The rotation is deferred by a microtask so this ref is written *before*
+      // rotate() runs. Assigning rotate()'s return value directly would leave the
+      // ref null for the whole synchronous prefix of rotate() — and that prefix
+      // reaches apiFetch, which used to ask for an access token, which asks here
+      // again. With the guard not yet armed, that recursed until the stack blew
+      // and the failure was mistaken for a rejected refresh token, signing the
+      // user out on every cold launch. apiFetch no longer authenticates /auth/*,
+      // but the lock has to be honest on its own.
+      rotationRef.current = Promise.resolve()
+        .then(rotate)
+        .finally(() => {
+          rotationRef.current = null;
+        });
     }
     return rotationRef.current;
   }
 
   async function rotate() {
+    // Nothing to rotate with. Sending `refresh_token: undefined` would earn a 422
+    // and land in the same catch below, one pointless round trip later.
+    if (!tokensRef.current?.refresh_token) {
+      await endSession();
+      throw new Error('No refresh token to rotate');
+    }
     try {
       const rotated = withExpiry(await authApi.refresh(tokensRef.current?.refresh_token));
       // The refresh response carries no profile; carry the stored one forward.
@@ -301,12 +317,18 @@ export function AuthProvider({ children }) {
       setStatus('signedIn');
       return rotated;
     } catch (e) {
-      await clearTokens();
-      applyTokens(null);
-      originRef.current = null;
-      setStatus('signedOut');
+      await endSession();
       throw e;
     }
+  }
+
+  // Drop the session locally. Shared by a rejected rotation and by signOut, which
+  // only adds the best-effort server-side revoke on top.
+  async function endSession() {
+    await clearTokens();
+    applyTokens(null);
+    originRef.current = null;
+    setStatus('signedOut');
   }
 
   // Best-effort server logout (ignore its errors), then clear local storage and
@@ -316,11 +338,8 @@ export function AuthProvider({ children }) {
       const refresh = tokensRef.current?.refresh_token;
       if (refresh) await authApi.logout(refresh);
     } catch { }
-    await clearTokens();
-    applyTokens(null);
     applyProfile({ name: null, email: null, emailIsPrivate: false });
-    originRef.current = null;
-    setStatus('signedOut');
+    await endSession();
   }
 
   /**
