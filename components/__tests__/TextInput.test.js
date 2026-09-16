@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, TextInput as RNTextInput } from 'react-native';
 import TextInput from '../TextInput';
 import { TextInput as BarrelTextInput } from '../index';
-import { textInput } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -46,19 +50,19 @@ test('forwards typing', () => {
 test('focus switches the border to ink', () => {
   const tree = create(<TextInput value="" onChangeText={() => {}} />);
   act(() => input(tree).props.onFocus());
-  expect(fieldStyle(tree).borderColor).toBe(textInput.borderFocus);
+  expect(fieldStyle(tree).borderColor).toBe(t.text.primary);
 });
 
 test('error string replaces helper, turns it red and reds the border', () => {
   const tree = create(<TextInput value="" onChangeText={() => {}} helper="hint" error="Required" />);
-  const t = texts(tree);
-  expect(t).toContain('Required');
-  expect(t).not.toContain('hint');
-  expect(fieldStyle(tree).borderColor).toBe(textInput.borderError);
+  const copy = texts(tree);
+  expect(copy).toContain('Required');
+  expect(copy).not.toContain('hint');
+  expect(fieldStyle(tree).borderColor).toBe(t.error.primary);
 });
 
 test('disabled greys the fill and is not editable', () => {
   const tree = create(<TextInput value="x" onChangeText={() => {}} disabled />);
   expect(input(tree).props.editable).toBe(false);
-  expect(fieldStyle(tree).backgroundColor).toBe(textInput.bgDisabled);
+  expect(fieldStyle(tree).backgroundColor).toBe(t.disabled.surface);
 });

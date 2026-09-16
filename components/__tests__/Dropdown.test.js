@@ -2,12 +2,16 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text, View } from 'react-native';
 import Dropdown from '../Dropdown';
 import DropdownMenu, { MenuItem } from '../DropdownMenu';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 import {
   Dropdown as BarrelDropdown,
   DropdownMenu as BarrelMenu,
   MenuItem as BarrelMenuItem,
 } from '../index';
-import { textInput, menu } from '../../theme/tokens';
 
 function create(el) {
   let tree;
@@ -43,9 +47,9 @@ test('Dropdown shows placeholder, then the selected value', () => {
 });
 
 test('open adds the focus border; error reds it and shows the message', () => {
-  expect(triggerStyle(create(<Dropdown open />)).borderColor).toBe(textInput.borderFocus);
+  expect(triggerStyle(create(<Dropdown open />)).borderColor).toBe(t.text.primary);
   const err = create(<Dropdown error="Required" helper="hint" />);
-  expect(triggerStyle(err).borderColor).toBe(textInput.borderError);
+  expect(triggerStyle(err).borderColor).toBe(t.error.primary);
   expect(texts(err)).toContain('Required');
   expect(texts(err)).not.toContain('hint');
 });
@@ -87,5 +91,5 @@ test('DropdownMenu surface uses the token background', () => {
     (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'menu'
   );
   const s = Object.assign({}, ...[].concat(surface.props.style).filter(Boolean));
-  expect(s.backgroundColor).toBe(menu.bg);
+  expect(s.backgroundColor).toBe(t.background.primary);
 });

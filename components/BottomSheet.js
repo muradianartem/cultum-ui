@@ -2,17 +2,16 @@ import { useEffect, useRef } from 'react';
 import {
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { sheet, shadow, motion } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
-import { useKeyboardVisible } from './useKeyboardVisible';
+import { useKeyboard } from './useKeyboardVisible';
 
 /**
  * BottomSheet — Cultum's slide-up panel, imported from Figma "Bottom Sheet – P2".
@@ -25,13 +24,14 @@ import { useKeyboardVisible } from './useKeyboardVisible';
  * Interaction (Modal host, backdrop-to-dismiss, slide-in) is reconstructed for
  * RN — Figma only specifies the resting visual.
  *
- * Keyboard: the panel rides up above the keyboard, so a sheet with a field
- * stays readable while typing. Tapping the panel hides the keyboard, and so
- * does the first backdrop tap while it is up — only the next one closes.
+ * Keyboard: the panel rides up by the keyboard's own height, so a sheet with a
+ * field stays readable while typing — on both platforms, and from the very
+ * first (auto)focus. Tapping the panel hides the keyboard, and so does the
+ * first backdrop tap while it is up — only the next one closes.
  *
  * `sheetStyle` / `bodyStyle` restyle the surface and its content padding for
  * sheets the design gives a different ground or rhythm (the paywall's
- * "Choose a plan" sheet is #FAFAFA with a 24px top radius).
+ * "Choose a plan" sheet is background-primary with a 24px top radius).
  *
  * Slots (Figma → prop): Title→title, Description→description, Caption→caption,
  * Status icon→statusIcon, Close→onClose/showClose, Primary/Secondary action→
@@ -55,7 +55,8 @@ export default function BottomSheet({
   ...rest
 }) {
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
-  const keyboardVisible = useKeyboardVisible();
+  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
+  const t = useTheme();
 
   useEffect(() => {
     Animated.timing(translateY, {
@@ -77,10 +78,7 @@ export default function BottomSheet({
       testID={testID}
       {...rest}
     >
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
         <Pressable
           style={styles.backdrop}
           onPress={onBackdrop}
@@ -91,6 +89,7 @@ export default function BottomSheet({
         <Animated.View
           style={[
             styles.sheet,
+            { backgroundColor: t.background.secondary },
             shadow.sheet,
             keyboardVisible && styles.sheetOverKeyboard,
             {
@@ -109,7 +108,7 @@ export default function BottomSheet({
         >
           <Pressable onPress={Keyboard.dismiss} accessible={false} testID="bottomsheet-panel">
             <View style={styles.top}>
-              <View style={styles.handle} />
+              <View style={[styles.handle, { backgroundColor: t.text.placeholder }]} />
             </View>
 
             {showClose && onClose ? (
@@ -118,19 +117,19 @@ export default function BottomSheet({
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
-                style={styles.close}
+                style={[styles.close, { backgroundColor: t.brand.secondary }]}
                 testID="bottomsheet-close"
               >
-                <Text style={styles.closeGlyph}>✕</Text>
+                <Text style={[styles.closeGlyph, { color: t.text.primary }]}>✕</Text>
               </Pressable>
             ) : null}
 
             <View style={[styles.body, bodyStyle]}>
               <View style={styles.textBlock}>
-                {statusIcon ? <View style={styles.statusIcon}>{statusIcon}</View> : null}
-                {title ? <Text style={styles.title}>{title}</Text> : null}
+                {statusIcon ? <View style={[styles.statusIcon, { backgroundColor: t.brand.secondary }]}>{statusIcon}</View> : null}
+                {title ? <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text> : null}
                 {description ? (
-                  <Text style={styles.description}>{description}</Text>
+                  <Text style={[styles.description, { color: t.text.secondary }]}>{description}</Text>
                 ) : null}
               </View>
 
@@ -156,13 +155,13 @@ export default function BottomSheet({
                       {...secondaryAction}
                     />
                   ) : null}
-                  {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+                  {caption ? <Text style={[styles.caption, { color: t.text.secondary }]}>{caption}</Text> : null}
                 </View>
               ) : null}
             </View>
           </Pressable>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -171,7 +170,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(14,18,11,0.4)' },
   sheet: {
-    backgroundColor: sheet.bg,
     borderTopLeftRadius: sheet.radiusTop,
     borderTopRightRadius: sheet.radiusTop,
     paddingBottom: 34, // Figma home-indicator inset
@@ -183,7 +181,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 5,
     borderRadius: 100,
-    backgroundColor: sheet.handle,
   },
   close: {
     position: 'absolute',
@@ -192,11 +189,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 9999,
-    backgroundColor: sheet.closeBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeGlyph: { fontSize: 16, color: sheet.titleInk, lineHeight: 20 },
+  closeGlyph: { fontSize: 16, lineHeight: 20 },
   body: {
     paddingTop: 32,
     paddingBottom: 24,
@@ -207,7 +203,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 9999,
-    backgroundColor: sheet.statusIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -215,21 +210,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '700',
-    color: sheet.titleInk,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400',
-    color: sheet.bodyInk,
     textAlign: 'center',
   },
   actions: { paddingHorizontal: 16, gap: 12 },
   caption: {
     fontSize: 12,
     lineHeight: 16,
-    color: sheet.bodyInk,
     textAlign: 'center',
   },
 });

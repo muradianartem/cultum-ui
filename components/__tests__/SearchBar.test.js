@@ -2,7 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { TextInput } from 'react-native';
 import SearchBar from '../SearchBar';
 import { SearchBar as BarrelSearch } from '../index';
-import { searchBar } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -47,7 +51,7 @@ test('focus adds the ink border', () => {
     (n) => typeof n.type === 'string' && n.type === 'View'
   )[0];
   const s = Object.assign({}, ...[].concat(field.props.style).filter(Boolean));
-  expect(s.borderColor).toBe(searchBar.focusBorder);
+  expect(s.borderColor).toBe(t.text.primary);
 });
 
 test('disabled is not editable', () => {

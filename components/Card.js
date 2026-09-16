@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { card, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
 
 /**
@@ -25,23 +26,36 @@ export default function Card({
   style,
   ...rest
 }) {
+  const t = useTheme();
   const hasActions = primaryAction || secondaryAction;
 
   return (
-    <View accessibilityRole="none" style={[styles.card, style]} {...rest}>
+    <View
+      accessibilityRole="none"
+      style={[styles.card, { backgroundColor: t.surface.primary }, style]}
+      {...rest}
+    >
       {(icon || title || subtitle) && (
         <View style={styles.header}>
-          {icon ? <View style={styles.iconBadge}>{icon}</View> : null}
+          {icon ? (
+            <View style={[styles.iconBadge, { backgroundColor: t.brand.secondary }]}>
+              {icon}
+            </View>
+          ) : null}
           {(title || subtitle) && (
             <View style={styles.headerText}>
-              {title ? <Text style={styles.title}>{title}</Text> : null}
-              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+              {title ? (
+                <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text>
+              ) : null}
+              {subtitle ? (
+                <Text style={[styles.subtitle, { color: t.text.secondary }]}>{subtitle}</Text>
+              ) : null}
             </View>
           )}
         </View>
       )}
 
-      {body ? <Text style={styles.body}>{body}</Text> : null}
+      {body ? <Text style={[styles.body, { color: t.text.secondary }]}>{body}</Text> : null}
       {children}
 
       {hasActions ? (
@@ -81,7 +95,6 @@ const styles = StyleSheet.create({
   card: {
     width: 375,
     maxWidth: '100%',
-    backgroundColor: card.bg,
     borderRadius: card.radius,
     padding: card.padding,
     gap: card.gap,
@@ -91,14 +104,13 @@ const styles = StyleSheet.create({
     width: card.iconBadgeSize,
     height: card.iconBadgeSize,
     borderRadius: radius.pill,
-    backgroundColor: card.iconBadgeBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerText: { flex: 1, gap: 4 },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: '700', color: card.titleInk },
-  subtitle: { fontSize: 14, lineHeight: 20, color: card.subtitleInk },
-  body: { fontSize: 14, lineHeight: 20, color: card.bodyInk },
+  title: { fontSize: 20, lineHeight: 26, fontWeight: '700' },
+  subtitle: { fontSize: 14, lineHeight: 20 },
+  body: { fontSize: 14, lineHeight: 20 },
   actions: { gap: 12 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   actionsCol: { flexDirection: 'column', alignItems: 'stretch' },

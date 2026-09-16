@@ -1,23 +1,25 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet } from 'react-native';
 import { loading } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * LoadingIndicator — spinner, imported from Figma "Loading Indicator – P2".
  *
- * Figma ships four rotation frames of a 24px ring (2px stroke #606160); here it
- * spins continuously. Drawn as a bordered circle with one accented edge (no
- * react-native-svg in the project).
+ * Figma ships four rotation frames of a 24px ring (2px stroke, text-placeholder
+ * over a surface-primary track); here it spins continuously. Drawn as a bordered
+ * circle with one accented edge.
  *
- * `size` and `color` are overridable; defaults come from the token.
+ * `size` and `color` are overridable; the colour defaults to the active theme.
  */
 export default function LoadingIndicator({
   size = loading.size,
-  color = loading.color,
+  color,
   style,
   accessibilityLabel = 'Loading',
   ...rest
 }) {
+  const t = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -49,8 +51,8 @@ export default function LoadingIndicator({
           height: size,
           borderRadius: size / 2,
           borderWidth: loading.stroke,
-          borderColor: loading.track,
-          borderTopColor: color,
+          borderColor: t.surface.primary,
+          borderTopColor: color ?? t.text.placeholder,
           transform: [{ rotate }],
         },
         style,

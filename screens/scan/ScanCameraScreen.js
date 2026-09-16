@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { ButtonIcon, Icon, LoadingIndicator, State } from '../../components';
@@ -205,6 +206,8 @@ export default function ScanCameraScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* The live camera sits under the status bar in both themes. */}
+      <StatusBar style="light" />
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}

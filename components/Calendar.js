@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { calendar } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import ButtonIcon from './ButtonIcon';
 import Chip from './Chip';
 import Divider from './Divider';
@@ -75,14 +76,15 @@ export function monthMatrix(date) {
 }
 
 function Day({ date, selected, isToday, onPress }) {
+  const t = useTheme();
   if (!date) return <View style={styles.day} />;
 
   const fill = selected
-    ? calendar.daySelectedBg
+    ? t.brand.primary
     : isToday
-    ? calendar.dayTodayBg
+    ? t.surface.secondary
     : 'transparent';
-  const ink = selected ? calendar.daySelectedInk : calendar.dayInk;
+  const ink = selected ? t.brand.onPrimary : t.text.primary;
 
   return (
     <Pressable
@@ -93,7 +95,7 @@ function Day({ date, selected, isToday, onPress }) {
       style={({ pressed }) => [
         styles.day,
         { backgroundColor: fill },
-        pressed && !selected && { backgroundColor: calendar.dayTodayBg },
+        pressed && !selected && { backgroundColor: t.surface.secondary },
       ]}
     >
       <Text
@@ -119,6 +121,7 @@ export default function Calendar({
   style,
   testID,
 }) {
+  const t = useTheme();
   const [ownMonth, setOwnMonth] = useState(() =>
     startOfMonth(month ?? value ?? today)
   );
@@ -154,22 +157,22 @@ export default function Calendar({
   const todayStart = startOfDay(today);
 
   return (
-    <View style={[styles.card, style]} testID={testID}>
+    <View style={[styles.card, { backgroundColor: t.background.primary }, style]} testID={testID}>
       <View style={styles.body}>
         <View style={styles.monthRow}>
           <ButtonIcon
             variant="ghost"
             size="md"
             accessibilityLabel="Previous month"
-            icon={<Icon name="chevron-left" size={20} color={calendar.monthInk} />}
+            icon={<Icon name="chevron-left" size={20} color={t.text.primary} />}
             onPress={() => goToMonth(addMonths(visible, -1))}
           />
-          <Text style={styles.monthLabel}>{monthLabel(visible)}</Text>
+          <Text style={[styles.monthLabel, { color: t.text.primary }]}>{monthLabel(visible)}</Text>
           <ButtonIcon
             variant="ghost"
             size="md"
             accessibilityLabel="Next month"
-            icon={<Icon name="chevron-right" size={20} color={calendar.monthInk} />}
+            icon={<Icon name="chevron-right" size={20} color={t.text.primary} />}
             onPress={() => goToMonth(addMonths(visible, 1))}
           />
         </View>
@@ -177,7 +180,7 @@ export default function Calendar({
         <View style={styles.week}>
           {WEEKDAY_INITIALS.map((d, i) => (
             <View key={i} style={styles.weekday}>
-              <Text style={styles.weekdayText}>{d}</Text>
+              <Text style={[styles.weekdayText, { color: t.text.secondary }]}>{d}</Text>
             </View>
           ))}
         </View>
@@ -221,7 +224,6 @@ export default function Calendar({
 const styles = StyleSheet.create({
   card: {
     alignSelf: 'stretch',
-    backgroundColor: calendar.bg,
     borderRadius: calendar.radius,
   },
   body: { paddingVertical: 12, paddingHorizontal: 8, gap: 2 },
@@ -231,12 +233,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     fontWeight: '700',
-    color: calendar.monthInk,
     textAlign: 'center',
   },
   week: { flexDirection: 'row', justifyContent: 'space-between' },
   weekday: { width: calendar.daySize, height: 20, alignItems: 'center', justifyContent: 'center' },
-  weekdayText: { fontSize: 12, lineHeight: 17, color: calendar.weekdayInk },
+  weekdayText: { fontSize: 12, lineHeight: 17 },
   grid: { paddingTop: 2, gap: 2 },
   day: {
     width: calendar.daySize,

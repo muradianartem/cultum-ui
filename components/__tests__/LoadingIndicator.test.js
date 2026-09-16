@@ -2,6 +2,11 @@ import TestRenderer, { act } from 'react-test-renderer';
 import LoadingIndicator from '../LoadingIndicator';
 import { LoadingIndicator as BarrelLoading } from '../index';
 import { loading } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -26,7 +31,7 @@ test('renders an accessible progressbar with the token stroke colour', () => {
   const tree = create(<LoadingIndicator />);
   expect(ring(tree).props.accessibilityLabel).toBe('Loading');
   const s = ringStyle(tree);
-  expect(s.borderTopColor).toBe(loading.color);
+  expect(s.borderTopColor).toBe(t.text.placeholder);
   expect(s.width).toBe(loading.size);
 });
 

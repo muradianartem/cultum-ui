@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { radio } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * RadioButton — single-choice control, imported from Figma "Radio Button – P1".
@@ -18,11 +19,12 @@ export default function RadioButton({
   accessibilityLabel,
   ...rest
 }) {
+  const t = useTheme();
   const ringColor = disabled
-    ? radio.ringDisabled
+    ? t.disabled.border
     : selected
-    ? radio.ringSelected
-    : radio.ring;
+    ? t.brand.primary
+    : t.border.primary;
 
   return (
     <Pressable
@@ -36,13 +38,15 @@ export default function RadioButton({
     >
       {({ pressed }) => (
         <View style={styles.center}>
-          {pressed && !disabled ? <View style={styles.halo} /> : null}
+          {pressed && !disabled ? (
+            <View style={[styles.halo, { backgroundColor: t.interaction.pressed }]} />
+          ) : null}
           <View style={[styles.ring, { borderColor: ringColor }]}>
             {selected ? (
               <View
                 style={[
                   styles.dot,
-                  { backgroundColor: disabled ? radio.dotDisabled : radio.dot },
+                  { backgroundColor: disabled ? t.disabled.surface : t.brand.primary },
                 ]}
               />
             ) : null}
@@ -61,7 +65,6 @@ const styles = StyleSheet.create({
     width: radio.haloSize,
     height: radio.haloSize,
     borderRadius: 9999,
-    backgroundColor: radio.halo,
   },
   ring: {
     width: radio.size,

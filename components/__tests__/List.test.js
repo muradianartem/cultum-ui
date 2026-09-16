@@ -3,7 +3,11 @@ import { Text, View } from 'react-native';
 import List from '../List';
 import ListItem from '../ListItem';
 import { List as BarrelList, ListItem as BarrelItem } from '../index';
-import { list, divider } from '../../theme/tokens';
+import { colorTokens, interaction } from '../../theme/colorTokens';
+import { resolveTokens } from '../../theme/ThemeProvider';
+
+// The light theme as components resolve it outside a provider.
+const t = resolveTokens({ ...colorTokens, interaction }, 'light');
 
 function create(el) {
   let tree;
@@ -44,9 +48,9 @@ test('ListItem renders title, subtitle, before and after slots', () => {
 
 test('divider draws a hairline when requested', () => {
   const withD = create(<ListItem title="x" divider />);
-  expect(views(withD).some((v) => flat(v).backgroundColor === divider.hairline)).toBe(true);
+  expect(views(withD).some((v) => flat(v).backgroundColor === t.border.primary)).toBe(true);
   const noD = create(<ListItem title="x" />);
-  expect(views(noD).some((v) => flat(v).backgroundColor === divider.hairline)).toBe(false);
+  expect(views(noD).some((v) => flat(v).backgroundColor === t.border.primary)).toBe(false);
 });
 
 test('onPress makes the row a button that fires', () => {
@@ -73,5 +77,5 @@ test('card List wraps items in the grey panel and propagates variant', () => {
   const root = tree.root.find(
     (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'list'
   );
-  expect(flat(root).backgroundColor).toBe(list.cardBg);
+  expect(flat(root).backgroundColor).toBe(t.surface.primary);
 });

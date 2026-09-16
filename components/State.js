@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { emptyState, button, radius } from '../theme/tokens';
+import { emptyState, radius } from '../theme/tokens';
+import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
 
 /**
@@ -13,9 +14,16 @@ import Button from './Button';
  *                              ({ label, onPress }); actions reuse <Button size="sm">
  *   Show icon      → `icon` inside a badge; `iconVariant` (badge colour) + `iconSize`
  */
-function iconPalette(variant) {
-  const p = button[variant] || button.primary;
-  return { bg: p.bg, border: p.border };
+// The badge borrows Button's fills for the same variant names.
+function iconPalette(t, variant) {
+  return (
+    {
+      primary: { bg: t.brand.primary },
+      secondary: { bg: t.brand.secondary },
+      outline: { bg: t.background.primary, border: t.border.primary },
+      ghost: { bg: 'transparent' },
+    }[variant] || { bg: t.brand.primary }
+  );
 }
 
 export default function State({
@@ -30,13 +38,19 @@ export default function State({
   style,
   ...rest
 }) {
+  const t = useTheme();
   const dim = emptyState.iconSizes[iconSize] || emptyState.iconSizes.lg;
-  const ip = iconPalette(iconVariant);
+  const ip = iconPalette(t, iconVariant);
 
   return (
     <View
       accessibilityRole="summary"
-      style={[styles.base, variant === 'card' && styles.card, style]}
+      style={[
+        styles.base,
+        variant === 'card' && styles.card,
+        variant === 'card' && { backgroundColor: t.surface.primary },
+        style,
+      ]}
       {...rest}
     >
       {icon ? (
@@ -52,8 +66,10 @@ export default function State({
       ) : null}
 
       <View style={styles.text}>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {title ? <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text> : null}
+        {subtitle ? (
+          <Text style={[styles.subtitle, { color: t.text.secondary }]}>{subtitle}</Text>
+        ) : null}
       </View>
 
       {primaryAction || secondaryAction ? (
@@ -95,7 +111,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   card: {
-    backgroundColor: emptyState.cardBg,
     borderRadius: emptyState.cardRadius,
     paddingHorizontal: 16,
   },
@@ -109,13 +124,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 26,
     fontWeight: '700',
-    color: emptyState.titleInk,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: emptyState.subtitleInk,
     textAlign: 'center',
   },
   actions: { alignSelf: 'stretch', alignItems: 'center', gap: 4 },

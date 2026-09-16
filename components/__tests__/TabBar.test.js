@@ -2,7 +2,6 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import TabBar from '../TabBar';
 import { TabBar as BarrelTabBar } from '../index';
-import { tabBar as tk } from '../../theme/tokens';
 
 function create(el) {
   let tree;
