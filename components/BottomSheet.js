@@ -2,9 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,7 +11,7 @@ import {
 import { sheet, shadow, motion } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
-import { useKeyboardVisible } from './useKeyboardVisible';
+import { useKeyboard } from './useKeyboardVisible';
 
 /**
  * BottomSheet — Cultum's slide-up panel, imported from Figma "Bottom Sheet – P2".
@@ -26,9 +24,10 @@ import { useKeyboardVisible } from './useKeyboardVisible';
  * Interaction (Modal host, backdrop-to-dismiss, slide-in) is reconstructed for
  * RN — Figma only specifies the resting visual.
  *
- * Keyboard: the panel rides up above the keyboard, so a sheet with a field
- * stays readable while typing. Tapping the panel hides the keyboard, and so
- * does the first backdrop tap while it is up — only the next one closes.
+ * Keyboard: the panel rides up by the keyboard's own height, so a sheet with a
+ * field stays readable while typing — on both platforms, and from the very
+ * first (auto)focus. Tapping the panel hides the keyboard, and so does the
+ * first backdrop tap while it is up — only the next one closes.
  *
  * `sheetStyle` / `bodyStyle` restyle the surface and its content padding for
  * sheets the design gives a different ground or rhythm (the paywall's
@@ -56,7 +55,7 @@ export default function BottomSheet({
   ...rest
 }) {
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
-  const keyboardVisible = useKeyboardVisible();
+  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
   const t = useTheme();
 
   useEffect(() => {
@@ -79,10 +78,7 @@ export default function BottomSheet({
       testID={testID}
       {...rest}
     >
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
         <Pressable
           style={styles.backdrop}
           onPress={onBackdrop}
@@ -165,7 +161,7 @@ export default function BottomSheet({
             </View>
           </Pressable>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
