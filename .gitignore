@@ -43,3 +43,6 @@ yarn-error.*
 # iOS signing (local credentials)
 credentials.json
 /certs
+
+# Codex local config (holds API keys)
+.codex/

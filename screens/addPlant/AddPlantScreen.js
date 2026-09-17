@@ -11,12 +11,15 @@
 // navigate() on every step — and losing it on back(). Instead the draft lives
 // here and `step` walks the PREVIOUS map, the same shape AddReminderSheet uses.
 //
-// Done writes the plant and its reminders to the store in one commit and
-// re-enters the product page through replace() with the new plant's id — a
-// Route only renders while it matches, so ProductPage is unmounted for the
-// whole flow and there is no state there to call back into.
+// Leaving the reminders step writes the plant and its reminders to the store
+// in one commit, before success renders — that screen says the plant was
+// added, and every one of its exits (Done, close, Scan another plant) must
+// keep it. Done and close then re-enter the product page through replace()
+// with the new plant's id — a Route only renders while it matches, so
+// ProductPage is unmounted for the whole flow and there is no state there to
+// call back into.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Icon, NavigationBar, useKeyboardVisible } from '../../components';
@@ -68,6 +71,9 @@ export default function AddPlantScreen({ plant, today }) {
   const [reminders, setReminders] = useState(() => defaultReminders(vm));
   const [roomSheet, setRoomSheet] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(false);
+  // The new plant's id, set once it is in the store. Success has no way back,
+  // so it never needs clearing.
+  const savedId = useRef(null);
 
   // Rooms come from the store, so one created here is a room everywhere —
   // the flow no longer keeps a private list that the Rooms tab never sees.
@@ -75,9 +81,16 @@ export default function AddPlantScreen({ plant, today }) {
   const room = rooms.find((r) => r.id === roomId) ?? null;
   const previous = PREVIOUS[step];
 
+  const openPlant = () => replace('product', { plantId: savedId.current });
+
   // The leading button steps backwards through the flow where it can, and
-  // otherwise leaves it.
-  const leave = () => (previous ? setStep(previous) : back());
+  // otherwise leaves it — from success, onto the plant that was just saved
+  // rather than back to the species it came from.
+  const leave = () => {
+    if (previous) setStep(previous);
+    else if (step === 'success') openPlant();
+    else back();
+  };
 
   const addRoom = (roomName) => setRoomId(garden.addRoom(roomName));
 
@@ -89,19 +102,23 @@ export default function AddPlantScreen({ plant, today }) {
   const addCustomReminder = (draft) =>
     setReminders((list) => [...list, customReminderRow(draft, parseFrequency(draft.frequency))]);
 
-  const done = () => {
-    const plantId = garden.addPlant({
-      speciesKey: vm?.speciesKey ?? null,
-      nickname: name,
-      roomId,
-      // The raw SpeciesDetail, so the plant's page renders in full offline.
-      care: vm?.detail ?? null,
-      heroUri: vm?.heroUri ?? null,
-      reminders: reminders
-        .filter((r) => r.enabled)
-        .map((r) => ({ action: r.action, title: r.title, intervalDays: r.intervalDays })),
-    });
-    replace('product', { plantId });
+  // Runs from the reminders CTA. A ref, not state, guards it: two taps in the
+  // same frame would both still read the old state and add the plant twice.
+  const save = () => {
+    if (!savedId.current) {
+      savedId.current = garden.addPlant({
+        speciesKey: vm?.speciesKey ?? null,
+        nickname: name,
+        roomId,
+        // The raw SpeciesDetail, so the plant's page renders in full offline.
+        care: vm?.detail ?? null,
+        heroUri: vm?.heroUri ?? null,
+        reminders: reminders
+          .filter((r) => r.enabled)
+          .map((r) => ({ action: r.action, title: r.title, intervalDays: r.intervalDays })),
+      });
+    }
+    setStep('success');
   };
 
   // Both sheets are Modals, and iOS won't present a second over an open one —
@@ -204,7 +221,7 @@ export default function AddPlantScreen({ plant, today }) {
               label={cta.label}
               variant={cta.variant}
               size="lg"
-              onPress={() => setStep('success')}
+              onPress={save}
             />
           ) : null}
 
@@ -217,7 +234,7 @@ export default function AddPlantScreen({ plant, today }) {
                 leftIcon={<Icon name="outlined-scan" size={20} color={t.text.primary} />}
                 onPress={() => reset('scan-camera')}
               />
-              <Button label="Done" size="lg" onPress={done} />
+              <Button label="Done" size="lg" onPress={openPlant} />
             </>
           ) : null}
         </View>
