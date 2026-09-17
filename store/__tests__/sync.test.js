@@ -476,6 +476,21 @@ describe('mergeGarden', () => {
   });
 });
 
+describe('mergeGarden — queued deletes', () => {
+  test('a plant with a delete still queued is not re-adopted', () => {
+    const state = local({ outbox: [entry('plant.delete', 'plant_gone', 'S1')] });
+    const merged = mergeGarden(state, [serverPlant()], NOW, []);
+    expect(merged.plants).toEqual([]);
+  });
+
+  test('a reminder with a delete still queued is not re-adopted', () => {
+    const plant = { ...makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' }), serverId: 'S1' };
+    const state = local({ plants: [plant], outbox: [entry('reminder.delete', 'rem_gone', 'R1')] });
+    const merged = mergeGarden(state, [serverPlant({ reminders: [serverReminder()] })], NOW, []);
+    expect(merged.reminders).toEqual([]);
+  });
+});
+
 describe('mergeGarden — rooms', () => {
   test('adopts server rooms in the server’s order, with a name-based icon until the server sends one', () => {
     const merged = mergeGarden(local(), [], NOW, [
@@ -535,20 +550,22 @@ describe('mergeGarden — rooms', () => {
 // ---------------------------------------------------------------------------
 
 describe('syncGarden', () => {
-  test('pushes, pulls rooms and plants, and returns the merged document', async () => {
+  test('pushes, pulls rooms and plants, and reports the round rather than merging it', async () => {
     const plant = makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' });
     const state = local({ plants: [plant], outbox: [entry('plant.create', plant.id)] });
+    const rooms = [serverRoom()];
+    const garden = [serverPlant({ room_id: 'RK' })];
     const api = {
       addPlant: async () => ({ id: 'S1' }),
-      listRooms: async () => [serverRoom()],
-      getGarden: async () => [serverPlant({ room_id: 'RK' })],
+      listRooms: async () => rooms,
+      getGarden: async () => garden,
     };
-    const next = await syncGarden(state, api, NOW);
-    expect(next.plants[0].serverId).toBe('S1');
-    expect(next.rooms.map((r) => r.name)).toEqual(['Kitchen']);
-    expect(next.plants[0].roomId).toBe(next.rooms[0].id);
-    expect(next.outbox).toEqual([]);
-    expect(next.lastSyncAt).toBe(NOW);
+    const round = await syncGarden(state, api, NOW);
+    expect(round.base).toBe(state);
+    expect(round.pushed.plants[0].serverId).toBe('S1');
+    expect(round.pushed.outbox).toEqual([]);
+    expect(round.remote).toEqual({ plants: garden, rooms });
+    expect(round.now).toBe(NOW);
   });
 
   test('a pull that changes nothing leaves the outbox identical', async () => {
@@ -557,8 +574,8 @@ describe('syncGarden', () => {
     // sync schedule the next one.
     const state = local();
     const api = { listRooms: async () => [], getGarden: async () => [] };
-    const next = await syncGarden(state, api, NOW);
-    expect(next.outbox).toBe(state.outbox);
+    const round = await syncGarden(state, api, NOW);
+    expect(round.pushed.outbox).toBe(state.outbox);
   });
 
   test('a failed pull leaves state alone rather than throwing at the UI', async () => {
@@ -571,6 +588,32 @@ describe('syncGarden', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     expect(await syncGarden(local(), api, NOW)).toBeNull();
     warn.mockRestore();
+  });
+
+  test('a failed pull keeps what the push learned', async () => {
+    const plant = makePlant({ speciesKey: 'monstera-deliciosa', nickname: 'Penny' });
+    const reminder = makeReminder({ plantId: plant.id, action: 'water' });
+    const state = local({
+      plants: [plant],
+      reminders: [reminder],
+      outbox: [entry('plant.create', plant.id), entry('reminder.create', reminder.id)],
+    });
+    const api = {
+      addPlant: async () => ({ id: 's-plant' }),
+      createReminder: async () => ({ id: 's-rem' }),
+      listRooms: async () => [],
+      getGarden: async () => {
+        throw new ApiError('offline', { code: 'offline' });
+      },
+    };
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const round = await syncGarden(state, api, NOW);
+    warn.mockRestore();
+
+    expect(round.remote).toBeNull();
+    expect(round.pushed.plants[0].serverId).toBe('s-plant');
+    expect(round.pushed.reminders[0].serverId).toBe('s-rem');
+    expect(round.pushed.outbox).toEqual([]);
   });
 
   test('losing the connection mid-push still commits the ids already earned', async () => {
@@ -590,8 +633,9 @@ describe('syncGarden', () => {
       listRooms: async () => [],
       getGarden: async () => [],
     };
-    const next = await syncGarden(state, api, NOW);
-    expect(next.plants.find((p) => p.id === a.id).serverId).toBe('SA');
-    expect(next.outbox).toHaveLength(1); // b is still queued
+    const round = await syncGarden(state, api, NOW);
+    expect(round.remote).toBeNull(); // no pull while the queue is still stuck
+    expect(round.pushed.plants.find((p) => p.id === a.id).serverId).toBe('SA');
+    expect(round.pushed.outbox).toHaveLength(1); // b is still queued
   });
 });

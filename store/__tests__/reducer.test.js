@@ -375,3 +375,61 @@ test('an unknown action is a no-op, not a crash', () => {
   const s = emptyState();
   expect(reducer(s, { type: 'nope' })).toBe(s);
 });
+
+describe('sync/apply', () => {
+  test('rebases the round onto the current state instead of replacing it', () => {
+    const s0 = seeded();
+    const pending = enqueue([], 'plant.update', s0.plant.id, 'S1');
+    const base = { ...s0, outbox: pending };
+    // The round pushed that PATCH; meanwhile the user queued a completion.
+    const round = { base, pushed: { ...base, outbox: [] }, remote: null, now: NOW };
+    const current = reducer(base, { type: 'reminder/complete', id: s0.reminder.id, now: NOW });
+
+    const next = reducer(current, { type: 'sync/apply', round });
+
+    expect(next.outbox.map((e) => e.op)).toEqual(['reminder.complete']);
+    expect(next.reminders[0].lastDoneAt).toBe(NOW);
+  });
+});
+
+describe('outbox entry identity', () => {
+  // store/applySync.js tells which entries a sync round processed by identity,
+  // so no reducer path may clone an entry it didn't mean to replace.
+  const untouched = { op: 'room.update', localId: 'room_elsewhere', serverId: 'RX', attempts: 0 };
+
+  function state() {
+    const s = seeded();
+    const room = { ...makeRoom({ name: 'Kitchen' }), id: 'kitchen', serverId: 'RK' };
+    const office = { ...makeRoom({ name: 'Office' }), id: 'office', serverId: 'RO' };
+    return { ...s, rooms: [room, office], outbox: [untouched] };
+  }
+
+  const actions = (s) => {
+    const newPlant = makePlant({ speciesKey: 'ficus', nickname: 'Figgy' });
+    return [
+      { type: 'plant/add', plant: newPlant, reminders: [makeReminder({ plantId: newPlant.id, action: 'water' })] },
+      { type: 'plant/rename', id: s.plant.id, nickname: 'Fern' },
+      { type: 'plant/move', id: s.plant.id, roomId: 'office' },
+      { type: 'plant/delete', id: s.plant.id },
+      { type: 'room/add', name: 'Balcony' },
+      { type: 'room/rename', id: 'kitchen', name: 'Galley' },
+      { type: 'room/delete', id: 'kitchen' },
+      { type: 'room/deleteMoving', id: 'kitchen', toRoomId: 'office' },
+      { type: 'reminder/add', reminder: makeReminder({ plantId: s.plant.id, action: 'mist' }) },
+      { type: 'reminder/update', id: s.reminder.id, patch: { intervalDays: 3 } },
+      { type: 'reminders/timeOfDay', timeOfDay: '07:30' },
+      { type: 'reminder/complete', id: s.reminder.id },
+      { type: 'reminders/restore', entries: [{ id: s.reminder.id, lastDoneAt: null, wasQueued: false }] },
+      { type: 'reminder/delete', id: s.reminder.id },
+    ];
+  };
+
+  // One document for every case — the reducer is pure — so each action's ids
+  // point at rows that exist and the action really runs.
+  const s = state();
+  test.each(actions(s).map((a) => [a.type, a]))('%s keeps entries it didn’t touch', (_, action) => {
+    const next = reducer(s, { ...action, now: NOW });
+    expect(next).not.toBe(s); // the action did something
+    expect(next.outbox).toContain(untouched);
+  });
+});

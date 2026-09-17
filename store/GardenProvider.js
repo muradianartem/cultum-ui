@@ -153,8 +153,11 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
     if (holding.current > 0 || syncing.current || status !== 'signedIn' || devSession) return;
     syncing.current = true;
     try {
-      const merged = await syncGarden(latest.current);
-      if (merged) dispatch({ type: 'state/replace', state: merged });
+      // Rebased in the reducer, never replaced: the user may have edited, added
+      // or deleted things while this awaited the network, and `latest.current`
+      // from before the round knows nothing about them.
+      const round = await syncGarden(latest.current);
+      if (round) dispatch({ type: 'sync/apply', round });
     } finally {
       syncing.current = false;
     }

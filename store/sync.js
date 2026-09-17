@@ -19,7 +19,7 @@ import * as gardenApi from '../api/garden';
 import * as roomsApi from '../api/rooms';
 import { mediaUrl } from '../api/mapPlant';
 import { DEFAULT_TIME_OF_DAY, actionMeta, iconForRoomName, uid } from './model';
-import { enqueue } from './reducer';
+import { enqueue } from './outbox';
 
 const defaultApi = { ...gardenApi, ...roomsApi };
 
@@ -172,7 +172,7 @@ function roomRef(state, plant) {
 }
 
 /** Forget a room the server refused to create, leaving its plants roomless. */
-function dropRoom(state, roomId) {
+export function dropRoom(state, roomId) {
   return {
     ...state,
     rooms: state.rooms.filter((r) => r.id !== roomId),
@@ -328,6 +328,10 @@ async function pushOne(state, entry, api, ctx) {
 // Pull
 // ---------------------------------------------------------------------------
 
+/** Server ids with a delete still waiting to push — never re-adopted by a pull. */
+const queuedDeletes = (outbox, op) =>
+  new Set(outbox.filter((e) => e.op === op).map((e) => e.serverId));
+
 /**
  * Fold the server's garden into local state.
  *
@@ -391,8 +395,11 @@ export function mergeGarden(state, remote, now = new Date().toISOString(), remot
     reminders.push(...mergeReminders(state, plant, dto.reminders ?? [], queued, now));
   }
 
-  // Whatever is left in the map is new to this device.
+  // Whatever is left in the map is new to this device — unless it is a plant
+  // this device deleted and hasn't pushed yet, which must not come back.
+  const deleting = queuedDeletes(state.outbox, 'plant.delete');
   for (const dto of remoteById.values()) {
+    if (deleting.has(dto.id)) continue;
     const plant = plantFromServer(dto, roomFor(dto, null), now);
     plants.push(plant);
     keptPlantIds.add(plant.id);
@@ -425,9 +432,7 @@ export function mergeGarden(state, remote, now = new Date().toISOString(), remot
 export function mergeRooms(state, remoteRooms, queued, now) {
   const byServerId = new Map((remoteRooms ?? []).map((d) => [d.id, d]));
   // A delete still waiting to push must not have its room re-adopted.
-  const deleting = new Set(
-    state.outbox.filter((e) => e.op === 'room.delete').map((e) => e.serverId),
-  );
+  const deleting = queuedDeletes(state.outbox, 'room.delete');
   const out = [];
 
   for (const room of state.rooms) {
@@ -483,7 +488,11 @@ function mergeReminders(state, plant, remoteReminders, queued, now) {
     });
   }
 
-  for (const dto of byServerId.values()) out.push(reminderFromServer(dto, plant.id, now));
+  // As for plants: a delete still waiting to push must not be undone by the pull.
+  const deleting = queuedDeletes(state.outbox, 'reminder.delete');
+  for (const dto of byServerId.values()) {
+    if (!deleting.has(dto.id)) out.push(reminderFromServer(dto, plant.id, now));
+  }
   return out;
 }
 
@@ -492,23 +501,54 @@ function mergeReminders(state, plant, remoteReminders, queued, now) {
 // ---------------------------------------------------------------------------
 
 /**
- * Push, then pull. Returns the state to commit, or null when nothing changed
- * so the provider can skip a re-render and a disk write.
+ * What one sync round learned, for store/applySync.js to rebase onto whatever
+ * the state has become since the round started.
+ *
+ * @typedef {object} SyncRound
+ * @property {object} base    the state the round started from
+ * @property {object} pushed  `base` after the drain: new server ids, retired and
+ *                            re-queued entries, rooms dropped for the plan limit
+ * @property {{ plants: object[], rooms: object[] } | null} remote
+ *                            the pull, or null when the push stopped or the
+ *                            pull failed
+ * @property {string} now
+ */
+
+/**
+ * Push, then pull. Returns what the round learned, not a document to commit:
+ * the user may have changed things while it was awaiting the network, and only
+ * the reducer sees that. Null when nothing was learned at all, so the provider
+ * can skip a dispatch.
+ *
+ * Push progress survives a failed pull — the server ids it earned are what stop
+ * the next round from creating the same rows again. The app being killed in
+ * the ~400 ms before the debounced save can still lose them; that window is
+ * accepted.
  *
  * Never throws: a sync failing is a normal condition, not an error the UI
  * should learn about.
+ *
+ * @returns {Promise<SyncRound | null>}
  */
 export async function syncGarden(state, api = defaultApi, now = new Date().toISOString()) {
   try {
     const pushed = await drainOutbox(state, api);
-    if (pushed.stopped) {
-      // The connection went away mid-push. Commit whatever server ids we did
-      // collect so the next attempt doesn't re-create those rows.
-      return pushed.state === state ? null : pushed.state;
+    let remote = null;
+    // A stopped drain means the connection went away mid-push, or the queue is
+    // over budget: either way the pull waits, but the ids already earned are
+    // still reported.
+    if (!pushed.stopped) {
+      try {
+        const [rooms, plants] = await Promise.all([api.listRooms(), api.getGarden()]);
+        remote = { plants: plants ?? [], rooms: rooms ?? [] };
+      } catch (e) {
+        console.warn('[sync] pull failed; keeping pushed changes:', e?.message ?? e);
+      }
     }
-    const [remoteRooms, remote] = await Promise.all([api.listRooms(), api.getGarden()]);
-    return mergeGarden(pushed.state, remote, now, remoteRooms ?? []);
+    if (pushed.state === state && remote === null) return null;
+    return { base: state, pushed: pushed.state, remote, now };
   } catch (e) {
+    // drainOutbox catches per entry, so this is a programming error, not the network.
     console.warn('[sync] gave up this round:', e?.message ?? e);
     return null;
   }
