@@ -91,6 +91,31 @@ test('a restored session with an expired access token rotates instead of signing
   expect(authStorage.clearTokens).not.toHaveBeenCalled();
 });
 
+test('a rotation carries the stored profile forward', async () => {
+  authStorage.loadTokens.mockResolvedValue({
+    ...EXPIRED_SESSION,
+    name: 'Ada',
+    email: 'ada@example.com',
+    emailIsPrivate: false,
+  });
+  fetch.mockResolvedValue(json(ROTATED));
+
+  const { ref } = await renderAuth();
+  await act(async () => {
+    await client.getAuthToken();
+  });
+
+  expect(authStorage.saveTokens).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      access_token: 'fresh',
+      refresh_token: 'r2',
+      name: 'Ada',
+      email: 'ada@example.com',
+    })
+  );
+  expect(ref.current.profileName).toBe('Ada');
+});
+
 test('the rotation request carries no bearer of its own', async () => {
   authStorage.loadTokens.mockResolvedValue(EXPIRED_SESSION);
   fetch.mockResolvedValue(json(ROTATED));

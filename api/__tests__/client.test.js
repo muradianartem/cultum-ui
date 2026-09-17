@@ -61,6 +61,20 @@ describe('auth header', () => {
     expect(provider).not.toHaveBeenCalled();
   });
 
+  test.each(['/auth/nonce', '/auth/google', '/auth/apple', '/auth/logout'])(
+    'sends %s without a bearer',
+    async (path) => {
+      const provider = jest.fn(() => 'tok-1');
+      setAuthTokenProvider(provider);
+      fetch.mockResolvedValueOnce(json({}));
+
+      await apiFetch(path, { method: 'POST', body: '{}' });
+
+      expect(authHeader(fetch.mock.calls[0])).toBeUndefined();
+      expect(provider).not.toHaveBeenCalled();
+    }
+  );
+
   test('reads the provider per request, so a rotated token is picked up', async () => {
     let token = 'old';
     setAuthTokenProvider(() => token);
