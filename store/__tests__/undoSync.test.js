@@ -15,7 +15,7 @@ import { syncGarden } from '../sync';
 jest.mock('../../auth/AuthProvider', () => ({
   useAuth: () => ({ status: 'signedIn', devSession: false }),
 }));
-// Returning null means no `state/replace`, so a sync can't feed the next one.
+// Returning null means no `sync/apply`, so a sync can’t feed the next one.
 jest.mock('../sync', () => ({ syncGarden: jest.fn(async () => null) }));
 
 jest.useFakeTimers();
