@@ -158,7 +158,14 @@ export async function apiFetch(
     retries = 0,
   } = {}
 ) {
-  const token = await getAuthToken();
+  // The auth endpoints take no bearer: verified against the live OpenAPI, none of
+  // /auth/* declares a `security` requirement and the document has no global one.
+  // Asking for one anyway is what used to end the session — /auth/refresh went
+  // through getAuthToken, which asks AuthProvider for an access token, which,
+  // finding the stored one expired, started the very rotation already in flight.
+  // The 401 block below excludes /auth/* for the same reason.
+  const isAuthEndpoint = path.startsWith('/auth/');
+  const token = isAuthEndpoint ? null : await getAuthToken();
   traceToken(token);
   const finalHeaders = { Accept: 'application/json', ...headers };
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -186,7 +193,7 @@ export async function apiFetch(
   // Expired access token → rotate the session once and replay. The auth
   // endpoints are excluded: /auth/refresh answering 401 is the refresh itself
   // failing, and retrying it would recurse.
-  if (res.status === 401 && unauthorizedHandler && !path.startsWith('/auth/')) {
+  if (res.status === 401 && unauthorizedHandler && !isAuthEndpoint) {
     const rotate = unauthorizedHandler;
     let rotated = false;
     try {
