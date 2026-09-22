@@ -1,4 +1,4 @@
-import { MAX_SCHEDULED, pendingOccurrences, rescheduleAll } from '../index';
+import { MAX_SCHEDULED, cancelAll, pendingOccurrences, rescheduleAll } from '../index';
 import { seedGarden } from '../../store/testing';
 
 const NOW = new Date(2026, 8, 5, 11, 0, 0);
@@ -152,5 +152,81 @@ describe('the master switch', () => {
   test('on is the default, so every existing caller is unaffected', async () => {
     await rescheduleAll(garden(), NOW);
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalled();
+  });
+});
+
+describe('cancelAll on sign-out', () => {
+  // Three schedulable occurrences, so a rebuild has a loop to be caught in.
+  const garden = () =>
+    seedGarden({
+      now: NOW,
+      plants: [
+        {
+          nickname: 'Penny',
+          room: 'Kitchen',
+          reminders: [{ action: 'water', intervalDays: 20, dueInDays: 1 }],
+        },
+      ],
+    });
+
+  // Every scheduleNotificationAsync waits until the test releases it.
+  const gateSchedules = () => {
+    const releases = [];
+    Notifications.scheduleNotificationAsync.mockImplementation(
+      () => new Promise((resolve) => releases.push(resolve)),
+    );
+    return async () => {
+      while (releases.length) releases.shift()();
+      await new Promise((r) => setImmediate(r));
+    };
+  };
+  const flush = () => new Promise((r) => setImmediate(r));
+  // Every call to either mock, in the order they happened.
+  const calls = () =>
+    [
+      ...Notifications.scheduleNotificationAsync.mock.invocationCallOrder.map((o) => [o, 'schedule']),
+      ...Notifications.cancelAllScheduledNotificationsAsync.mock.invocationCallOrder.map((o) => [o, 'cancel']),
+    ]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, name]) => name);
+
+  afterEach(() => Notifications.scheduleNotificationAsync.mockImplementation(async () => 'id'));
+
+  test('stops a rebuild in flight, and the queue ends empty', async () => {
+    const release = gateSchedules();
+    const rebuilding = rescheduleAll(garden(), NOW);
+    await flush(); // cancel → first schedule is now pending
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+
+    const cancelling = cancelAll();
+    // Let the pending schedule land, as the OS would.
+    for (let i = 0; i < 5; i++) await release();
+    await Promise.all([rebuilding, cancelling]);
+
+    // The rebuild noticed and stopped after the one call already in flight...
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    // ...and the last word went to the sign-out's cancel.
+    expect(calls().at(-1)).toBe('cancel');
+  });
+
+  test('a request queued before the sign-out never runs', async () => {
+    const release = gateSchedules();
+    const first = rescheduleAll(garden(), NOW);
+    await flush();
+    const queued = rescheduleAll(garden(), NOW); // queued behind the first
+    const cancelling = cancelAll();
+    for (let i = 0; i < 5; i++) await release();
+    await Promise.all([first, queued, cancelling]);
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(calls().at(-1)).toBe('cancel');
+  });
+
+  test('a rebuild after the sign-out works normally', async () => {
+    await cancelAll();
+    Notifications.scheduleNotificationAsync.mockClear();
+    Notifications.scheduleNotificationAsync.mockImplementation(async () => 'id');
+    await rescheduleAll(garden(), NOW);
+    expect(Notifications.scheduleNotificationAsync.mock.calls.length).toBeGreaterThan(1);
   });
 });

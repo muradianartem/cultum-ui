@@ -56,6 +56,10 @@ const CLOCK_TICK_MS = 5 * 60 * 1000;
 const SAVE_DEBOUNCE_MS = 400;
 const SYNC_DEBOUNCE_MS = 2000;
 const RESCHEDULE_DEBOUNCE_MS = 1500;
+
+/** "2026-09-21" from local fields — changes exactly at local midnight. */
+const localDayKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const MEDIA_DEBOUNCE_MS = 1200;
 
 /**
@@ -73,6 +77,9 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   const [state, dispatch] = useReducer(reducer, initialState ?? emptyState());
   const [ready, setReady] = useState(initialState != null);
   const [now, setNow] = useState(() => clock ?? new Date());
+  // Bumped each time the app comes to the foreground, to refill the
+  // notification window (see the reschedule effect).
+  const [resumeCount, setResumeCount] = useState(0);
 
   // An open undo window freezes the outbox: the backend has no un-complete
   // endpoint, so a completion that reaches it can never be taken back. State
@@ -223,19 +230,32 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
   // things made `[state]` wrong: every pull stamps `updatedAt` on every plant
   // (store/sync.js#mergeGarden), so a sync that changed nothing still tore down
   // and rebuilt the OS's entire queue; and re-timing every reminder at once
-  // would have cost three full rebuilds instead of one.
+  // would have cost three full rebuilds instead of one. It includes everything
+  // that moves a date (startAt) or changes banner text (titles, room names).
   const scheduleKey = useMemo(
     () =>
       state.reminders
-        .map((r) => `${r.id}|${r.enabled ? 1 : 0}|${r.intervalDays}|${r.timeOfDay}|${r.lastDoneAt}|${r.snoozedUntil}`)
+        .map(
+          (r) =>
+            `${r.id}|${r.enabled ? 1 : 0}|${r.intervalDays}|${r.timeOfDay}|${r.startAt}|${r.lastDoneAt}|${r.snoozedUntil}|${r.title}`,
+        )
         .join(';') +
       '#' +
       state.plants
         .map((p) => `${p.id}|${p.archived ? 1 : 0}|${p.nickname}|${p.roomId}`)
-        .join(';'),
-    [state.reminders, state.plants],
+        .join(';') +
+      '#' +
+      state.rooms.map((r) => `${r.id}|${r.name}`).join(';'),
+    [state.reminders, state.plants, state.rooms],
   );
 
+  // The OS queue is a bounded window (notifications/index.js), so it drains as
+  // days pass even when nothing is edited. Refill it whenever the app becomes
+  // active and whenever the local day turns over; and rebuild when permission
+  // changes, since a grant in iOS Settings otherwise schedules nothing until
+  // the garden next changes. All through the same debounce.
+  const dayKey = localDayKey(now);
+  const notificationPermission = prefs.notificationPermission;
   const notificationsEnabled = prefs.notificationsEnabled;
   useEffect(() => {
     if (!ready) return undefined;
@@ -244,7 +264,7 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
       RESCHEDULE_DEBOUNCE_MS,
     );
     return () => clearTimeout(timer);
-  }, [scheduleKey, ready, notificationsEnabled]);
+  }, [scheduleKey, ready, notificationsEnabled, dayKey, resumeCount, notificationPermission]);
 
   // --- clock + foreground -------------------------------------------------
   useEffect(() => {
@@ -254,6 +274,7 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
         // Time passed while we were away: dates, and anything another device
         // changed, are both stale.
         if (!clock) setNow(new Date());
+        setResumeCount((n) => n + 1);
         runSync();
       } else {
         // The process may not get another chance to write.
