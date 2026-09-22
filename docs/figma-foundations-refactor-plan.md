@@ -4,7 +4,7 @@
 
 The app needs a targeted foundations refactor, led by typography and font loading. Its color palette, semantic color mappings, and scalar foundation definitions already align with the inspected Figma documentation. The main problems are outdated typography definitions, consumers bypassing those definitions, duplicate prototype tokens, an incomplete icon catalog, and tests that preserve outdated assumptions.
 
-This is a plan only. No application code or assets were changed during the audit.
+This began as a plan only. It has since been implemented; see the acceptance criteria for what was verified.
 
 ## Goal & non-goals
 
@@ -207,15 +207,17 @@ For implementation:
 
 ## Acceptance criteria
 
-- [ ] All 19 typography styles match the reviewed Figma metadata and render with registered assets.
-- [ ] No Iowan/System fallback remains where Figma requires Literata/Inter.
-- [ ] All plotted palette values and all 58 semantic/interaction rows continue to match; semantic-only primitive steps are covered explicitly.
-- [ ] Existing matching scalar scales are preserved, consumed consistently, and no duplicate unused prototype scale remains.
-- [ ] Every component-specific exception has provenance or an explicitly unresolved status; unresolved items are not counted as parity.
-- [ ] All 157 non-flag Figma icons are mapped; the 260 deferred flags and external/local assets are visible in the manifest.
-- [ ] Existing SVG artwork has been compared, not merely counted; checkbox glyphs use verified vectors.
-- [ ] Tests validate an independently reviewed Figma snapshot and detect future drift.
-- [ ] Representative light/dark screens and interaction states pass visual review on supported platforms.
+Status after implementation (2026-09-21, branch `feat/figma-foundations`). Web was checked at runtime; iOS and Android were not run.
+
+- [x] All 19 typography styles match the reviewed Figma metadata and render with registered assets. *(Web: faces confirmed via `document.fonts` and computed styles. Native: not run.)*
+- [x] No Iowan/System fallback remains where Figma requires Literata/Inter.
+- [x] All plotted palette values and all 58 semantic/interaction rows continue to match; semantic-only primitive steps are covered explicitly.
+- [x] Existing matching scalar scales are preserved, consumed consistently, and no duplicate unused prototype scale remains.
+- [x] Every component-specific exception has provenance or an explicitly unresolved status; unresolved items are not counted as parity. *(33 entries, 19 unresolved.)*
+- [x] All 157 non-flag Figma icons are mapped; the 260 deferred flags and external/local assets are visible in the manifest.
+- [x] Existing SVG artwork has been compared, not merely counted; checkbox glyphs use verified vectors. *(148 identical, 4 rounding-only, 4 replaced; `star-filled` still has no exportable node.)*
+- [x] Tests validate an independently reviewed Figma snapshot and detect future drift.
+- [ ] Representative light/dark screens and interaction states pass visual review on supported platforms. *(Login, Paywall, Choose-a-plan, Today and Settings checked on web in both themes. Native builds and interaction-state screenshots remain.)*
 
 ## Risks, assumptions & open questions
 

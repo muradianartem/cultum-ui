@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { navbar, fonts } from '../theme/tokens';
+import { navbar } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import ButtonIcon from './ButtonIcon';
 import Icon from './Icon';
@@ -139,13 +140,10 @@ const styles = StyleSheet.create({
   side: { minWidth: 40, justifyContent: 'center' },
   sideRight: { alignItems: 'flex-end' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 26,
-    textAlign: 'center',
-  },
-  subtitle: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
+  // Figma Size=Small: title "Heading/Heading Extra Small", subtitle
+  // "Button/Button Small" (both centred).
+  title: { ...typography.headingExtraSmall, textAlign: 'center' },
+  subtitle: { ...typography.buttonSmall, textAlign: 'center' },
   rowLarge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,9 +156,6 @@ const styles = StyleSheet.create({
   largeTitleRow: { paddingHorizontal: 16, paddingVertical: 8 },
   // Without the button row above it the title carries the bar's full inset.
   largeTitleRowAlone: { paddingVertical: 16 },
-  largeTitle: {
-    fontFamily: fonts.display,
-    fontSize: 32,
-    lineHeight: 38,
-  },
+  // Figma Size=Large: "Heading/Heading Large".
+  largeTitle: { ...typography.headingLarge },
 });

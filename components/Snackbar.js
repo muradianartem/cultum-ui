@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { snackbar, radius, shadow } from '../theme/tokens';
+import { elevation, snackbar } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
+import Icon from './Icon';
 import { useTheme } from '../theme/ThemeProvider';
 
 // Figma draws the action pill the same dark grey in both modes (light "Snackbar
@@ -43,7 +45,7 @@ export default function Snackbar({
       style={[
         styles.bar,
         { backgroundColor: t.background.primaryInverse, borderColor: t.border.primary },
-        shadow.float,
+        elevation.low, // Figma: effects=Elevation/Low
         style,
       ]}
       {...rest}
@@ -77,7 +79,7 @@ export default function Snackbar({
           accessibilityLabel="Dismiss"
           style={styles.close}
         >
-          <Text style={[styles.closeGlyph, ink]}>✕</Text>
+          <Icon name="close" size={20} color={ink.color} />
         </Pressable>
       ) : null}
     </View>
@@ -100,16 +102,16 @@ const styles = StyleSheet.create({
   },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   labelSlot: { flex: 1 },
-  label: { flex: 1, fontSize: 14, lineHeight: 20 },
+  // Figma "Snackbar – P2": label Body Medium, action Button Small.
+  label: { flex: 1, ...typography.bodyMedium },
   action: {
     height: 40,
     paddingHorizontal: 16,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     backgroundColor: ACTION_BG,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionLabel: { fontSize: 14, fontWeight: '500', color: ACTION_INK },
+  actionLabel: { ...typography.buttonSmall, color: ACTION_INK },
   close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  closeGlyph: { fontSize: 16 },
 });

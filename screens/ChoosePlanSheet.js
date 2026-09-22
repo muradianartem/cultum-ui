@@ -15,6 +15,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, BottomSheet } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
+import { fontFace } from '../theme/fonts';
 import { radius, space, stroke, typography } from '../theme/foundations';
 
 /**
@@ -49,7 +50,8 @@ export default function ChoosePlanSheet({ visible, products, termsFor, onClose, 
       testID="choose-plan-sheet"
     >
       {/* Rendered here rather than via BottomSheet's `title`: the primitive's
-          title is 18px and Figma sets this heading at 22. */}
+          title is Inter, and Figma sets this heading in Literata (Heading
+          Extra Small Emphasized, node 265:161). */}
       <Text style={styles.heading}>Choose a plan</Text>
 
       <View style={styles.plans}>
@@ -103,9 +105,7 @@ function makeStyles(t) {
     },
     body: { paddingTop: space[8], paddingBottom: space[24], gap: space[16] },
     heading: {
-      fontSize: 22,
-      lineHeight: 29, // Figma 1.3em
-      fontWeight: '700',
+      ...typography.headingExtraSmallEmphasized,
       color: t.text.primary,
       textAlign: 'center',
       paddingHorizontal: space[16],
@@ -129,10 +129,15 @@ function makeStyles(t) {
     planNameText: { ...typography.bodyLargeEmphasized, color: t.text.primary },
     planDetail: { ...typography.bodyMedium, color: t.text.secondary },
     planPrice: { alignItems: 'flex-end', gap: 1 },
-    planPriceText: { fontSize: 17, lineHeight: 24, fontWeight: '700', color: t.text.primary },
+    // Figma's amount is a raw Inter Bold 17/140% (node 299:477), not a named style.
+    planPriceText: {
+      fontFamily: fontFace('Inter', 700),
+      fontSize: 17,
+      lineHeight: 23.8,
+      color: t.text.primary,
+    },
     planPeriod: {
       ...typography.captionEmphasized,
-      fontWeight: '500', // Figma's Caption Emphasized is Inter Medium
       color: t.text.secondary,
     },
   });

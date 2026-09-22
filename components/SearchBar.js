@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { searchBar, radius } from '../theme/tokens';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { searchBar } from '../theme/tokens';
+import { inputText, radius } from '../theme/foundations';
+import Icon from './Icon';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 
 /**
@@ -12,8 +14,8 @@ import { useTheme, useThemeMode } from '../theme/ThemeProvider';
  *   Disabled → `editable={false}` + greyed fill
  *
  * Controlled: `value` + `onChangeText`. `onClear` (defaults to clearing via
- * onChangeText). `leftIcon` / `clearIcon` override the default 🔍 and ✕ text
- * glyphs, so callers can pass real <Icon>s.
+ * onChangeText). `leftIcon` / `clearIcon` override the default search and
+ * close icons.
  */
 export default function SearchBar({
   value = '',
@@ -45,7 +47,7 @@ export default function SearchBar({
       ]}
     >
       <View style={styles.leadingIcon}>
-        {leftIcon ?? <Text style={styles.searchGlyph}>🔍</Text>}
+        {leftIcon ?? <Icon name="search" size={20} color={t.text.primary} />}
       </View>
 
       <TextInput
@@ -75,7 +77,7 @@ export default function SearchBar({
           accessibilityLabel="Clear search"
           style={[styles.clear, { backgroundColor: t.brand.secondary }]}
         >
-          {clearIcon ?? <Text style={[styles.clearGlyph, { color: t.text.primary }]}>✕</Text>}
+          {clearIcon ?? <Icon name="close" size={20} color={t.text.primary} />}
         </Pressable>
       ) : null}
     </View>
@@ -89,15 +91,11 @@ const styles = StyleSheet.create({
     gap: 8,
     height: searchBar.height,
     paddingHorizontal: 16,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
   },
   leadingIcon: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  searchGlyph: { fontSize: 15 },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    padding: 0,
-  },
+  // Figma "Search Bar – P2": Body Large for both placeholder and input.
+  input: { flex: 1, ...inputText('bodyLarge'), padding: 0 },
   clear: {
     width: 40,
     height: 40,
@@ -105,5 +103,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearGlyph: { fontSize: 13 },
 });

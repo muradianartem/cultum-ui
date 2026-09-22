@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { typography } from '../theme/foundations';
 
 /**
  * TextButton — low-emphasis, chrome-less tappable text.
@@ -65,8 +66,10 @@ export default function TextButton({
         {typeof content === 'string' ? (
           <Text
             style={[
-              styles.label,
-              { color, fontSize: size === 'sm' ? 13.5 : 15 },
+              // The design system has no text-button component; its labels
+              // are the Ghost Button's (Button Medium / Button Small).
+              typography[size === 'sm' ? 'buttonSmall' : 'buttonMedium'],
+              { color },
               textStyle,
             ]}
           >
@@ -88,7 +91,6 @@ const styles = StyleSheet.create({
   inline: { paddingLeft: 8 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   icon: { alignItems: 'center', justifyContent: 'center' },
-  label: { fontWeight: '600' },
   pressed: { opacity: 0.55 },
   disabled: { opacity: 0.42 },
 });

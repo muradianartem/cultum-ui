@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from '../routing';
 import { PHOTOS } from './placeholderPhotos';
-import { radius } from '../theme/tokens';
+import { radius } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -106,7 +106,7 @@ const makeStyles = (t) => StyleSheet.create({
   closeBtn: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -120,7 +120,7 @@ const makeStyles = (t) => StyleSheet.create({
   counter: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     backgroundColor: t.brand.secondary,
   },
   counterText: { fontSize: 12, color: t.brand.onSecondary },

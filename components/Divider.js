@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { divider } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -43,9 +44,6 @@ const styles = StyleSheet.create({
   inset: { marginHorizontal: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hairline: { flex: 1, height: 1 },
-  label: {
-    fontSize: 12,
-    lineHeight: 17,
-    textAlign: 'center',
-  },
+  // Figma "Divider – P1", Split with label: Caption.
+  label: { ...typography.caption, textAlign: 'center' },
 });

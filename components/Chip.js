@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { chip, radius } from '../theme/tokens';
+import { chip } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -67,7 +68,7 @@ export default function Chip({
 const styles = StyleSheet.create({
   base: {
     height: chip.height,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -82,5 +83,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 14, fontWeight: '400' },
+  // Figma "Chip – P1": Body Medium in every state.
+  label: { ...typography.bodyMedium },
 });

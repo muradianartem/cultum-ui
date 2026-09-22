@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput as RNTextInput, View } from 'react-native';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
+import { typography } from '../theme/foundations';
 
 /**
  * TextArea — multi-line input, imported from Figma "Text Area" (node 486:27425).
@@ -104,11 +105,14 @@ export default function TextArea({
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: 'stretch' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, lineHeight: 17 },
-  optional: { fontSize: 12, lineHeight: 17 },
+  // Figma describes Text Area as mirroring Text Input, so the roles are its:
+  // Caption label, Body Medium input, Inter Medium 12/140% helper. Multiline
+  // input keeps the line height (the single-line iOS offset doesn't apply).
+  label: { ...typography.caption },
+  optional: { ...typography.caption },
   field: { padding: 16, borderRadius: 12 },
-  input: { flex: 1, fontSize: 14, lineHeight: 20, padding: 0 },
+  input: { flex: 1, ...typography.bodyMedium, padding: 0 },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  helper: { flex: 1, fontSize: 12, lineHeight: 17 },
-  counter: { fontSize: 12, lineHeight: 17 },
+  helper: { flex: 1, ...typography.captionEmphasized },
+  counter: { ...typography.captionEmphasized },
 });

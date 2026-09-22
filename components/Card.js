@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { card, radius } from '../theme/tokens';
+import { card } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
 
@@ -103,14 +104,16 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: card.iconBadgeSize,
     height: card.iconBadgeSize,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerText: { flex: 1, gap: 4 },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: '700' },
-  subtitle: { fontSize: 14, lineHeight: 20 },
-  body: { fontSize: 14, lineHeight: 20 },
+  // Figma "Card – P2": title Heading Extra Small Emphasized; subtitle and
+  // body Body Medium.
+  title: { ...typography.headingExtraSmallEmphasized },
+  subtitle: { ...typography.bodyMedium },
+  body: { ...typography.bodyMedium },
   actions: { gap: 12 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   actionsCol: { flexDirection: 'column', alignItems: 'stretch' },

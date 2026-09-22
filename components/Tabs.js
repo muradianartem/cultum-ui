@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { typography } from '../theme/foundations';
 
 /**
  * Tabs — in-screen underline tabs, imported from Figma "Tabs - P3".
@@ -77,5 +78,6 @@ const styles = StyleSheet.create({
   },
   pressed: { borderTopLeftRadius: 8, borderTopRightRadius: 8 },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 14 },
+  // Figma "Tabs – P3": Body Medium.
+  label: { ...typography.bodyMedium },
 });

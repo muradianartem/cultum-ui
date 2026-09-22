@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { emptyState, radius } from '../theme/tokens';
+import { emptyState } from '../theme/tokens';
+import { radius, space, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
 
@@ -115,22 +116,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   badge: {
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { alignSelf: 'stretch', gap: 4 },
-  title: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
+  // Figma "State – P2" (27517:2352): an 8px gap between a Heading Extra Small
+  // Emphasized title and a Body Medium subtitle.
+  text: { alignSelf: 'stretch', gap: space[8] },
+  title: { ...typography.headingExtraSmallEmphasized, textAlign: 'center' },
+  subtitle: { ...typography.bodyMedium, textAlign: 'center' },
   actions: { alignSelf: 'stretch', alignItems: 'center', gap: 4 },
   // Inline Buttons pin themselves with alignSelf: 'flex-start', which beats the
   // column's alignItems — re-centre each one or the actions hug the left edge.

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import { toggle, radius, motion } from '../theme/tokens';
+import { toggle, motion } from '../theme/tokens';
+import { radius } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   track: {
     width: toggle.width,
     height: toggle.height,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     justifyContent: 'center',
     overflow: 'hidden', // clip the pressed state layer to the pill
   },
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     top: toggle.pad,
     width: toggle.thumbW,
     height: toggle.thumbH,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
   },
   disabled: { opacity: 0.42 },
 });

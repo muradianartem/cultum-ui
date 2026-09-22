@@ -118,6 +118,7 @@ const makeStyles = (t) =>
       textAlign: 'center',
       ...typography.bodyMediumEmphasized,
     },
-    active: { ...typography.headingSmallEmphasized, lineHeight: ITEM_H, color: t.text.primary },
+    // Figma 653:4705: the selected row is Heading Extra Small Emphasized.
+    active: { ...typography.headingExtraSmallEmphasized, lineHeight: ITEM_H, color: t.text.primary },
     dim: { color: t.text.secondary, opacity: 0.7 },
   });

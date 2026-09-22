@@ -1,7 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { fonts } from '../theme/tokens';
 
 /**
  * RoomCard — one room on the Rooms list, imported from Figma "Room Card"
@@ -17,9 +16,7 @@ import { fonts } from '../theme/tokens';
  * is always full, and none at all leaves the four cells as flat surface tint
  * (a room can exist before any of its plants has a photo).
  *
- * The title is the serif display face at 20pt — Figma's "Heading/Heading Small"
- * is Literata, which `typography.headingSmall` (Inter) does not carry, so this
- * follows the same convention as NavigationBar and Dialog.
+ * The title is Figma "Heading/Heading Small" (Literata 20/26).
  */
 export default function RoomCard({ name, meta, photos = [], onPress, style, ...rest }) {
   const t = useTheme();
@@ -82,6 +79,6 @@ const styles = StyleSheet.create({
   // back to its intrinsic size and ignores resizeMode.
   cell: { flex: 1, width: '100%', height: '100%' },
   meta: { gap: 6 },
-  name: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26 },
+  name: { ...typography.headingSmall },
   metaText: { ...typography.bodyMedium },
 });
