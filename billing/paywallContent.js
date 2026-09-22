@@ -16,7 +16,12 @@ import { getPaywall, mapPaywall } from '../api/billing';
 
 let cached = null; // last good remote content, or null if there has not been one
 let inflight = null; // dedupes concurrent prefetches
+let failed = false; // the last attempt ended without usable content
 const listeners = new Set();
+
+function notify() {
+  for (const listener of listeners) listener();
+}
 
 /** The content the backend gave us, or null if it has not yet. */
 export function cachedPaywall() {
@@ -24,8 +29,21 @@ export function cachedPaywall() {
 }
 
 /**
+ * Where the content stands, for a screen that has to draw something meanwhile.
+ * With no cache, no request and no failure on record, a fetch is about to start
+ * on mount — so that reads as loading too.
+ *
+ * @returns {'ready' | 'loading' | 'error'}
+ */
+export function paywallStatus() {
+  if (cached) return 'ready';
+  if (inflight) return 'loading';
+  return failed ? 'error' : 'loading';
+}
+
+/**
  * Warm the cache. Fire-and-forget: it swallows every failure, and a rejection
- * simply leaves the cache empty.
+ * simply leaves the cache empty (and `paywallStatus()` at 'error').
  *
  * Called from the Login screen (where the OAuth round trip pays for the
  * backend's cold start) and by anything that mounts `usePaywallContent`. They
@@ -36,16 +54,24 @@ export function cachedPaywall() {
 export function prefetchPaywall() {
   if (cached) return Promise.resolve();
   if (inflight) return inflight;
+  failed = false;
   inflight = getPaywall()
     .then((dto) => {
       const mapped = mapPaywall(dto);
-      if (!mapped) return; // malformed — as good as no answer
+      if (!mapped) {
+        failed = true; // malformed — as good as no answer
+        return;
+      }
       cached = mapped;
-      for (const notify of listeners) notify();
     })
-    .catch(() => {})
+    .catch(() => {
+      failed = true;
+    })
     .finally(() => {
       inflight = null;
+      // Every outcome, not just success: a screen waiting on this has to learn
+      // that it failed as much as that it landed.
+      notify();
     });
   return inflight;
 }
@@ -69,8 +95,41 @@ export function usePaywallContent() {
   return content;
 }
 
+/**
+ * The content plus where it stands, for a screen that renders every state
+ * rather than waiting for content (PaywallScreen). `retry` refetches and flips
+ * the status to 'loading' straight away.
+ *
+ * @returns {{ content: object|null, status: 'ready'|'loading'|'error', retry: () => void }}
+ */
+export function usePaywallResource() {
+  const read = () => ({ content: cachedPaywall(), status: paywallStatus() });
+  const [snapshot, setSnapshot] = useState(read);
+
+  useEffect(() => {
+    const onChange = () =>
+      setSnapshot((prev) => {
+        const next = read();
+        return next.content === prev.content && next.status === prev.status ? prev : next;
+      });
+    listeners.add(onChange);
+    prefetchPaywall();
+    onChange(); // the request may have started, landed or failed since first render
+    return () => listeners.delete(onChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const retry = () => {
+    prefetchPaywall();
+    notify();
+  };
+
+  return { ...snapshot, retry };
+}
+
 /** Test seam. Listeners are left alone — mounted components still own theirs. */
 export function __resetPaywallCache() {
   cached = null;
   inflight = null;
+  failed = false;
 }

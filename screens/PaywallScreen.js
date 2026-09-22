@@ -5,10 +5,10 @@
 //
 // The copy, the trial timeline, the comparison rows and both products come
 // from GET /billing/plans via billing/paywallContent.js. Nothing is bundled, so
-// this screen has no prices of its own to fall back on — and no loading or
-// error state either: <PaywallLauncher> only opens it once that content exists,
-// which is why `content` is all but guaranteed here and the null branch below
-// is a guard rather than a state the user is meant to see.
+// this screen has no prices of its own to fall back on. <PaywallLauncher> only
+// opens it once that content exists, but Settings → Upgrade and the room-limit
+// gate navigate here directly, so until the content lands the screen draws
+// <PaywallPending>: a Close plus a spinner, or an error with Try again.
 //
 // The rating and the reviews are NOT in that payload and stay local constants;
 // there is no endpoint to hunt for.
@@ -22,11 +22,18 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Button, ButtonIcon, Icon } from '../components';
+import {
+  Button,
+  ButtonIcon,
+  Icon,
+  LoadingIndicator,
+  NavigationBar,
+  State,
+} from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
-import { usePaywallContent } from '../billing/paywallContent';
+import { usePaywallResource } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
@@ -72,19 +79,53 @@ const REVIEWS = [
 ];
 
 export default function PaywallScreen() {
-  const content = usePaywallContent();
+  const { content, status, retry } = usePaywallResource();
   // Hooks cannot be skipped, so the "no content" check has to happen above
-  // every other one — hence the split. Reachable only by opening the route
-  // directly (the guard fallback), never through the launcher.
-  if (!content) return null;
+  // every other one — hence the split. Reachable by opening the route directly
+  // (Settings → Upgrade, the room gate), never through the launcher.
+  if (!content) return <PaywallPending status={status} onRetry={retry} />;
   return <Paywall content={content} />;
 }
+
+// Same shape as the scan flow's close: pop if there's history, else go home.
+function useClose() {
+  const { back, canGoBack, reset } = useRouter();
+  return () => (canGoBack ? back() : reset('today'));
+}
+
+/** The paywall before its content exists: always a way out, never a blank. */
+function PaywallPending({ status, onRetry }) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const onClose = useClose();
+  return (
+    <View style={[pendingStyles.root, { backgroundColor: t.background.primary, paddingTop: insets.top }]}>
+      <NavigationBar leading="close" onLeadingPress={onClose} divider={false} />
+      <View style={pendingStyles.body}>
+        {status === 'error' ? (
+          <State
+            title="Plans couldn't be loaded"
+            subtitle="Check your connection and try again."
+            primaryAction={{ label: 'Try again', onPress: onRetry }}
+          />
+        ) : (
+          <LoadingIndicator accessibilityLabel="Loading plans" />
+        )}
+      </View>
+    </View>
+  );
+}
+
+const pendingStyles = StyleSheet.create({
+  root: { flex: 1 },
+  body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[16] },
+});
 
 function Paywall({ content }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
-  const { back, canGoBack, reset } = useRouter();
+  const onClose = useClose();
 
   const [plansOpen, setPlansOpen] = useState(false);
   const [planKey, setPlanKey] = useState(content.defaultProductKey);
@@ -96,9 +137,6 @@ function Paywall({ content }) {
   // app has no way to reach.
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
-
-  // Same shape as the scan flow's close: pop if there's history, else go home.
-  const onClose = () => (canGoBack ? back() : reset('today'));
 
   // iOS: StoreKit sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and

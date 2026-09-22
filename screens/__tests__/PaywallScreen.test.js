@@ -114,7 +114,7 @@ const press = (tree, label) =>
     .props.onPress();
 
 // Content is fetched, not bundled — so unless a test says otherwise, the
-// backend has not answered and there is nothing to draw.
+// backend has not answered and the screen is still loading.
 beforeEach(() => {
   __resetPaywallCache();
   getPaywall.mockReturnValue(new Promise(() => {}));
@@ -144,20 +144,55 @@ const renderWith = async (payload) => {
   return tree;
 };
 
-test('draws nothing at all until the backend has priced the thing', () => {
-  const tree = render();
-  expect(texts(tree)).toHaveLength(0);
-  expect(rows(tree)).toHaveLength(0);
-});
+const spinner = (tree) =>
+  tree.root.findAll((n) => typeof n.type === 'string' && n.props.accessibilityLabel === 'Loading plans');
 
-test('a failed fetch leaves it blank rather than guessing at a price', async () => {
-  getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
-  let tree;
-  await act(async () => {
-    tree = TestRenderer.create(<PaywallScreen />);
+describe('before the plans have loaded', () => {
+  test('shows a spinner and a Close that pops the router — never a price', () => {
+    const tree = render();
+    expect(spinner(tree).length).toBeGreaterThan(0);
+    expect(rows(tree)).toHaveLength(0);
+    expect(texts(tree)).not.toContain('Start free trial');
+
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
   });
-  mounted.push(tree);
-  expect(texts(tree)).toHaveLength(0);
+
+  test('with no history, Close goes home', () => {
+    mockCanGoBack = false;
+    const tree = render();
+    act(() => press(tree, 'Close'));
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('a failed fetch offers Try again, which loads the plans', async () => {
+    getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen />);
+    });
+    mounted.push(tree);
+    expect(texts(tree)).toContain("Plans couldn't be loaded");
+    expect(texts(tree)).toContain('Try again');
+    expect(rows(tree)).toHaveLength(0);
+
+    getPaywall.mockResolvedValue(LIVE_RESPONSE);
+    await act(async () => press(tree, 'Try again'));
+    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
+    expect(rows(tree)).toHaveLength(7);
+  });
+
+  test('Close works from the error state too', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen />);
+    });
+    mounted.push(tree);
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
+  });
 });
 
 describe('with the live payload', () => {
