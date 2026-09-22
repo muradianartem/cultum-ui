@@ -99,6 +99,20 @@ describe('drainOutbox', () => {
     expect(next.outbox.map((e) => e.serverId)).toEqual(['RB']);
   });
 
+  test('a 401 stops the drain and keeps the entry — auth failing is not the write being refused', async () => {
+    const state = local({
+      outbox: [entry('reminder.delete', 'a', 'RA'), entry('reminder.delete', 'b', 'RB')],
+    });
+    const api = {
+      deleteReminder: async () => {
+        throw new ApiError('Request failed with 401', { code: 'unauthorized', status: 401 });
+      },
+    };
+    const { state: next, stopped } = await drainOutbox(state, api);
+    expect(stopped).toBe(true);
+    expect(next.outbox.map((e) => e.serverId)).toEqual(['RA', 'RB']);
+  });
+
   test('a rejection the server will never accept is dropped, not retried forever', async () => {
     const state = local({ outbox: [entry('reminder.delete', 'a', 'RA')] });
     const api = {

@@ -8,9 +8,21 @@ let mockResponse = null; // per-test override of the auth-request response
 // The screen imports the Google *provider* entry point, not the base module —
 // mocking 'expo-auth-session' alone leaves the real provider running (and it
 // throws on a missing iosClientId under jest).
+const mockUseIdTokenAuthRequest = jest.fn(() => [{ /* request */ }, mockResponse, mockPromptAsync]);
 jest.mock('expo-auth-session/providers/google', () => ({
   __esModule: true,
-  useIdTokenAuthRequest: () => [{ /* request */ }, mockResponse, mockPromptAsync],
+  useIdTokenAuthRequest: (...args) => mockUseIdTokenAuthRequest(...args),
+}));
+// Which platforms this build has a real Google client id for. Parsing the
+// app.json placeholders is lib/config's job (and its tests'); here an id is
+// either configured or it isn't.
+const CONFIGURED_GOOGLE_IDS = { web: 'web-id', ios: 'ios-id', android: 'android-id' };
+let mockGoogleIds = { ...CONFIGURED_GOOGLE_IDS };
+jest.mock('../../lib/config', () => ({
+  get GOOGLE_CLIENT_IDS() {
+    return mockGoogleIds;
+  },
+  googleClientIdFor: (platform = require('react-native').Platform.OS) => mockGoogleIds[platform] ?? null,
 }));
 jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
 // Sign in with Apple: available by default (the screen hides the button when
@@ -51,7 +63,10 @@ jest.mock('../../auth/AuthProvider', () => ({
   }),
 }));
 
+import { Platform } from 'react-native';
 import LoginScreen from '../LoginScreen';
+
+const IOS = Platform.OS;
 
 const texts = (tree) => tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
@@ -67,6 +82,8 @@ afterEach(() => {
   jest.clearAllMocks();
   mockResponse = null;
   mockAppleAvailable = true;
+  mockGoogleIds = { ...CONFIGURED_GOOGLE_IDS };
+  Platform.OS = IOS;
 });
 
 // The *host* node carries the resolved style; the composite Pressable above it
@@ -217,4 +234,49 @@ test('a successful Google response exchanges the id_token via completeGoogleLogi
 test('warms the paywall copy on mount', async () => {
   await render();
   expect(prefetchPaywall).toHaveBeenCalled();
+});
+
+// ---------------------------------------------------------------------------
+// Android: expo-auth-session throws when the platform's client id is missing
+// ---------------------------------------------------------------------------
+
+const GOOGLE_UNAVAILABLE = "Google sign-in isn't available in this build.";
+
+test('on Android without a client id the screen renders a disabled Google button instead of crashing', async () => {
+  Platform.OS = 'android';
+  mockGoogleIds = { ...CONFIGURED_GOOGLE_IDS, android: null };
+  mockAppleAvailable = false;
+
+  const tree = await render();
+
+  expect(mockUseIdTokenAuthRequest).not.toHaveBeenCalled();
+  expect(findButton(tree, 'Continue with Google').props.accessibilityState.disabled).toBe(true);
+  expect(texts(tree)).toContain(GOOGLE_UNAVAILABLE);
+});
+
+test('on a configured Android build the Google request carries the Android client id', async () => {
+  Platform.OS = 'android';
+  mockAppleAvailable = false;
+
+  const tree = await render();
+
+  expect(mockUseIdTokenAuthRequest).toHaveBeenCalledWith(
+    expect.objectContaining({ androidClientId: 'android-id', iosClientId: 'ios-id', webClientId: 'web-id' })
+  );
+  expect(findButton(tree, 'Continue with Google').props.accessibilityState.disabled).toBe(false);
+  expect(texts(tree)).not.toContain(GOOGLE_UNAVAILABLE);
+});
+
+test('dismissing the Google sheet re-arms the nonce and leaves the buttons usable', async () => {
+  const { authApi } = require('../../api/auth');
+  mockResponse = { type: 'dismiss' };
+
+  const tree = await render();
+
+  expect(authApi.createNonce).toHaveBeenCalledTimes(2); // mount + re-arm
+  expect(mockCompleteGoogleLogin).not.toHaveBeenCalled();
+  expect(findButton(tree, 'Continue with Google').props.accessibilityState).toEqual({
+    disabled: false,
+    busy: false,
+  });
 });

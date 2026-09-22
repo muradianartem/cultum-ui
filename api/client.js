@@ -199,9 +199,12 @@ export async function apiFetch(
     try {
       await rotate();
       rotated = true;
-    } catch {
-      // Refresh failed — fall through and report the original 401. The handler
-      // owns clearing the session.
+    } catch (err) {
+      // Refresh rejected (401): fall through and report the original 401 — the
+      // handler owns clearing the session. Anything else (offline, a timeout, a
+      // 5xx) says nothing about the session, and dressing it up as a 401 would
+      // have callers treat a dropped connection as a rejected request.
+      if (err?.status !== 401) throw logged(err, method, path);
     }
     if (rotated) {
       const retryHeaders = { ...finalHeaders };

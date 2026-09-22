@@ -9,7 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Button, Icon, Snackbar } from '../components';
 import { ThemeProvider, useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { GOOGLE_CLIENT_IDS } from '../lib/config';
+import { GOOGLE_CLIENT_IDS, googleClientIdFor } from '../lib/config';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
 import { prefetchPaywall } from '../billing/paywallContent';
@@ -18,6 +18,7 @@ import { prefetchPaywall } from '../billing/paywallContent';
 WebBrowser.maybeCompleteAuthSession();
 
 const SIGN_IN_FAILED = "Couldn't sign in. Try again.";
+const GOOGLE_UNAVAILABLE = "Google sign-in isn't available in this build.";
 
 // Apple raises this when the user backs out of the system sheet. Not a
 // failure — they chose not to sign in, and a snackbar saying otherwise is
@@ -86,20 +87,9 @@ function WelcomeScreen() {
   const [snack, setSnack] = useState(null);
 
   const auth = useAuth();
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    iosClientId: GOOGLE_CLIENT_IDS.ios,
-    webClientId: GOOGLE_CLIENT_IDS.web,
-    scopes: ['openid', 'profile', 'email'],
-    extraParams: nonce ? { nonce } : undefined,
-  });
-
-  useEffect(() => {
-    if (__DEV__ && request?.redirectUri) {
-      console.log('[login] redirectUri =', request.redirectUri);
-      console.log('[login] clientId    =', request.clientId);
-    }
-  }, [request?.redirectUri, request?.clientId]);
+  // Null when this build has no real client id for the platform it runs on —
+  // today that is Android, whose app.json id is still a placeholder.
+  const googleAvailable = googleClientIdFor() !== null;
 
   // Nonce is single-use/expiring — mint a fresh one on mount and after each try.
   async function refreshNonce() {
@@ -132,26 +122,22 @@ function WelcomeScreen() {
   }, []);
 
   // Exchange the Google id_token once the auth request resolves.
-  useEffect(() => {
-    if (!response) return;
-    if (response.type === 'success') {
-      const idToken = response.params?.id_token ?? response.authentication?.idToken;
-      if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
-      setBusy('google');
-      auth
-        .completeGoogleLogin(idToken)
-        .catch((err) => {
-          if (__DEV__) console.warn('[login] /auth/google exchange failed:', err?.message ?? err);
-          setSnack({ label: SIGN_IN_FAILED });
-        })
-        .finally(() => setBusy(null));
-    } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
-      if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
-      // The old nonce may be spent — re-arm for the next attempt.
-      setBusy(null);
-      refreshNonce();
-    }
-  }, [response]);
+  function onGoogleIdToken(idToken) {
+    setBusy('google');
+    auth
+      .completeGoogleLogin(idToken)
+      .catch((err) => {
+        if (__DEV__) console.warn('[login] /auth/google exchange failed:', err?.message ?? err);
+        setSnack({ label: SIGN_IN_FAILED });
+      })
+      .finally(() => setBusy(null));
+  }
+
+  function onGoogleAbandoned() {
+    // The old nonce may be spent — re-arm for the next attempt.
+    setBusy(null);
+    refreshNonce();
+  }
 
   // Snackbar auto-dismiss (caller owns Snackbar timing).
   useEffect(() => {
@@ -159,10 +145,6 @@ function WelcomeScreen() {
     const id = setTimeout(() => setSnack(null), 3000);
     return () => clearTimeout(id);
   }, [snack]);
-
-  async function onGooglePress() {
-    await promptAsync();
-  }
 
   async function onApplePress() {
     setBusy('apple');
@@ -232,15 +214,19 @@ function WelcomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button
-            size="lg"
-            variant="outline"
-            label="Continue with Google"
-            leftIcon={<Icon name="google" size={24} />}
-            onPress={onGooglePress}
-            loading={busy === 'google'}
-            disabled={!request || !nonce || busy === 'apple'}
-          />
+          {googleAvailable ? (
+            <GoogleSignInButton
+              nonce={nonce}
+              busy={busy}
+              onIdToken={onGoogleIdToken}
+              onAbandoned={onGoogleAbandoned}
+            />
+          ) : (
+            <>
+              <Button {...GOOGLE_BUTTON} disabled />
+              <Text style={styles.legal}>{GOOGLE_UNAVAILABLE}</Text>
+            </>
+          )}
           {/* The Apple mark is a black silhouette in the source SVG; on this
               dark frame it has to be light, which is what Apple's own
               guidelines ask for anyway. */}
@@ -271,6 +257,58 @@ function WelcomeScreen() {
         </View>
       ) : null}
     </>
+  );
+}
+
+const GOOGLE_BUTTON = {
+  size: 'lg',
+  variant: 'outline',
+  label: 'Continue with Google',
+  leftIcon: <Icon name="google" size={24} />,
+};
+
+/**
+ * Continue with Google, and the OAuth request behind it.
+ *
+ * Its own component because `useIdTokenAuthRequest` throws when the running
+ * platform's client id is missing, and a hook cannot be skipped conditionally —
+ * so the screen mounts this only when `googleClientIdFor()` has a real id.
+ */
+function GoogleSignInButton({ nonce, busy, onIdToken, onAbandoned }) {
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    iosClientId: GOOGLE_CLIENT_IDS.ios,
+    androidClientId: GOOGLE_CLIENT_IDS.android,
+    webClientId: GOOGLE_CLIENT_IDS.web,
+    scopes: ['openid', 'profile', 'email'],
+    extraParams: nonce ? { nonce } : undefined,
+  });
+
+  useEffect(() => {
+    if (__DEV__ && request?.redirectUri) {
+      console.log('[login] redirectUri =', request.redirectUri);
+      console.log('[login] clientId    =', request.clientId);
+    }
+  }, [request?.redirectUri, request?.clientId]);
+
+  useEffect(() => {
+    if (!response) return;
+    if (response.type === 'success') {
+      const idToken = response.params?.id_token ?? response.authentication?.idToken;
+      if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
+      onIdToken(idToken);
+    } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
+      if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
+      onAbandoned();
+    }
+  }, [response]);
+
+  return (
+    <Button
+      {...GOOGLE_BUTTON}
+      onPress={() => promptAsync()}
+      loading={busy === 'google'}
+      disabled={!request || !nonce || busy === 'apple'}
+    />
   );
 }
 
