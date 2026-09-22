@@ -41,7 +41,17 @@ if (appVersion !== oldVersion) {
   process.exit(1);
 }
 
-execFileSync("npm", ["version", bump, "--no-git-tag-version"], { cwd: root, stdio: "pipe" });
+// npm is a .cmd shim on Windows — execFileSync cannot resolve it from the bare
+// name the way it resolves git.exe, and since CVE-2024-27980 Node refuses to
+// spawn a .cmd without a shell at all (EINVAL). Both are needed, and only
+// there. `bump` is regex-validated above, so the shell has nothing to
+// reinterpret.
+const isWindows = process.platform === "win32";
+execFileSync(isWindows ? "npm.cmd" : "npm", ["version", bump, "--no-git-tag-version"], {
+  cwd: root,
+  stdio: "pipe",
+  shell: isWindows,
+});
 
 const newVersion = JSON.parse(readFileSync(pkgPath, "utf8")).version;
 writeFileSync(appPath, appRaw.replace(versionLine, `$1${newVersion}$3`));
