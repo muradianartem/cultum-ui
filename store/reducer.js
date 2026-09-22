@@ -11,36 +11,12 @@
 // Pure: no clock of its own (actions carry `now`), no I/O. store/persist.js
 // writes the result, store/GardenProvider.js dispatches into it.
 
+import { applySyncRound } from './applySync';
 import { makeReminder, makeRoom } from './model';
+import { dropAll, enqueue, enqueueDelete } from './outbox';
 
-// ---------------------------------------------------------------------------
-// Outbox
-// ---------------------------------------------------------------------------
-
-/**
- * Queue one intent to push.
- *
- * Entries are collapsed per (op, localId): the drain reads the *current* state
- * to build its payload, so two edits to the same reminder are one push, and
- * re-queueing only matters for ordering. `serverId` is carried on the entry
- * itself because a delete has to survive the entity leaving state.
- */
-export function enqueue(outbox, op, localId, serverId = null) {
-  const rest = outbox.filter((e) => !(e.op === op && e.localId === localId));
-  return [...rest, { op, localId, serverId, attempts: 0 }];
-}
-
-const dropAll = (outbox, localId) => outbox.filter((e) => e.localId !== localId);
-
-/**
- * Queue a deletion. Something the server has never seen is simply forgotten,
- * along with whatever was queued for it — pushing a create and then a delete
- * for the same row would be two round trips to reach where we already are.
- */
-function enqueueDelete(outbox, op, localId, serverId) {
-  const cleared = dropAll(outbox, localId);
-  return serverId ? [...cleared, { op, localId, serverId, attempts: 0 }] : cleared;
-}
+// Kept importable from here: the queue helpers used to live in this file.
+export { enqueue } from './outbox';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -91,9 +67,17 @@ export function reducer(state, action) {
   const now = action.now ?? new Date().toISOString();
 
   switch (action.type) {
-    // --- whole-document replacement (hydrate, sync merge, sign-out reset) ---
+    // --- whole-document replacement (hydrate, sign-out reset, tests) ---
     case 'state/replace':
       return action.state;
+
+    /**
+     * A finished sync round. Never a replace: the round started from a snapshot
+     * and the user may have changed things since, so it is rebased onto this
+     * state (store/applySync.js).
+     */
+    case 'sync/apply':
+      return applySyncRound(state, action.round);
 
     case 'profile/name':
       return { ...state, profileName: action.name ?? null };

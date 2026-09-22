@@ -45,6 +45,36 @@ describe('auth header', () => {
     expect(authHeader(fetch.mock.calls[0])).toBe('Bearer tok-1');
   });
 
+  // The auth endpoints take no bearer, and /auth/refresh must not even *ask* for
+  // one: the provider answers by rotating the session, which is this request.
+  test('never consults the provider for an auth endpoint', async () => {
+    const provider = jest.fn(() => 'tok-1');
+    setAuthTokenProvider(provider);
+    fetch.mockResolvedValueOnce(json({ access_token: 'fresh' }));
+
+    await apiFetch('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: 'r1' }),
+    });
+
+    expect(authHeader(fetch.mock.calls[0])).toBeUndefined();
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  test.each(['/auth/nonce', '/auth/google', '/auth/apple', '/auth/logout'])(
+    'sends %s without a bearer',
+    async (path) => {
+      const provider = jest.fn(() => 'tok-1');
+      setAuthTokenProvider(provider);
+      fetch.mockResolvedValueOnce(json({}));
+
+      await apiFetch(path, { method: 'POST', body: '{}' });
+
+      expect(authHeader(fetch.mock.calls[0])).toBeUndefined();
+      expect(provider).not.toHaveBeenCalled();
+    }
+  );
+
   test('reads the provider per request, so a rotated token is picked up', async () => {
     let token = 'old';
     setAuthTokenProvider(() => token);
@@ -111,14 +141,27 @@ describe('401 handling', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  test('surfaces the original 401 when the refresh itself fails', async () => {
+  test('surfaces the original 401 when the refresh token is rejected', async () => {
     setAuthTokenProvider(() => 't');
     setUnauthorizedHandler(async () => {
-      throw new Error('refresh token reused');
+      throw new ApiError('refresh token reused', { status: 401, code: 'unauthorized' });
     });
     fetch.mockResolvedValueOnce(json(null, 401));
 
-    await expect(apiFetch('/scans')).rejects.toBeInstanceOf(ApiError);
+    const err = await apiFetch('/scans').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 401, code: 'unauthorized' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('surfaces a transient refresh failure instead of the 401', async () => {
+    setAuthTokenProvider(() => 't');
+    setUnauthorizedHandler(async () => {
+      throw new ApiError('Network request failed', { code: 'offline' });
+    });
+    fetch.mockResolvedValueOnce(json(null, 401));
+
+    await expect(apiFetch('/scans')).rejects.toMatchObject({ code: 'offline' });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 

@@ -15,6 +15,14 @@ Add a real **Login screen** as the app's pre-auth entry point: a full-bleed back
   > (iOS 13+) — there is no Android or web implementation. Requires `ios.usesAppleSignIn` + the config plugin in
   > [app.json](app.json), so a `prebuild` is needed before it runs on device.
 - **Token refresh / auto-refresh on 401** — `POST /auth/refresh` is *implemented in the API client* but the app does **not** yet auto-refresh expired access tokens or attach `Authorization` headers to feature requests (there are no authenticated feature calls yet). V2.
+  > **Resolved.** Both landed. [api/client.js](api/client.js)'s `apiFetch` attaches
+  > `Authorization: Bearer …` from a provider registered by
+  > [auth/AuthProvider.js](auth/AuthProvider.js) (`currentAccessToken`), rotates *before*
+  > a request whose access token is inside the 60s skew window, and replays a 401 once
+  > through `refreshSession`. `/auth/*` is excluded from both — those endpoints declare no
+  > `security` in the OpenAPI, and asking them for a token made the refresh re-enter the
+  > rotation it was performing, which blew the stack and signed the user out on every cold
+  > launch. Regression coverage: [auth/__tests__/AuthProviderRotation.test.js](auth/__tests__/AuthProviderRotation.test.js).
 - **Sign-out UI** — `AuthProvider` exposes `signOut()` and it clears storage, but wiring a visible logout control into TabBar/settings is out of scope.
 - **Real backend session use** — nothing in Today/Product screens consumes the tokens yet; this pass only establishes and stores the session.
 - **Wiring `routing/guards.js#requireAuth`** — the gate is done at the app root via `AuthGate` (see Decisions), not through the pure-function guard. Leave `requireAuth` as-is.
@@ -195,4 +203,4 @@ Mock the async/native edges (see Verification) and assert the screen renders bot
 - ~~**Open question (non-blocking):** the **background image**~~ — **resolved:** the Figma frame supplies a 12-photo mosaic, exported to `assets/auth/mosaic-*.png`, plus the final wordmark and tagline copy. `assets/plant/hero.png` is no longer used by the login screen.
 - **Assumption:** the API accepts an `Origin`/CORS from the expo-web dev origin (`http://localhost:8090`). If `/auth/*` calls fail CORS on web, test the flow on device instead, or the backend must allow the dev origin. Flag to backend owners.
 - **Assumption:** `expo-web-browser`'s `maybeCompleteAuthSession()` + `makeRedirectUri({ scheme: 'cultum' })` yields a redirect URI registered in the Google client. The **exact redirect URIs** (web origin and the `cultum://` native URI) must be added to the Google OAuth client's allowed list — part of the client-ID setup above.
-- **Assumption:** deferring token refresh is acceptable for V1 since no screen makes authenticated calls yet. When feature calls arrive, add `Authorization: Bearer <access_token>` + a 401→`authApi.refresh` retry in `lib/api.js`.
+- ~~**Assumption:** deferring token refresh is acceptable for V1 since no screen makes authenticated calls yet.~~ — **resolved:** feature calls arrived and so did the refresh. The header, the pre-request rotation and the 401 retry all live in `api/client.js` + `auth/AuthProvider.js` (`lib/api.js` was split into `api/client.js` + `api/auth.js`). See the Resolved note under the non-goals above.

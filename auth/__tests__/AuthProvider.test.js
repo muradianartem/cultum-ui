@@ -282,14 +282,16 @@ describe('proactive refresh', () => {
     expect(authApi.refresh).not.toHaveBeenCalled();
   });
 
-  test('reports null instead of throwing when the rotation fails', async () => {
+  test('rejects with the rotation error rather than sending the request unauthenticated', async () => {
     authStorage.loadTokens.mockResolvedValueOnce(expiring(-1000)); // already expired
-    authApi.refresh.mockRejectedValueOnce(new Error('refresh token reused'));
+    authApi.refresh.mockRejectedValueOnce(
+      Object.assign(new Error('refresh token reused'), { status: 401 })
+    );
 
     const { ref } = await renderAuth();
 
     await act(async () => {
-      await expect(client.getAuthToken()).resolves.toBeNull();
+      await expect(client.getAuthToken()).rejects.toMatchObject({ status: 401 });
     });
     expect(ref.current.status).toBe('signedOut');
   });

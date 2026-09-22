@@ -158,7 +158,14 @@ export async function apiFetch(
     retries = 0,
   } = {}
 ) {
-  const token = await getAuthToken();
+  // The auth endpoints take no bearer: verified against the live OpenAPI, none of
+  // /auth/* declares a `security` requirement and the document has no global one.
+  // Asking for one anyway is what used to end the session — /auth/refresh went
+  // through getAuthToken, which asks AuthProvider for an access token, which,
+  // finding the stored one expired, started the very rotation already in flight.
+  // The 401 block below excludes /auth/* for the same reason.
+  const isAuthEndpoint = path.startsWith('/auth/');
+  const token = isAuthEndpoint ? null : await getAuthToken();
   traceToken(token);
   const finalHeaders = { Accept: 'application/json', ...headers };
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -186,15 +193,18 @@ export async function apiFetch(
   // Expired access token → rotate the session once and replay. The auth
   // endpoints are excluded: /auth/refresh answering 401 is the refresh itself
   // failing, and retrying it would recurse.
-  if (res.status === 401 && unauthorizedHandler && !path.startsWith('/auth/')) {
+  if (res.status === 401 && unauthorizedHandler && !isAuthEndpoint) {
     const rotate = unauthorizedHandler;
     let rotated = false;
     try {
       await rotate();
       rotated = true;
-    } catch {
-      // Refresh failed — fall through and report the original 401. The handler
-      // owns clearing the session.
+    } catch (err) {
+      // Refresh rejected (401): fall through and report the original 401 — the
+      // handler owns clearing the session. Anything else (offline, a timeout, a
+      // 5xx) says nothing about the session, and dressing it up as a 401 would
+      // have callers treat a dropped connection as a rejected request.
+      if (err?.status !== 401) throw logged(err, method, path);
     }
     if (rotated) {
       const retryHeaders = { ...finalHeaders };

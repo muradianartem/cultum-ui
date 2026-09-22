@@ -2,6 +2,7 @@ import { act } from 'react-test-renderer';
 import { TextInput as RNTextInput } from 'react-native';
 import { speciesDetailToVM } from '../../../api/mapPlant';
 import { Route } from '../../../routing';
+import { useGarden } from '../../../store/GardenProvider';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import ProductPage from '../../ProductPage';
 import AddPlantScreen from '../AddPlantScreen';
@@ -20,6 +21,14 @@ const DETAIL = {
 const VM = speciesDetailToVM(DETAIL);
 
 let harness;
+let garden;
+
+// Reads the store from inside the provider, so a test can check what the flow
+// saved without going through a screen.
+function GardenProbe() {
+  garden = useGarden();
+  return null;
+}
 
 // The product page is mounted alongside so Done can be followed all the way
 // through: the flow finishes by replacing the route with the new plant's id,
@@ -27,6 +36,7 @@ let harness;
 function create(props = {}) {
   harness = renderWithGarden(
     <>
+      <GardenProbe />
       <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} {...props} />} />
       <Route name="product" component={ProductPage} />
     </>,
@@ -192,7 +202,39 @@ describe('success', () => {
     expect(texts(tree)).toContain('Next treatment is on Thu 17, Sep');
   });
 
-  test('Done writes the plant to the store and opens its page by id', () => {
+  test('leaving the reminders step saves the plant before success shows', () => {
+    const tree = create();
+    press(tree, 'Mo');
+    walkTo(tree, 'reminders');
+    expect(garden.plants).toHaveLength(0);
+
+    press(tree, 'Skip for now');
+    expect(texts(tree)).toContain('Mo added to your plants in the kitchen room');
+    expect(garden.plants).toHaveLength(1);
+    const [plant] = garden.plants;
+    expect(plant.nickname).toBe('Mo');
+    expect(garden.rooms.find((r) => r.id === plant.roomId).name).toBe('Kitchen');
+  });
+
+  test('Done opens the saved plant without adding it again', () => {
+    const tree = create();
+    walkTo(tree, 'success');
+    const [plant] = garden.plants;
+    press(tree, 'Done');
+    expect(garden.plants).toHaveLength(1);
+    expect(tree.router.route).toBe('product');
+    expect(tree.router.params.plantId).toBe(plant.id);
+  });
+
+  test('close on success opens the saved plant', () => {
+    const tree = create();
+    walkTo(tree, 'success');
+    press(tree, 'Close');
+    expect(tree.router.route).toBe('product');
+    expect(tree.router.params.plantId).toBe(garden.plants[0].id);
+  });
+
+  test('Done opens the saved plant\'s page by id', () => {
     const tree = create();
     press(tree, 'Mo');
     walkTo(tree, 'reminders');
@@ -219,5 +261,7 @@ describe('success', () => {
     press(tree, 'Scan another plant');
     expect(tree.router.route).toBe('scan-camera');
     expect(tree.router.canGoBack).toBe(false);
+    // The plant was saved on the way in, so leaving this way keeps it.
+    expect(garden.plants).toHaveLength(1);
   });
 });
