@@ -44,7 +44,10 @@ configureNotifications();
 // Chooses login vs. the app router based on async auth status. Gating happens
 // here at the root (not via routing/guards, which are pure sync functions with
 // no context access), so the Router only ever mounts once authenticated.
-function AuthGate() {
+//
+// Exported for test/support/integration.js, which mounts the real gate — its
+// sign-out cleanup included — under a test shell.
+export function AuthGate() {
   const { status, signedInVia } = useAuth();
   const t = useTheme();
 
