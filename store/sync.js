@@ -107,7 +107,8 @@ const sameName = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? 
 // session could not be refreshed, and if the backend really rejected it the
 // user is signed out and the document cleared anyway. Anything else is the
 // server rejecting this particular entry, which retrying forever would never
-// fix, so it is dropped after being logged.
+// fix, so it leaves the queue — and is recorded in `failed` so it does not
+// vanish without a trace.
 const isTransient = (e) =>
   e?.code === 'offline' ||
   e?.code === 'network' ||
@@ -130,6 +131,21 @@ const isPlanLimit = (e) => e?.status === 402 || e?.status === 403;
  */
 /** How many queued writes one sync round will push before yielding. */
 export const MAX_PUSH_PER_ROUND = 25;
+
+/** How many rejected writes `state.failed` keeps; the oldest go first. */
+export const MAX_FAILED = 50;
+
+/** Record a write the server rejected for good. */
+function recordFailure(state, entry, e) {
+  const record = {
+    op: entry.op,
+    localId: entry.localId,
+    serverId: entry.serverId ?? null,
+    status: e?.status ?? null,
+    at: new Date().toISOString(),
+  };
+  return { ...state, failed: [...(state.failed ?? []), record].slice(-MAX_FAILED) };
+}
 
 export async function drainOutbox(state, api = defaultApi) {
   let next = state;
@@ -156,7 +172,8 @@ export async function drainOutbox(state, api = defaultApi) {
         break;
       }
       console.warn(`[sync] dropping ${entry.op} for ${entry.localId}: ${e?.message ?? e}`);
-      next = { ...next, outbox: next.outbox.filter((e2) => e2 !== entry) };
+      next = recordFailure({ ...next, outbox: next.outbox.filter((e2) => e2 !== entry) }, entry, e);
+      if (entry.op === 'room.create') next = markLocalOnly(next, entry.localId);
     }
   }
   // A budgeted round reports as stopped: there is more to push, so the pull
@@ -166,25 +183,31 @@ export async function drainOutbox(state, api = defaultApi) {
 }
 
 /**
+ * A room that exists only on this device because the server refused to create
+ * it (the plan's limit, or a rejected payload). Marked by the drain when that
+ * happens; its plants sync roomless, and keep the room here.
+ */
+const isLocalOnlyRoom = (room) => !!room?.localOnly && !room.serverId;
+
+/** Mark a room the server refused, so nothing waits on its create again. */
+export const markLocalOnly = (state, roomId) => ({
+  ...state,
+  rooms: state.rooms.map((r) => (r.id === roomId ? { ...r, localOnly: true } : r)),
+});
+
+/**
  * The server id to send as a plant's `room_id`.
  *
  * `pending` means the plant's room exists here but hasn't been created on the
- * server yet — the caller re-queues rather than pushing the plant roomless.
+ * server yet — the caller re-queues rather than pushing the plant roomless. A
+ * local-only room is not pending: nothing will ever create it, and waiting on
+ * it would re-queue the plant every round, forever.
  */
 function roomRef(state, plant) {
   if (!plant.roomId) return { serverId: null, pending: false };
   const room = state.rooms.find((r) => r.id === plant.roomId);
-  if (!room) return { serverId: null, pending: false };
+  if (!room || isLocalOnlyRoom(room)) return { serverId: null, pending: false };
   return { serverId: room.serverId ?? null, pending: !room.serverId };
-}
-
-/** Forget a room the server refused to create, leaving its plants roomless. */
-export function dropRoom(state, roomId) {
-  return {
-    ...state,
-    rooms: state.rooms.filter((r) => r.id !== roomId),
-    plants: state.plants.map((p) => (p.roomId === roomId ? { ...p, roomId: null } : p)),
-  };
 }
 
 async function pushOne(state, entry, api, ctx) {
@@ -209,9 +232,11 @@ async function pushOne(state, entry, api, ctx) {
             sortOrder: room.sortOrder,
           });
         } catch (e) {
-          if (!isPlanLimit(e)) throw e;
-          console.warn(`[sync] room "${room.name}" is over the plan's limit; removing it`);
-          return dropRoom(state, room.id);
+          // Over the plan's limit: the room stays on this device rather than
+          // being deleted from under the user, and the rejection is recorded by
+          // the drain like any other.
+          if (isPlanLimit(e)) console.warn(`[sync] room "${room.name}" is over the plan's limit; keeping it local`);
+          throw e;
         }
         ctx.remoteRooms = [...ctx.remoteRooms, dto];
       }
@@ -394,7 +419,12 @@ export function mergeGarden(state, remote, now = new Date().toISOString(), remot
       care: dto.care ?? plant.care,
       heroUri: plant.heroUri ?? mediaUrl(dto.image_url ?? dto.care?.image_url),
       nickname: pending ? plant.nickname : dto.nickname ?? plant.nickname,
-      roomId: pending ? localRoom : roomFor(dto, localRoom),
+      // A plant in a local-only room was pushed roomless on purpose; the
+      // server's null is not news, so it keeps the room it has here.
+      roomId:
+        pending || (!dto.room_id && isLocalOnlyRoom(rooms.find((r) => r.id === localRoom)))
+          ? localRoom
+          : roomFor(dto, localRoom),
       acquiredAt: dto.acquired_at ?? plant.acquiredAt,
       updatedAt: now,
     });
@@ -514,7 +544,7 @@ function mergeReminders(state, plant, remoteReminders, queued, now) {
  * @typedef {object} SyncRound
  * @property {object} base    the state the round started from
  * @property {object} pushed  `base` after the drain: new server ids, retired and
- *                            re-queued entries, rooms dropped for the plan limit
+ *                            re-queued entries, newly recorded failures
  * @property {{ plants: object[], rooms: object[] } | null} remote
  *                            the pull, or null when the push stopped or the
  *                            pull failed

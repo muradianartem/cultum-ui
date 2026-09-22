@@ -1,7 +1,7 @@
 import { API_BASE_URL, ApiError } from '../../api/client';
 import { emptyState, makePlant, makeReminder, makeRoom } from '../model';
 import { enqueue } from '../reducer';
-import { drainOutbox, mergeGarden, syncGarden } from '../sync';
+import { MAX_FAILED, drainOutbox, mergeGarden, syncGarden } from '../sync';
 
 const NOW = '2026-09-05T09:00:00.000Z';
 
@@ -250,7 +250,8 @@ describe('drainOutbox — rooms', () => {
     expect(next.rooms.map((r) => r.serverId)).toEqual(['RK', 'RK2']);
   });
 
-  test('a room over the plan limit is removed, and its plants lose the room', async () => {
+  // Spec 11, option A: the room used to be deleted locally, silently.
+  test('a room over the plan limit is kept on this device, and the refusal recorded', async () => {
     const room = makeRoom({ name: 'Balcony' });
     const plant = { ...makePlant({ speciesKey: 'm', nickname: 'Penny', roomId: room.id }), serverId: 'S1' };
     const state = local({ rooms: [room], plants: [plant], outbox: [entry('room.create', room.id)] });
@@ -263,10 +264,32 @@ describe('drainOutbox — rooms', () => {
     const { state: next, stopped } = await drainOutbox(state, api);
 
     expect(stopped).toBe(false);
-    expect(next.rooms).toEqual([]);
-    expect(next.plants[0].roomId).toBeNull();
+    expect(next.rooms).toEqual([{ ...room, localOnly: true }]);
+    expect(next.plants[0].roomId).toBe(room.id);
     expect(next.outbox).toEqual([]);
+    expect(next.failed).toEqual([
+      { op: 'room.create', localId: room.id, serverId: null, status: 403, at: expect.any(String) },
+    ]);
     warn.mockRestore();
+  });
+
+  test('a plant in a refused room pushes roomless instead of waiting forever, and keeps the room', async () => {
+    const room = { ...makeRoom({ name: 'Balcony' }), localOnly: true };
+    const plant = makePlant({ speciesKey: 'm', nickname: 'Penny', roomId: room.id });
+    const state = local({ rooms: [room], plants: [plant], outbox: [entry('plant.create', plant.id)] });
+    const sent = [];
+    const api = { addPlant: async (p) => (sent.push(p), { id: 'S1' }) };
+
+    const { state: next } = await drainOutbox(state, api);
+
+    expect(sent).toEqual([expect.objectContaining({ roomId: null })]);
+    expect(next.outbox).toEqual([]);
+    expect(next.plants[0]).toMatchObject({ serverId: 'S1', roomId: room.id });
+
+    // The server's null room is not news for it, so the pull leaves it there.
+    const merged = mergeGarden(next, [serverPlant({ id: 'S1', room_id: null })], NOW, []);
+    expect(merged.plants[0].roomId).toBe(room.id);
+    expect(merged.rooms.map((r) => r.id)).toEqual([room.id]);
   });
 
   test('a rename and a delete go to the room’s server id', async () => {
@@ -651,5 +674,69 @@ describe('syncGarden', () => {
     expect(round.remote).toBeNull(); // no pull while the queue is still stuck
     expect(round.pushed.plants.find((p) => p.id === a.id).serverId).toBe('SA');
     expect(round.pushed.outbox).toHaveLength(1); // b is still queued
+  });
+});
+
+describe('rejected writes', () => {
+  let warn;
+  beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
+  test('a 422 leaves the queue and one record in `failed`', async () => {
+    const plant = { ...makePlant({ speciesKey: 'm', nickname: 'Penny' }), serverId: 'S1' };
+    const state = local({ plants: [plant], outbox: [entry('plant.update', plant.id, 'S1')] });
+    const api = {
+      updatePlant: async () => {
+        throw new ApiError('Request failed with 422', { code: 'http', status: 422 });
+      },
+    };
+
+    const { state: next, stopped } = await drainOutbox(state, api);
+
+    expect(stopped).toBe(false);
+    expect(next.outbox).toEqual([]);
+    expect(next.failed).toEqual([
+      { op: 'plant.update', localId: plant.id, serverId: 'S1', status: 422, at: expect.any(String) },
+    ]);
+  });
+
+  test('a transient failure is not a rejection: nothing is recorded', async () => {
+    const plant = { ...makePlant({ speciesKey: 'm', nickname: 'Penny' }), serverId: 'S1' };
+    const state = local({ plants: [plant], outbox: [entry('plant.update', plant.id, 'S1')] });
+    const api = {
+      updatePlant: async () => {
+        throw new ApiError('offline', { code: 'offline' });
+      },
+    };
+    const { state: next } = await drainOutbox(state, api);
+    expect(next.failed).toEqual([]);
+    expect(next.outbox).toHaveLength(1);
+  });
+
+  test('keeps only the newest records', async () => {
+    const plants = Array.from({ length: 3 }, (_, i) => ({
+      ...makePlant({ speciesKey: 'm', nickname: `P${i}` }),
+      serverId: `S${i}`,
+    }));
+    const old = Array.from({ length: MAX_FAILED }, (_, i) => ({
+      op: 'plant.update', localId: `old${i}`, serverId: null, status: 422, at: NOW,
+    }));
+    const state = {
+      ...local({ plants, outbox: plants.map((p) => entry('plant.update', p.id, p.serverId)) }),
+      failed: old,
+    };
+    const api = {
+      updatePlant: async () => {
+        throw new ApiError('Request failed with 422', { code: 'http', status: 422 });
+      },
+    };
+
+    const { state: next } = await drainOutbox(state, api);
+
+    expect(next.failed).toHaveLength(MAX_FAILED);
+    expect(next.failed.slice(-3).map((f) => f.localId)).toEqual(plants.map((p) => p.id));
+    expect(next.failed[0].localId).toBe('old3');
   });
 });

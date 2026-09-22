@@ -55,8 +55,16 @@ describe('migrate', () => {
       imageFile: null,
     });
     expect(migrated.outbox).toEqual([]);
+    expect(migrated.failed).toEqual([]);
     // Rooms come from the server now; nothing is seeded.
     expect(migrated.rooms).toEqual([]);
+  });
+
+  test('a v2 document without `failed` gains an empty one and is otherwise unchanged', () => {
+    const doc = { version: STATE_VERSION, plants: [], reminders: [], rooms: [], outbox: [], lastSyncAt: null };
+    expect(migrate(doc)).toEqual({ ...doc, profileName: null, failed: [] });
+    const recorded = [{ op: 'plant.update', localId: 'p1', serverId: 'S1', status: 422, at: 'x' }];
+    expect(migrate({ ...doc, failed: recorded }).failed).toBe(recorded);
   });
 
   test('an existing dirty map is not overwritten by the default', () => {

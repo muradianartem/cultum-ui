@@ -300,7 +300,7 @@ test('a re-queued entry is dropped when its row was deleted mid-round', async ()
   expect(applySyncRound(current, round).outbox).toEqual([]);
 });
 
-test('a room refused for the plan limit goes even if renamed mid-round, and its plants lose it', async () => {
+test('a room refused for the plan limit stays even if renamed mid-round, and its plants keep it', async () => {
   const base = seedGarden({ now: NOW, plants: [{ nickname: 'Penny', room: 'Kitchen' }] });
   const room = base.rooms[0];
   base.outbox = [entry('room.create', room.id)];
@@ -315,9 +315,12 @@ test('a room refused for the plan limit goes even if renamed mid-round, and its 
   const current = act(base, { type: 'room/rename', id: room.id, name: 'Galley' });
   const next = applySyncRound(current, round);
 
-  expect(next.rooms).toEqual([]);
-  expect(next.plants[0].roomId).toBeNull();
+  expect(next.rooms).toEqual([expect.objectContaining({ id: room.id, name: 'Galley', localOnly: true })]);
+  expect(next.plants[0].roomId).toBe(room.id);
   expect(next.outbox).toEqual([]);
+  // The refusal is carried over from the round, once.
+  expect(next.failed).toEqual([expect.objectContaining({ op: 'room.create', localId: room.id, status: 402 })]);
+  expect(applySyncRound(next, { ...round, base: next, pushed: next }).failed).toHaveLength(1);
 });
 
 test('completing a reminder during the round keeps the completion and its entry', async () => {
