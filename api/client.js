@@ -34,15 +34,23 @@ export function setUnauthorizedHandler(fn) {
 // On in development, off in release: a shipped build has no use for a console
 // line per request. Request and response bodies are never traced — only shapes
 // and sizes. The one credential that is printed is the bearer token, and only
-// through `traceToken` below, which is hard-gated on __DEV__.
+// through `traceToken` below, which checks __DEV__ itself.
+//
+// Read at call time, not captured, so nothing — setApiLogging included — can
+// switch dev-only output on in a release build.
+const isDev = () => typeof __DEV__ !== 'undefined' && __DEV__;
+
 let logging =
   typeof __DEV__ !== 'undefined' &&
   __DEV__ &&
   process.env.NODE_ENV !== 'test';
 
-/** Turn request tracing on or off (tests silence it; dev defaults to on). */
+/**
+ * Turn request tracing on or off (tests silence it; dev defaults to on).
+ * Tracing is never available in release: outside __DEV__ this stays off.
+ */
 export function setApiLogging(on) {
-  logging = !!on;
+  logging = !!on && isDev();
 }
 
 export function trace(message) {
@@ -69,12 +77,14 @@ function expiryNote(token) {
 // {API_BASE_URL}/docs. Deliberately the one exception to not logging
 // credentials, because testing an endpoint by hand needs it.
 //
-// Guarded three ways: only when tracing is on (development, never release),
-// and deduped by value so it appears once per token — on sign-in and on each
-// refresh — rather than on every request.
+// Guarded three ways: __DEV__ checked here in code (so a release build never
+// prints it, whatever `logging` says), tracing switched on, and deduped by
+// value so it appears once per token — on sign-in and on each refresh —
+// rather than on every request.
 let tracedToken = null;
 
 function traceToken(token) {
+  if (!isDev()) return;
   if (!logging || !token || token === tracedToken) return;
   tracedToken = token;
   console.log(
@@ -265,12 +275,15 @@ async function attempt(url, { method, headers, body, timeoutMs, retries }) {
   }
 }
 
-// Every failure leaves a breadcrumb. Release builds strip nothing here on
-// purpose: without it, "it says I'm offline" is unactionable.
+// Every failure leaves a breadcrumb, in release too: method, path, code and
+// status are what make "it says I'm offline" actionable. The response body
+// (`detail`) is dev-only — a 422 echoes the user's own input back, and nothing
+// collects a release build's console anyway. Callers still get it on the
+// ApiError itself.
 function logged(error, method, path) {
   console.warn(
     `[api] ${method} ${path} failed — code=${error.code} status=${error.status}` +
-      (error.detail ? ` detail=${error.detail}` : '')
+      (error.detail && isDev() ? ` detail=${error.detail}` : '')
   );
   return error;
 }

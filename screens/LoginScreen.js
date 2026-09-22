@@ -294,7 +294,10 @@ function GoogleSignInButton({ nonce, busy, onIdToken, onAbandoned }) {
     if (!response) return;
     if (response.type === 'success') {
       const idToken = response.params?.id_token ?? response.authentication?.idToken;
-      if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
+      // The keys only: the params can carry an access_token or an auth code.
+      if (__DEV__ && !idToken) {
+        console.warn('[login] Google success but no id_token; params:', Object.keys(response.params ?? {}));
+      }
       onIdToken(idToken);
     } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
       if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
