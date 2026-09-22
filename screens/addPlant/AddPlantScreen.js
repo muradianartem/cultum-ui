@@ -18,12 +18,18 @@
 // with the new plant's id — a Route only renders while it matches, so
 // ProductPage is unmounted for the whole flow and there is no state there to
 // call back into.
+//
+// In onboarding (an add session the entry screen started — see
+// onboarding/OnboardingProvider.js), Done and close go to the paywall instead,
+// through reset() so closing the paywall can never remount this wizard. The
+// plant is already saved by then; nothing on that path saves it again.
 
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Icon, NavigationBar, useKeyboard } from '../../components';
 import { useRouter } from '../../routing';
+import { ONBOARDING_PAYWALL, useOnboarding } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
@@ -62,6 +68,7 @@ export default function AddPlantScreen({ plant, today }) {
   const { back, replace, reset } = useRouter();
   const garden = useGarden();
   const gate = useRoomGate();
+  const onboarding = useOnboarding();
 
   const vm = plant;
 
@@ -81,14 +88,26 @@ export default function AddPlantScreen({ plant, today }) {
   const room = rooms.find((r) => r.id === roomId) ?? null;
   const previous = PREVIOUS[step];
 
-  const openPlant = () => replace('product', { plantId: savedId.current });
+  // One way out of success for both Done and close. A ref guards it for the
+  // same reason `save` has one: two taps in one frame would both navigate.
+  const finished = useRef(false);
+  const finish = () => {
+    if (finished.current) return;
+    finished.current = true;
+    if (onboarding.addingPlant) {
+      onboarding.beginPaywall();
+      reset('paywall', ONBOARDING_PAYWALL);
+    } else {
+      replace('product', { plantId: savedId.current });
+    }
+  };
 
   // The leading button steps backwards through the flow where it can, and
   // otherwise leaves it — from success, onto the plant that was just saved
   // rather than back to the species it came from.
   const leave = () => {
     if (previous) setStep(previous);
-    else if (step === 'success') openPlant();
+    else if (step === 'success') finish();
     else back();
   };
 
@@ -122,6 +141,8 @@ export default function AddPlantScreen({ plant, today }) {
             startAt: r.startAt ?? null,
           })),
       });
+      // A no-op outside an onboarding add session.
+      onboarding.recordSavedPlant(savedId.current);
     }
     setStep('success');
   };
@@ -236,7 +257,7 @@ export default function AddPlantScreen({ plant, today }) {
                 leftIcon={<Icon name="outlined-scan" size={20} color={t.text.primary} />}
                 onPress={() => reset('scan-camera')}
               />
-              <Button label="Done" size="lg" onPress={openPlant} />
+              <Button label="Done" size="lg" onPress={finish} />
             </>
           ) : null}
         </View>

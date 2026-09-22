@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import ScanMatchesScreen from '../ScanMatchesScreen';
+import { onboardingSession } from '../../../onboarding/testing';
 import { getSpecies } from '../../../api/plants';
 import { confirmScan } from '../../../api/scans';
 import { MOCK_SCAN, MOCK_DETAIL } from '../../../api/__mocks__/scanFixtures';
@@ -184,4 +185,36 @@ test('retrying a failed pick re-fetches without sending a second label', async (
   expect(getSpecies).toHaveBeenCalledTimes(2);
   expect(confirmScan).toHaveBeenCalledTimes(1);
   expect(api.route).toBe('product');
+});
+
+describe('Close', () => {
+  test('an ordinary scan closes to Today with no history', async () => {
+    const tree = create(<ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />);
+    await press(tree, 'Close');
+    expect(api.route).toBe('today');
+    expect(api.canGoBack).toBe(false);
+  });
+
+  test('an onboarding scan closes to "Add your first plant"', async () => {
+    const session = onboardingSession(
+      <ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />,
+    );
+    const tree = create(session.element);
+    session.begin();
+    await press(tree, 'Close');
+    expect(api.route).toBe('onboarding');
+    expect(session.current.addingPlant).toBe(false);
+  });
+
+  test('picking a match keeps the onboarding session open for the add-plant form', async () => {
+    getSpecies.mockResolvedValueOnce(MOCK_DETAIL);
+    const session = onboardingSession(
+      <ScanMatchesScreen photoUri="file://photo.jpg" scan={MOCK_SCAN} />,
+    );
+    const tree = create(session.element);
+    session.begin();
+    await press(tree, 'Swiss cheese plant');
+    expect(api.route).toBe('product');
+    expect(session.current.addingPlant).toBe(true);
+  });
 });

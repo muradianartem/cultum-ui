@@ -14,6 +14,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { ButtonIcon, Icon, LoadingIndicator, State } from '../../components';
 import { useRouter } from '../../routing';
+import { useLeaveAcquisition } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { createScan } from '../../api/scans';
@@ -85,7 +86,9 @@ function SideControl({ icon, label, onPress, styles }) {
 export default function ScanCameraScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const { navigate, reset } = useRouter();
+  const { navigate } = useRouter();
+  // Close goes to Today — or, mid-onboarding, back to "Add your first plant".
+  const leave = useLeaveAcquisition();
   const t = useTheme();
   const styles = makeStyles(t);
 
@@ -175,7 +178,7 @@ export default function ScanCameraScreen() {
             variant="outline"
             size="md"
             icon={<Icon name="close" size={24} color={t.text.primary} />}
-            onPress={() => reset('today')}
+            onPress={leave}
             accessibilityLabel="Close"
           />
         </View>
@@ -237,7 +240,7 @@ export default function ScanCameraScreen() {
         <CameraPill
           icon="close"
           label="Close"
-          onPress={() => reset('today')}
+          onPress={leave}
           styles={styles}
         />
         <View style={styles.topRight}>

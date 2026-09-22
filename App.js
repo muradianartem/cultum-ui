@@ -13,7 +13,6 @@ import { clearEntitlement } from './lib/entitlementCache';
 import { PrefsProvider, usePrefs } from './prefs';
 import { EntitlementProvider } from './billing/EntitlementProvider';
 import { cancelAll, configureNotifications } from './notifications';
-import PaywallLauncher from './billing/PaywallLauncher';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
 import { LoadingIndicator, SnackbarProvider } from './components';
@@ -33,6 +32,8 @@ import PaywallScreen from './screens/PaywallScreen';
 import ScanCameraScreen from './screens/scan/ScanCameraScreen';
 import ScanMatchesScreen from './screens/scan/ScanMatchesScreen';
 import ScanSearchScreen from './screens/scan/ScanSearchScreen';
+import OnboardingScreen from './screens/onboarding/OnboardingScreen';
+import { OnboardingNavigator, OnboardingProvider, useOnboarding } from './onboarding';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
 // the V1 flow — re-enable this import and its route below when V2 ships.
 // import ImageViewer from './screens/ImageViewer';
@@ -95,41 +96,58 @@ export function AuthGate() {
         {/* Inside the garden so an open undo can still reach it — signing out
             takes both with it. */}
         <SnackbarProvider>
-          <Router initial="today">
-            {/* Not a route: it has to outlive whichever screen is on top, because
-                a tapped reminder can arrive at any moment. */}
-            <NotificationRouter />
-            {/* Also not a route: it opens the paywall once the backend has said
-                what Plus costs. See billing/PaywallLauncher.js. */}
-            <PaywallLauncher signedInVia={signedInVia} />
-            <Route name="today" component={TodayScreen} />
-            <Route name="product" component={ProductPage} />
-            <Route name="add-plant" component={AddPlantScreen} />
-            <Route name="reminders" component={RemindersScreen} />
-            <Route name="rooms" component={RoomsScreen} />
-            <Route name="room" component={RoomScreen} />
-            <Route name="settings" component={SettingsScreen} />
-            <Route name="settings-notifications" component={NotificationsScreen} />
-            <Route name="settings-feedback" component={SendFeedbackScreen} />
-            <Route name="settings-contact" component={ContactUsScreen} />
-            <Route name="settings-about" component={AboutScreen} />
-            <Route name="scan-camera" component={ScanCameraScreen} />
-            <Route name="scan-matches" component={ScanMatchesScreen} />
-            <Route name="scan-search" component={ScanSearchScreen} />
-            {/* Entered by <PaywallLauncher> above (see billing/entry.js), from
-                the upgrade card in Settings, and as the subscription guard's
-                fallback. */}
-            <Route name="paywall" component={PaywallScreen} />
-            <Route
-              name="premium-gallery"
-              guard={requireSubscription}
-              component={PremiumGallery}
-              fallback={<PaywallScreen />}
-            />
-          </Router>
+          {/* Installation-scoped, so it is not cleared on sign-out; it picks
+              the router's first route, so it has to sit above it. */}
+          <OnboardingProvider signedInVia={signedInVia}>
+            <AppRoutes />
+          </OnboardingProvider>
         </SnackbarProvider>
       </GardenProvider>
     </EntitlementProvider>
+  );
+}
+
+// The authenticated routes. A component of its own because <Router initial>
+// comes from the onboarding record, which is only readable below its provider.
+// `initialRoute` is fixed at the provider's mount, so this never remounts the
+// router under the user.
+function AppRoutes() {
+  const { initialRoute } = useOnboarding();
+  return (
+    <Router initial={initialRoute}>
+      {/* Not a route: it has to outlive whichever screen is on top, because
+          a tapped reminder can arrive at any moment. */}
+      <NotificationRouter />
+      {/* Also not a route: it settles an onboarding checkpoint a previous
+          launch left behind. */}
+      <OnboardingNavigator />
+      <Route name="onboarding" component={OnboardingScreen} />
+      <Route name="today" component={TodayScreen} />
+      <Route name="product" component={ProductPage} />
+      <Route name="add-plant" component={AddPlantScreen} />
+      <Route name="reminders" component={RemindersScreen} />
+      <Route name="rooms" component={RoomsScreen} />
+      <Route name="room" component={RoomScreen} />
+      <Route name="settings" component={SettingsScreen} />
+      <Route name="settings-notifications" component={NotificationsScreen} />
+      <Route name="settings-feedback" component={SendFeedbackScreen} />
+      <Route name="settings-contact" component={ContactUsScreen} />
+      <Route name="settings-about" component={AboutScreen} />
+      <Route name="scan-camera" component={ScanCameraScreen} />
+      <Route name="scan-matches" component={ScanMatchesScreen} />
+      <Route name="scan-search" component={ScanSearchScreen} />
+      {/* Entered at the end of onboarding (with source: 'onboarding'), from
+          the upgrade card in Settings, the room-limit gate, and as the
+          subscription guard's fallback. There is no launch paywall any more:
+          it would land on top of onboarding. */}
+      <Route name="paywall" component={PaywallScreen} />
+      <Route
+        name="premium-gallery"
+        guard={requireSubscription}
+        component={PremiumGallery}
+        fallback={<PaywallScreen />}
+      />
+    </Router>
   );
 }
 
