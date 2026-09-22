@@ -141,3 +141,19 @@ describe('upcomingTasks', () => {
     expect(upcomingTasks(g, NOW, 10).map((t) => t.due)).toEqual(['In 7d']);
   });
 });
+
+// Run under TZ=America/Toronto to exercise it: clocks fall back on 1 Nov 2026.
+describe('nextDueAt across a DST change', () => {
+  test('a local-noon start keeps its calendar day and lands at its time of day', () => {
+    for (const day of [31, 1, 2]) {
+      const month = day === 31 ? 9 : 10;
+      const r = makeReminder({
+        plantId: 'p',
+        timeOfDay: '09:00',
+        startAt: new Date(2026, month, day, 12).toISOString(),
+      });
+      expect(r.lastDoneAt).toBeNull();
+      expect(nextDueAt(r)).toEqual(new Date(2026, month, day, 9, 0));
+    }
+  });
+});

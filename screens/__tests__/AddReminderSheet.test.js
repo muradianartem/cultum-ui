@@ -128,6 +128,7 @@ describe('step 2 — frequency', () => {
     expect(onConfirm.mock.calls[0][0]).toEqual({
       title: 'Rotate the pot',
       dateValue: '10 Sep',
+      startAt: new Date(2026, 8, 10, 12).toISOString(),
       frequency: '2 days',
     });
     expect(onClose).toHaveBeenCalledTimes(1);

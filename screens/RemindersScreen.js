@@ -210,7 +210,7 @@ export default function RemindersScreen({ plantId, plantName }) {
       action: 'custom',
       title: draft.title,
       intervalDays: parseFrequency(draft.frequency),
-      startAt: (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
+      startAt: draft.startAt ?? (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
     });
   };
 

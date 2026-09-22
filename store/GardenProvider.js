@@ -334,12 +334,16 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
        *
        * `care` is the raw SpeciesDetail, cached on the plant so its product
        * page renders in full offline. `reminders` are the rows the flow
-       * enabled: `{ action, intervalDays }`, each anchored to now so the first
-       * one falls a full interval out rather than immediately.
+       * enabled: `{ action, title, intervalDays, startAt? }`. A row with a
+       * `startAt` (a custom reminder's chosen day) first comes due on that day;
+       * the rest are anchored to now, so they fall a full interval out rather
+       * than immediately. An unparsable `startAt` counts as absent.
        */
       addPlant({ speciesKey, nickname, roomId = null, care = null, heroUri = null, reminders = [] }) {
         const when = at();
         const plant = makePlant({ speciesKey, nickname, roomId, care, heroUri, now: when });
+        const startOf = (r) =>
+          r.startAt && !Number.isNaN(Date.parse(r.startAt)) ? r.startAt : null;
         const rows = reminders.map((r) =>
           makeReminder({
             plantId: plant.id,
@@ -350,12 +354,17 @@ export function GardenProvider({ children, initialState = null, clock = null }) 
             // is only the last resort when there is no provider (isolated tests).
             timeOfDay: r.timeOfDay ?? prefsRef.current.reminderTime ?? DEFAULT_TIME_OF_DAY,
             enabled: r.enabled !== false,
+            startAt: startOf(r),
             now: when,
           }),
         );
-        // Adding it now counts as having just done it, so a 7-day watering is
-        // next due in 7 days — which is what the flow's success line promises.
-        for (const row of rows) row.lastDoneAt = when.toISOString();
+        // A suggested reminder added now counts as having just been done, so a
+        // 7-day watering is next due in 7 days. One with a chosen start day is
+        // left undone, so nextDueAt anchors it on that day instead. Either way
+        // it is what the flow's success line promises.
+        rows.forEach((row, i) => {
+          if (!startOf(reminders[i])) row.lastDoneAt = when.toISOString();
+        });
 
         commit({ type: 'plant/add', plant, reminders: rows });
         // The first plant is the first moment a reminder can matter, and the

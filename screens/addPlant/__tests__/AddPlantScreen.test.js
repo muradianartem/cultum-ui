@@ -3,6 +3,9 @@ import { TextInput as RNTextInput } from 'react-native';
 import { speciesDetailToVM } from '../../../api/mapPlant';
 import { Route } from '../../../routing';
 import { useGarden } from '../../../store/GardenProvider';
+import { nextDueAt } from '../../../store/schedule';
+import AddReminderSheet from '../../AddReminderSheet';
+import { DEFAULT_UNIT_INDEX, makeReminderDraft } from '../../addReminderData';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import ProductPage from '../../ProductPage';
 import AddPlantScreen from '../AddPlantScreen';
@@ -253,6 +256,37 @@ describe('success', () => {
     expect(t).toContain('Monstera deliciosa · Kitchen');
     expect(t).toContain('All caught up');
     expect(t).toContain('Next reminder is on Thu, Sep 17');
+  });
+
+  test('a custom reminder first comes due on the day chosen for it', () => {
+    const tree = create();
+    walkTo(tree, 'reminders');
+    press(tree, 'Enable Watering');
+    press(tree, 'Add custom reminder');
+    // The sheet's own wheels and calendar have their tests; what matters here
+    // is what the flow does with the draft it hands back.
+    const draft = makeReminderDraft({
+      label: 'Mist the leaves',
+      numberIndex: 29, // 30
+      unitIndex: DEFAULT_UNIT_INDEX, // days
+      date: new Date(2026, 8, 11), // tomorrow
+    });
+    const sheet = tree.tree.root.findByType(AddReminderSheet);
+    act(() => {
+      sheet.props.onConfirm(draft);
+      sheet.props.onClose();
+    });
+    press(tree, 'Continue');
+
+    // The success line and the store agree on the day.
+    expect(texts(tree)).toContain('Next treatment is on Fri 11, Sep');
+    const water = garden.reminders.find((r) => r.action === 'water');
+    const custom = garden.reminders.find((r) => r.action === 'custom');
+    expect(custom).toMatchObject({ title: 'Mist the leaves', intervalDays: 30, lastDoneAt: null });
+    const [hh, mm] = custom.timeOfDay.split(':').map(Number);
+    expect(nextDueAt(custom)).toEqual(new Date(2026, 8, 11, hh, mm));
+    // A suggested reminder still counts as just done.
+    expect(water.lastDoneAt).not.toBeNull();
   });
 
   test('Scan another plant resets to the camera, leaving no flow in the stack', () => {
