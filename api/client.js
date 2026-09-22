@@ -1,8 +1,9 @@
 import { isOffline } from '../lib/net';
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  'https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io';
+import { API_BASE_URL } from '../lib/config';
+
+// Decided in lib/config.js; re-exported so existing imports keep working.
+export { API_BASE_URL };
 
 // iOS gives an unconfigured request NSURLSession's ~60s idle timeout and then
 // reports the abort as an indistinguishable "Network request failed". We set

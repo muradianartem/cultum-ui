@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import Dropdown from '../Dropdown';
 import DropdownMenu, { MenuItem } from '../DropdownMenu';
 import { colorTokens, interaction } from '../../theme/colorTokens';

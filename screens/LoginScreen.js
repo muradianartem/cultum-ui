@@ -300,6 +300,9 @@ function GoogleSignInButton({ nonce, busy, onIdToken, onAbandoned }) {
       if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
       onAbandoned();
     }
+    // Keyed on the auth response alone: each response is handled exactly once,
+    // and the callbacks are fresh closures every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [response]);
 
   return (

@@ -195,7 +195,6 @@ export default function useStorePurchase(products) {
       // Leave no caller awaiting a sheet that belongs to a gone screen.
       settle(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const purchase = async (product) => {

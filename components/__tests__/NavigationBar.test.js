@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import NavigationBar from '../NavigationBar';
 import { NavigationBar as BarrelNav } from '../index';
 import { colorTokens, interaction } from '../../theme/colorTokens';

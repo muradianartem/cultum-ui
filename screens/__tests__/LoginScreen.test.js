@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 
 // --- Mock the native / async edges the Login screen depends on ---
 const mockPromptAsync = jest.fn(async () => ({ type: 'dismiss' }));
@@ -63,7 +63,6 @@ jest.mock('../../auth/AuthProvider', () => ({
   }),
 }));
 
-import { Platform } from 'react-native';
 import LoginScreen from '../LoginScreen';
 
 const IOS = Platform.OS;

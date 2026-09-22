@@ -116,7 +116,6 @@ export function usePaywallResource() {
     prefetchPaywall();
     onChange(); // the request may have started, landed or failed since first render
     return () => listeners.delete(onChange);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const retry = () => {

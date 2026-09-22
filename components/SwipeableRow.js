@@ -74,6 +74,9 @@ export default function SwipeableRow({
         },
         onPanResponderTerminate: () => settle(restX.current < -openTo / 2),
       }),
+    // `translateX` is a stable Animated.Value and `settle` only reads refs, so
+    // the responder is rebuilt when the geometry changes and not every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [openTo]
   );
 
