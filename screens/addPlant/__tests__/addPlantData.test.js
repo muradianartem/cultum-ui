@@ -97,7 +97,13 @@ describe('customReminderRow', () => {
       enabled: true,
       frequency: 'Every 2 weeks',
       intervalDays: 14,
+      startAt: null,
     });
+  });
+
+  test('keeps the start date the sheet chose', () => {
+    const startAt = new Date(2026, 8, 11, 12).toISOString();
+    expect(customReminderRow({ title: 'Mist', frequency: '30 days', startAt }, 30).startAt).toBe(startAt);
   });
 });
 
@@ -120,5 +126,33 @@ describe('success copy', () => {
 
   test('says so when nothing is enabled', () => {
     expect(successSubtitle([{ enabled: false }], TODAY)).toBe('There is no reminder set for now');
+  });
+
+  test('a custom reminder starting tomorrow beats a 7-day watering', () => {
+    const subtitle = successSubtitle(
+      [
+        { enabled: true, intervalDays: 7 },
+        { enabled: true, intervalDays: 30, startAt: new Date(2026, 8, 11, 12).toISOString() },
+      ],
+      TODAY,
+    );
+    expect(subtitle).toBe('Next treatment is on Fri 11, Sep');
+  });
+
+  test('with no custom row it stays a full interval out', () => {
+    expect(successSubtitle([{ enabled: true, intervalDays: 7, startAt: null }], TODAY)).toBe(
+      'Next treatment is on Thu 17, Sep',
+    );
+  });
+
+  test('a start date in the past is still named — that reminder is due now', () => {
+    const subtitle = successSubtitle(
+      [
+        { enabled: true, intervalDays: 7 },
+        { enabled: true, intervalDays: 14, startAt: new Date(2026, 8, 3, 12).toISOString() },
+      ],
+      TODAY,
+    );
+    expect(subtitle).toBe('Next treatment is on Thu 3, Sep');
   });
 });

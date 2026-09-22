@@ -35,7 +35,8 @@ import {
   useKeyboard,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
-import { fonts, motion, shadow, sheet } from '../theme/tokens';
+import { motion, shadow, sheet, wheel } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { FREQUENCY_NUMBERS, FREQUENCY_UNITS } from './durationUnits';
 import {
   DEFAULT_NUMBER_INDEX,
@@ -296,16 +297,12 @@ const makeStyles = (t) => StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 16 },
   header: { gap: 4 },
   title: {
-    fontFamily: fonts.display, // Literata / serif — Heading XS Emphasized
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: '700',
+    ...typography.headingExtraSmallEmphasized,
     color: t.text.primary,
     textAlign: 'center',
   },
   caption: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.bodyMedium,
     color: t.text.secondary,
     textAlign: 'center',
   },
@@ -323,13 +320,13 @@ const makeStyles = (t) => StyleSheet.create({
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   numberCol: { width: 120 },
   unitCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
-  active: { fontSize: 20, opacity: 1, color: t.text.primary },
-  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
+  number: { textAlign: 'right', color: t.text.primary },
+  unit: { textAlign: 'left', color: t.text.primary },
+  active: { ...wheel.active, color: t.text.primary },
+  dim: { ...wheel.dim, color: t.text.secondary },
 
   after: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  afterText: { fontSize: 14, lineHeight: 20, color: t.text.secondary },
+  afterText: { ...typography.bodyMedium, color: t.text.secondary },
 
   // Figma wraps the #FAFAFA calendar card in a bordered 20px-radius frame.
   calendarWrap: {

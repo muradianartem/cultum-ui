@@ -7,7 +7,8 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, WheelPicker } from '../components';
-import { fonts } from '../theme/tokens';
+import { wheel } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
@@ -74,10 +75,7 @@ export default function SnoozeContent({ onConfirm }) {
 const makeStyles = (t) => StyleSheet.create({
   wrap: { paddingHorizontal: 16, gap: 16 },
   title: {
-    fontFamily: fonts.display, // serif, matching the app's titles (Literata in Figma)
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
+    ...typography.headingExtraSmallEmphasized, // Figma 1:11113
     color: t.text.primary,
     textAlign: 'center',
   },
@@ -94,8 +92,8 @@ const makeStyles = (t) => StyleSheet.create({
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   numberCol: { width: 120 },
   unitCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
-  active: { fontSize: 20, opacity: 1, color: t.text.primary },
-  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
+  number: { textAlign: 'right', color: t.text.primary },
+  unit: { textAlign: 'left', color: t.text.primary },
+  active: { ...wheel.active, color: t.text.primary },
+  dim: { ...wheel.dim, color: t.text.secondary },
 });

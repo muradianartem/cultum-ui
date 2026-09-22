@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Keyboard, Modal, Text, Pressable } from 'react-native';
+import { Keyboard, Modal, Text } from 'react-native';
 import BottomSheet from '../BottomSheet';
 import { BottomSheet as BarrelBottomSheet } from '../index';
 

@@ -10,7 +10,10 @@ const METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.useRealTimers();
+});
 
 function create() {
   let tree;
@@ -32,6 +35,7 @@ const texts = (tree) =>
 test('copying the address confirms on the button itself', async () => {
   // The design puts the confirmation on the control rather than in a snackbar,
   // which is also the only place the user is looking.
+  jest.useFakeTimers();
   const tree = create();
   expect(texts(tree)).toContain('hello@cultum.app');
   expect(texts(tree)).toContain('Copy Email Address');
@@ -48,4 +52,10 @@ test('copying the address confirms on the button itself', async () => {
 
   expect(Clipboard.setStringAsync).toHaveBeenCalledWith('hello@cultum.app');
   expect(texts(tree)).toContain('Email Copied');
+
+  // …and reverts on its own. Running the timer here also keeps it from firing
+  // after the test, into a torn-down environment.
+  act(() => jest.advanceTimersByTime(2000));
+  expect(texts(tree)).toContain('Copy Email Address');
+  act(() => tree.unmount());
 });

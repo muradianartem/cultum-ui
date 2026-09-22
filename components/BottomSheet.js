@@ -9,6 +9,9 @@ import {
   View,
 } from 'react-native';
 import { sheet, shadow, motion } from '../theme/tokens';
+import { fontFace } from '../theme/fonts';
+import { typography } from '../theme/foundations';
+import Icon from './Icon';
 import { useTheme } from '../theme/ThemeProvider';
 import Button from './Button';
 import { useKeyboard } from './useKeyboardVisible';
@@ -120,7 +123,7 @@ export default function BottomSheet({
                 style={[styles.close, { backgroundColor: t.brand.secondary }]}
                 testID="bottomsheet-close"
               >
-                <Text style={[styles.closeGlyph, { color: t.text.primary }]}>✕</Text>
+                <Icon name="close" size={20} color={t.text.primary} />
               </Pressable>
             ) : null}
 
@@ -192,7 +195,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeGlyph: { fontSize: 16, lineHeight: 20 },
   body: {
     paddingTop: 32,
     paddingBottom: 24,
@@ -206,22 +208,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Figma "Bottom Sheet – P2" (14233:14268) sets its three text layers as raw
+  // values, not named styles: Inter Bold 18/22, Inter 16/24, Inter 12/16.
+  // They are kept as drawn, in the real faces (design-system/exceptions.json).
   title: {
+    fontFamily: fontFace('Inter', 700),
     fontSize: 18,
     lineHeight: 22,
-    fontWeight: '700',
     textAlign: 'center',
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '400',
-    textAlign: 'center',
-  },
+  description: { ...typography.bodyLarge, lineHeight: 24, textAlign: 'center' },
   actions: { paddingHorizontal: 16, gap: 12 },
-  caption: {
-    fontSize: 12,
-    lineHeight: 16,
-    textAlign: 'center',
-  },
+  caption: { ...typography.caption, lineHeight: 16, textAlign: 'center' },
 });

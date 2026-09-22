@@ -56,8 +56,24 @@ describe('makeReminderDraft', () => {
     expect(build()).toEqual({
       title: 'Rotate the pot',
       dateValue: '10 Sep',
+      startAt: new Date(2026, 8, 10, 12).toISOString(),
       frequency: '2 days',
     });
+  });
+
+  test('startAt is local noon on the chosen day', () => {
+    const start = new Date(build({ date: new Date(2026, 8, 10, 23, 45) }).startAt);
+    expect([start.getFullYear(), start.getMonth(), start.getDate(), start.getHours()]).toEqual([2026, 8, 10, 12]);
+  });
+
+  // "31 Dec" alone can't say which year; parseShortDate would have to guess.
+  test('startAt keeps the year the display string drops', () => {
+    const draft = build({ date: new Date(2025, 11, 31) });
+    expect(draft.dateValue).toBe('31 Dec');
+    const start = new Date(draft.startAt);
+    expect([start.getFullYear(), start.getMonth(), start.getDate()]).toEqual([2025, 11, 31]);
+    // ...whereas from 2 Jan 2027 the string alone lands on the nearest 31 Dec.
+    expect(parseShortDate(draft.dateValue, new Date(2027, 0, 2)).getFullYear()).toBe(2026);
   });
 
   test('trims the typed label', () => {

@@ -19,13 +19,18 @@ This is the repeatable recipe; `Badge` is the worked example that proves it.
   `icons/mail` → `mail.svg`, `icons/outlined/cut` → `outlined-cut.svg`,
   `icon/living_room` → `living-room.svg`. Pass `fileName` explicitly to
   `download_figma_images` — it will not do this for you.
-- **Check the exported fill.** The `currentColor` rewrite in
-  `scripts/gen-icon-registry.js` only matches `fill="#151515"`. Figma sometimes
-  exports `fill="black"` instead (as `icon/snooze` did); normalise it to
-  `#151515` or the icon renders hard black and silently ignores `<Icon color>`.
-- Known local-only names, not drift: `flash.svg` is Figma's `icon/flash_on`,
-  `cultum-logo.svg` comes from the auth/paywall file, `star-filled.svg` has no
-  Figma counterpart.
+- **Every file is in `design-system/icon-manifest.json`.** It lists all 417
+  components on the canvas (157 icons, 260 flags) by node id, and each file's
+  `kind`: `monochrome` (its single ink becomes `currentColor`, whatever the hex),
+  `brand` (kept as drawn) or `flag` (catalogued, deliberately not bundled until
+  a screen needs one). Add the manifest entry before running the generator — it
+  fails on a file it doesn't know, a bundled entry with no file, or a
+  monochrome file with more than one ink colour.
+- Names that aren't a plain flattening are recorded in the manifest's
+  `aliases` (`flash` is Figma's `icon/flash_on`). `cultum-logo` and
+  `star-filled` are `localExtensions` with their App Design provenance.
+- The last artwork comparison (re-export vs. `assets/icons/`) is recorded in the
+  manifest's `artworkComparison`; repeat it when Figma's icons change.
 
 ### Connection is verified ✅
 
@@ -64,15 +69,57 @@ priority. Node ids are stable handles for `get_figma_data`.
 | P3 | Overlay | `26744:5110` | ✅ done |
 | P3 | Tabs | `26744:5117` | ✅ done |
 
-**🎉 The full component library is complete — every Figma component (P1 + P2 + P3) is imported, tested, and rendering.**
+Every component above has a primitive in `components/`. That is coverage, not
+certified parity: where a component departs from its Figma node, the departure
+is listed in `design-system/exceptions.json`, and entries marked `unresolved`
+are still open.
 
 Screens assembled from these primitives live in their own design notes — see
 [auth-paywall-design.md](auth-paywall-design.md) for the Authorization & Paywall
 section, which comes from a *different* Figma file (`4jmjNlaM7IRpCOogYRJMks`).
 
-Foundation pages (`Colors – P0`, `Typography – P0`, `Radius – P0`,
-`Spacing – P0`, `Stroke`, etc.) feed `theme/tokens.js` — reconcile those first
-if a component needs a token that doesn't exist yet.
+## Foundations → recipes → consumers
+
+Three layers, each with one home:
+
+1. **Foundations** — `theme/primitives.js`, `theme/colorTokens.js` and
+   `theme/foundations.js` (radius, spacing, stroke, blur, opacity, the 19 text
+   styles). They are the Figma foundation pages, value for value, and
+   `theme/__tests__/figmaParity.test.js` holds them to the reviewed snapshot in
+   `design-system/figma-foundations.json`.
+2. **Recipes** — `theme/tokens.js`: per-component measurements (heights,
+   sizes, the text style a slot uses), elevation and motion. A recipe refers to
+   a foundation value whenever Figma's number is a scale step.
+3. **Consumers** — components and screens spread a named style
+   (`...typography.bodyMedium`) and read recipes. A value that isn't a
+   foundation step or a named style — a raw Figma text layer, a 6px checkbox
+   corner, a platform workaround — goes in `design-system/exceptions.json` with
+   its Figma node and a reason. The parity test fails on a raw `fontSize`,
+   `lineHeight`, `letterSpacing`, `fontWeight` or `fontFamily` in a file that
+   has no matching entry.
+
+**Typography.** Every style names a loaded static face (`theme/fonts.js`,
+loaded by `theme/FontGate.js` before the app mounts) and carries no
+`fontWeight`: to change weight, change style (`bodyMedium` →
+`bodyMediumEmphasized`), never override the weight. For a raw Figma style, use
+`fontFace('Inter', 700)` with the Figma size and line height. Pick the style
+from the node's `textStyle`, not by matching the font size — Card's title and
+the small Navigation Bar title are both 18pt Literata, but only Card's is
+Emphasized.
+
+## Refreshing the foundations snapshot
+
+`design-system/figma-foundations.json` is edited on purpose, never regenerated
+by CI:
+
+1. Fetch each foundation page listed under `sources` with `get_figma_data`
+   (they're large; parse the saved file — `TEXT` labels resolve through the
+   `ELEMENTS` templates, swatch fills through `GLOBAL_VARS`).
+2. Update the JSON from those rows only — not from `theme/`, or the test stops
+   checking anything. Keep documentation/swatch disagreements in
+   `docSwatchConflicts` rather than picking one silently.
+3. Run `npx jest theme/__tests__/figmaParity.test.js`. Every failure is a real
+   Figma change: update the theme file, then review the pair together.
 
 ## The recipe
 
@@ -104,9 +151,9 @@ if a component needs a token that doesn't exist yet.
    Figma sometimes exports art with `feTurbulence` noise filters —
    react-native-svg cannot render those, so strip them and keep the shapes.
 
-   > **Note:** `react-native-svg` **is** a dependency (15.15.4). Older components
-   > (checkbox tick, radio dot) predate it and draw their glyphs with Views +
-   > a text glyph; that is history, not a constraint on new work.
+   > **Note:** don't draw a Figma vector as a text glyph (✓, ✕, ▾): how it looks
+   > then depends on the font. Checkbox inlines its exported tick and dash
+   > paths; close, search and chevron slots use `<Icon>`.
 
 ## jest-expo test gotchas (learned the hard way)
 
@@ -138,12 +185,12 @@ agent needs no judgement:
   `makeStyles(t)` + `useMemo`.
 - **Pressed is `t.interaction.pressed`**, a translucent layer over the base
   fill — not a darker grey — so it works on any ground in either theme.
-- **Geometry goes in `theme/tokens.js`**, grouped by component. That file holds
-  no colours, and `theme/__tests__/noHardcodedColors.test.js` fails on any hex or
-  `rgba()` in `components/` or `screens/` that isn't on its allowlist (photo
-  scrims, the modal backdrop — colours that must not follow the theme).
-- Reference `radius`/`spacing`/`fontSize` tokens where an exact one exists
-  (Badge's pill uses `radius.pill`).
+- **Geometry comes from `theme/foundations.js`** (`radius[16]`, `space[8]`,
+  `radius.full` for pills); a component's own measurements are a recipe in
+  `theme/tokens.js`. Neither holds colours, and
+  `theme/__tests__/noHardcodedColors.test.js` fails on any hex or `rgba()` in
+  `components/` or `screens/` that isn't on its allowlist (photo scrims, the
+  modal backdrop — colours that must not follow the theme).
 - **Check the dark frame too.** Screen sections in the App Design file have
   `[Dark Mode]` twins (Auth & Paywall `381:27008`, Today `567:8000`, Product page
   `335:8214`) — compare against them, not only the light frame.
@@ -167,5 +214,6 @@ Keep prop names consistent across the library, not literal to Figma:
   `success.*`, negative `error.*` — resolved from `useTheme()`.
 - **Component:** [`components/Badge.js`](../components/Badge.js) —
   `intent × variant` resolves fill/text/border; `size` sets pill height
-  (16/20/24), label stays Body/Body Small (12px).
+  (16/20/24), label stays Body Small (the Small pill keeps a 14 line, an
+  exception).
 - **Tests:** [`components/__tests__/Badge.test.js`](../components/__tests__/Badge.test.js) — 11 passing.

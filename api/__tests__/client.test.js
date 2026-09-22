@@ -4,6 +4,7 @@ import {
   setAuthTokenProvider,
   setUnauthorizedHandler,
   API_BASE_URL,
+  setApiLogging,
 } from '../client';
 import { isOffline } from '../../lib/net';
 
@@ -313,4 +314,57 @@ test('asks for JSON explicitly', async () => {
   fetch.mockResolvedValueOnce(json({}));
   await apiFetch('/scans');
   expect(fetch.mock.calls[0][1].headers.Accept).toBe('application/json');
+});
+
+describe('logging', () => {
+  const realDev = global.__DEV__;
+  afterEach(() => {
+    global.__DEV__ = realDev;
+    setApiLogging(false);
+  });
+
+  // Every argument of every console.log / console.warn call, as one string.
+  const consoleOutput = () =>
+    [...console.log.mock.calls, ...console.warn.mock.calls].flat().map(String).join('\n');
+  const rejectWith422 = (token) => {
+    setAuthTokenProvider(() => token);
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({}),
+      text: async () => JSON.stringify({ detail: [{ msg: 'bad', input: 'BODY-MARKER' }] }),
+    });
+  };
+
+  test('a release build prints no token and no response body, even with tracing forced on', async () => {
+    global.__DEV__ = false;
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    setApiLogging(true);
+    rejectWith422('SECRET-TOKEN-MARKER');
+
+    const err = await apiFetch('/users/me/plants').catch((e) => e);
+
+    const out = consoleOutput();
+    expect(out).not.toContain('SECRET-TOKEN-MARKER');
+    expect(out).not.toContain('BODY-MARKER');
+    // The breadcrumb itself survives.
+    expect(out).toContain('GET /users/me/plants failed');
+    expect(out).toContain('422');
+    // Callers still get the body.
+    expect(err.detail).toContain('BODY-MARKER');
+  });
+
+  test('in dev the Swagger token print still works, once per token', async () => {
+    global.__DEV__ = true;
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    setApiLogging(true);
+    rejectWith422('DEV-TOKEN-MARKER');
+
+    await apiFetch('/users/me/plants').catch(() => {});
+    await apiFetch('/users/me/plants').catch(() => {});
+
+    const prints = console.log.mock.calls.filter(([m]) => String(m).includes('DEV-TOKEN-MARKER'));
+    expect(prints).toHaveLength(1);
+    expect(consoleOutput()).toContain('BODY-MARKER');
+  });
 });

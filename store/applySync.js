@@ -17,7 +17,7 @@
 // every entry would look new: harmless — they would just stay queued.
 
 import { enqueue } from './outbox';
-import { dropRoom, mergeGarden } from './sync';
+import { MAX_FAILED, markLocalOnly, mergeGarden } from './sync';
 
 /**
  * Per kind: the fields a create sends, and the ops that correct a create the
@@ -64,12 +64,16 @@ export function applySyncRound(current, round) {
     }
   }
 
-  // 4. Rooms the server refused for the plan limit go, whatever happened to
-  //    them mid-round.
-  const keptRooms = new Set(pushed.rooms.map((r) => r.id));
-  for (const room of base.rooms) {
-    if (!keptRooms.has(room.id) && next.rooms.some((r) => r.id === room.id)) {
-      next = dropRoom(next, room.id);
+  // 4. Keep the rejections the push recorded. Records are never cloned either,
+  //    so the new ones are those `base` did not hold.
+  const baseFailed = base.failed ?? [];
+  const added = (pushed.failed ?? []).filter((f) => !baseFailed.includes(f));
+  if (added.length > 0) next = { ...next, failed: [...(next.failed ?? []), ...added].slice(-MAX_FAILED) };
+  // A room the server refused stays, marked local-only, whatever happened to it
+  // mid-round (a rename, say) — so its plants stop waiting on a create.
+  for (const f of added) {
+    if (f.op === 'room.create' && next.rooms.some((r) => r.id === f.localId)) {
+      next = markLocalOnly(next, f.localId);
     }
   }
 

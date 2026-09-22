@@ -294,12 +294,18 @@ function GoogleSignInButton({ nonce, busy, onIdToken, onAbandoned }) {
     if (!response) return;
     if (response.type === 'success') {
       const idToken = response.params?.id_token ?? response.authentication?.idToken;
-      if (__DEV__ && !idToken) console.warn('[login] Google success but no id_token', response.params);
+      // The keys only: the params can carry an access_token or an auth code.
+      if (__DEV__ && !idToken) {
+        console.warn('[login] Google success but no id_token; params:', Object.keys(response.params ?? {}));
+      }
       onIdToken(idToken);
     } else if (response.type === 'error' || response.type === 'dismiss' || response.type === 'cancel') {
       if (__DEV__ && response.type === 'error') console.warn('[login] auth error:', response.error);
       onAbandoned();
     }
+    // Keyed on the auth response alone: each response is handled exactly once,
+    // and the callbacks are fresh closures every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [response]);
 
   return (
@@ -356,7 +362,6 @@ function makeStyles(t, insets) {
     // caption is bold, so the weight is pinned back to 500 here.
     legal: {
       ...typography.captionEmphasized,
-      fontWeight: '500',
       color: t.text.secondary,
       textAlign: 'center',
     },

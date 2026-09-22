@@ -1,5 +1,4 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { View } from 'react-native';
 import RadioButton from '../RadioButton';
 import { RadioButton as BarrelRadio } from '../index';
 import { colorTokens, interaction } from '../../theme/colorTokens';

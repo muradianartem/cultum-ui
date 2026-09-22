@@ -115,7 +115,12 @@ export default function AddPlantScreen({ plant, today }) {
         heroUri: vm?.heroUri ?? null,
         reminders: reminders
           .filter((r) => r.enabled)
-          .map((r) => ({ action: r.action, title: r.title, intervalDays: r.intervalDays })),
+          .map((r) => ({
+            action: r.action,
+            title: r.title,
+            intervalDays: r.intervalDays,
+            startAt: r.startAt ?? null,
+          })),
       });
     }
     setStep('success');

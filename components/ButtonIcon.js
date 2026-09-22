@@ -5,7 +5,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
-import { button, radius } from '../theme/tokens';
+import { button } from '../theme/tokens';
+import { radius } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePressScale } from './usePressScale';
 
@@ -105,7 +106,7 @@ export default function ButtonIcon({
 const styles = StyleSheet.create({
   wrap: { alignSelf: 'flex-start' },
   base: {
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden', // clip the pressed state layer to the circle

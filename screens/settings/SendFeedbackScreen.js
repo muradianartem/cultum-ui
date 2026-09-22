@@ -1,32 +1,32 @@
 // Settings → Send feedback — Figma nodes 394:756 and 485:25653 (the open
 // selector).
 //
-// A topic dropdown, a message box with a counter, and a Send button that stays
-// disabled until both are filled.
+// A topic dropdown, a message box with a counter, and an Email feedback button
+// that stays disabled until both are filled.
 //
-// THE ENDPOINT DOES NOT EXIST YET. api/feedback.js#sendFeedback is a stub that
-// resolves without delivering anything — a deliberate call, so the screens
-// could ship ahead of the API. Everything else here is real, and wiring the
-// endpoint is a one-file change with nothing to alter on this screen. See that
-// file's header for the caveat about shipping it as-is.
+// There is no feedback endpoint, so the button hands the message to the user's
+// mail app, pre-addressed to the support inbox (api/feedback.js). The app can't
+// know whether they then send it, so there is no "sent" message and the screen
+// stays put — the draft is still here if they come back. If Mail can't be
+// opened, the error names the address and "Other ways to contact us" leads to
+// the Contact us screen.
+//
+// The button label, the caption and the contact link are not in Figma yet.
 
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Button, Dropdown, DropdownMenu, TextArea } from '../../components';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Button, Dropdown, DropdownMenu, TextArea, TextButton } from '../../components';
 import { useRouter } from '../../routing';
-import { useSnackbar } from '../../components/SnackbarProvider';
-import { useAuth } from '../../auth/AuthProvider';
-import { FEEDBACK_MAX_LENGTH, FEEDBACK_TOPICS, sendFeedback } from '../../api/feedback';
+import { FEEDBACK_MAX_LENGTH, FEEDBACK_TOPICS, feedbackMailto } from '../../api/feedback';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
+import { APP_BUILD, APP_VERSION, SUPPORT_EMAIL } from './appInfo';
 import SettingsShell from './SettingsShell';
 
 export default function SendFeedbackScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
-  const { back } = useRouter();
-  const { show } = useSnackbar();
-  const { profileEmail } = useAuth();
+  const { navigate } = useRouter();
 
   const [topic, setTopic] = useState(null);
   const [message, setMessage] = useState('');
@@ -42,12 +42,14 @@ export default function SendFeedbackScreen() {
     setBusy(true);
     setError(null);
     try {
-      await sendFeedback({ topic, message: message.trim() });
-      show({ label: 'Thanks — your feedback is on its way.' });
-      back();
-    } catch (e) {
+      await Linking.openURL(
+        feedbackMailto({ topic, message, appVersion: APP_VERSION, build: APP_BUILD }),
+      );
+    } catch {
+      // No mail account or app. The draft stays; the address is the way out.
+      setError(`Couldn't open Mail. You can reach us at ${SUPPORT_EMAIL}`);
+    } finally {
       setBusy(false);
-      setError(e?.message ?? 'Could not send that. Try again.');
     }
   }
 
@@ -56,17 +58,23 @@ export default function SendFeedbackScreen() {
       title="Send feedback"
       footer={
         <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
             variant="primary"
             size="lg"
-            label="Send feedback"
+            label="Email feedback"
             disabled={!canSend}
             loading={busy}
             onPress={send}
           />
-          {profileEmail ? (
-            <Text style={styles.caption}>{`We'll reply to ${profileEmail}.`}</Text>
-          ) : null}
+          <Text style={styles.caption}>{`Opens your mail app, addressed to ${SUPPORT_EMAIL}.`}</Text>
+          <TextButton
+            label="Other ways to contact us"
+            tone="muted"
+            size="sm"
+            onPress={() => navigate('settings-contact')}
+            style={styles.contact}
+          />
         </>
       }
     >
@@ -76,7 +84,6 @@ export default function SendFeedbackScreen() {
           placeholder="Select a topic"
           value={chosen?.title}
           open={open}
-          error={error}
           onPress={() => setOpen((v) => !v)}
         />
         {/* Anchored under the field rather than in a portal: DropdownMenu draws
@@ -118,4 +125,6 @@ const makeStyles = (t) =>
     menuAnchor: { marginTop: space[4] },
     menu: { width: '100%' },
     caption: { ...typography.caption, color: t.text.secondary, textAlign: 'center' },
+    error: { ...typography.bodyMedium, color: t.error.primary, textAlign: 'center' },
+    contact: { alignSelf: 'center' },
   });

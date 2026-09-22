@@ -208,6 +208,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     setAuthTokenProvider(currentAccessToken);
     setUnauthorizedHandler(refreshSession);
+    // Registered once: both read the session through refs, so a stale closure
+    // is harmless, and re-registering on every render would churn apiFetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // apiFetch awaits this before every request, so a token that is about to

@@ -1,8 +1,10 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { shadow, fonts } from '../theme/tokens';
+import { shadow } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import Overlay from './Overlay';
 import Button from './Button';
+import Icon from './Icon';
 
 export default function Dialog({
   visible,
@@ -40,7 +42,7 @@ export default function Dialog({
               style={[styles.close, { backgroundColor: t.brand.secondary }]}
               testID="dialog-close"
             >
-              <Text style={[styles.closeGlyph, { color: t.text.primary }]}>✕</Text>
+              <Icon name="close" size={20} color={t.text.primary} />
             </Pressable>
           ) : null}
 
@@ -101,7 +103,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeGlyph: { fontSize: 15, lineHeight: 18 },
   statusIcon: {
     width: 48,
     height: 48,
@@ -110,17 +111,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   textBlock: { alignItems: 'center', gap: 8, paddingHorizontal: 8 },
-  title: {
-    fontFamily: fonts.display, // serif, matching the app's titles
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
+  // The design system has no Dialog component; the title is Heading Medium
+  // Emphasized, the named style matching its size and weight.
+  title: { ...typography.headingMediumEmphasized, textAlign: 'center' },
+  // Bottom Sheet's description (Inter 16/24, not a named style). See
+  // design-system/exceptions.json.
+  description: { ...typography.bodyLarge, lineHeight: 24, textAlign: 'center' },
   actions: { gap: 12 },
 });

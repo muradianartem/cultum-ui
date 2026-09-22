@@ -6,7 +6,7 @@
 // seeded reminder rows and every piece of copy the four steps render.
 //
 // Reminder rows here are a *draft* shape — `{ action, title, icon, enabled,
-// intervalDays }`. They become real reminders only on Done, when the store
+// intervalDays, startAt? }`. They become real reminders only on Done, when the store
 // creates them (store/GardenProvider.js#addPlant), so nothing in this file
 // needs to know about ids, due dates or the outbox.
 
@@ -73,6 +73,8 @@ export const customReminderRow = (draft, intervalDays) => ({
   icon: actionMeta('custom').icon,
   enabled: true,
   intervalDays,
+  // The day the sheet said it "starts on" — the first occurrence, not a last-done.
+  startAt: draft.startAt ?? null,
   frequency: `Every ${draft.frequency}`,
 });
 
@@ -102,12 +104,22 @@ export const successTitle = (nickname, roomName) =>
   `${String(nickname).trim()} added to your plants in the ${String(roomName).toLowerCase()} room`;
 
 /**
- * The line under it: the soonest enabled reminder's first due date. Adding a
- * plant counts as having just tended it, so the first occurrence is a full
- * interval out — which is exactly what store/GardenProvider.js#addPlant does.
+ * The line under it: the soonest enabled reminder's first due date, by the same
+ * rule store/GardenProvider.js#addPlant stores. A row with a chosen `startAt`
+ * first comes due on that day; any other row counts as having just been tended,
+ * so its first occurrence is a full interval out. A start date in the past is
+ * still named — that reminder is due now.
  */
 export function successSubtitle(reminders = [], today = new Date()) {
-  const days = reminders.filter((r) => r.enabled).map((r) => r.intervalDays).filter(Boolean);
-  if (days.length === 0) return 'There is no reminder set for now';
-  return `Next treatment is on ${weekdayDate(shiftDays(today, Math.min(...days)))}`;
+  const firsts = reminders
+    .filter((r) => r.enabled)
+    .map((r) => {
+      const start = r.startAt ? new Date(r.startAt) : null;
+      if (start && !Number.isNaN(start.getTime())) return start;
+      return r.intervalDays ? shiftDays(today, r.intervalDays) : null;
+    })
+    .filter(Boolean);
+  if (firsts.length === 0) return 'There is no reminder set for now';
+  const soonest = firsts.reduce((a, b) => (b < a ? b : a));
+  return `Next treatment is on ${weekdayDate(soonest)}`;
 }

@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { Image, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chip, Icon, TextInput } from '../../components';
-import { space } from '../../theme/foundations';
+import { space, typography } from '../../theme/foundations';
 import { useTheme } from '../../theme/ThemeProvider';
 import { HERO } from '../placeholderPhotos';
 
@@ -68,6 +68,6 @@ const makeStyles = (t) => StyleSheet.create({
   },
   photo: { width: 152, height: 152, borderRadius: 18 },
   suggestions: { alignSelf: 'stretch', gap: 10 },
-  suggestionsLabel: { fontSize: 14, lineHeight: 20, fontWeight: '500', color: t.text.secondary },
+  suggestionsLabel: { ...typography.bodyMediumEmphasized, color: t.text.secondary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
 });

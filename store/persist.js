@@ -44,6 +44,8 @@ export function migrate(doc) {
     reminders: Array.isArray(doc.reminders) ? doc.reminders : [],
     rooms: Array.isArray(doc.rooms) ? doc.rooms : base.rooms,
     outbox: Array.isArray(doc.outbox) ? doc.outbox : [],
+    // Optional and additive, so older documents need no version bump for it.
+    failed: Array.isArray(doc.failed) ? doc.failed : [],
   };
   return Number(doc.version ?? 0) < 2 ? roomsFromV1(migrated) : migrated;
 }

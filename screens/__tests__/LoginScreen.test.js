@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 
 // --- Mock the native / async edges the Login screen depends on ---
 const mockPromptAsync = jest.fn(async () => ({ type: 'dismiss' }));
@@ -63,22 +63,28 @@ jest.mock('../../auth/AuthProvider', () => ({
   }),
 }));
 
-import { Platform } from 'react-native';
 import LoginScreen from '../LoginScreen';
 
 const IOS = Platform.OS;
 
 const texts = (tree) => tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
+// Every tree is unmounted after its test, so the screen's own cleanup cancels
+// timers such as the snackbar's auto-dismiss instead of letting them fire into
+// a torn-down Jest environment.
+const mounted = [];
+
 async function render() {
   let tree;
   await act(async () => {
     tree = TestRenderer.create(<LoginScreen />);
   });
+  mounted.push(tree);
   return tree;
 }
 
 afterEach(() => {
+  act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
   jest.clearAllMocks();
   mockResponse = null;
   mockAppleAvailable = true;

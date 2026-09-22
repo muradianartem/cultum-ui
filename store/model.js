@@ -179,6 +179,10 @@ export const emptyState = () => ({
   reminders: [],
   rooms: [],
   outbox: [],
+  // Writes the server rejected for good (store/sync.js#drainOutbox), newest
+  // last and capped. Recorded, not shown: there is no UI for them yet, but a
+  // change that never reached the server should leave a trace.
+  failed: [],
   lastSyncAt: null,
   profileName: null,
 });

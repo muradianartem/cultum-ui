@@ -12,7 +12,8 @@ import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, ButtonIcon, Icon } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
-import { sheet, shadow, motion, fonts } from '../theme/tokens';
+import { sheet, shadow, motion } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import SnoozeContent from './SnoozeContent';
 
 const CAPTION = 'You can edit reminders anytime from a plant settings.';
@@ -181,17 +182,15 @@ const makeStyles = (t) => StyleSheet.create({
   photo: { width: 144, height: 144, borderRadius: 28 },
   textBlock: { alignItems: 'center', gap: 8 },
   title: {
-    fontFamily: fonts.display, // Literata / serif — Heading Medium Emphasized
-    fontSize: 24,
-    lineHeight: 29,
-    fontWeight: '700',
+    ...typography.headingMediumEmphasized,
     color: t.text.primary,
     textAlign: 'center',
   },
-  subtitle: { fontSize: 16, lineHeight: 22, color: t.text.secondary, textAlign: 'center' },
+  subtitle: { ...typography.bodyLarge, color: t.text.secondary, textAlign: 'center' },
   actions: { paddingHorizontal: 16, gap: 12 },
+  // Bottom Sheet's caption: Inter 12/16, not a named style.
   caption: {
-    fontSize: 12,
+    ...typography.caption,
     lineHeight: 16,
     color: t.text.secondary,
     textAlign: 'center',
