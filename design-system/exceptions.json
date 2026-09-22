@@ -1,0 +1,484 @@
+{
+  "$comment": "Every value in the app that departs from a foundation scale or named Figma style, with where it comes from. status \"verified-figma\" = read from the named node (or a platform constraint); \"unresolved\" = no authoritative source yet — these do not count as parity. theme/__tests__/figmaParity.test.js fails on a raw typography literal whose file and property are not listed here.",
+  "updated": "2026-09-21",
+  "exceptions": [
+    {
+      "id": "bottomsheet-raw-text",
+      "consumer": "components/BottomSheet.js",
+      "properties": [
+        "fontFamily",
+        "fontSize",
+        "lineHeight"
+      ],
+      "value": "title Inter Bold 18/22; description Inter 16/24; caption Inter 12/16",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "14233:14268",
+        "name": "Bottom Sheet"
+      },
+      "status": "verified-figma",
+      "reason": "The component sets its three text layers as raw values, not named styles."
+    },
+    {
+      "id": "dialog-description",
+      "consumer": "components/Dialog.js",
+      "properties": [
+        "lineHeight"
+      ],
+      "value": "Body Large at 24 line height",
+      "source": null,
+      "status": "unresolved",
+      "reason": "No Dialog component in either Figma file; the description follows Bottom Sheet's (Inter 16/24). The title uses Heading Medium Emphasized, the named style matching its size and weight."
+    },
+    {
+      "id": "tasksheet-caption",
+      "consumer": "screens/TaskSheet.js",
+      "properties": [
+        "lineHeight"
+      ],
+      "value": "Caption at 16 line height",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "1:11089",
+        "name": "Task"
+      },
+      "status": "unresolved",
+      "reason": "Mirrors Bottom Sheet's raw caption (Inter 12/16); the Task frame itself was not re-read."
+    },
+    {
+      "id": "badge-small-line",
+      "consumer": "components/Badge.js",
+      "properties": [
+        "lineHeight"
+      ],
+      "value": "14 on the 16px Small pill",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27817:7465",
+        "name": "Badge"
+      },
+      "status": "verified-figma",
+      "reason": "Body Small's 16.8 line is taller than the Small pill; Figma lets it overflow, which RN would clip on Android."
+    },
+    {
+      "id": "paywall-raw-text",
+      "consumer": "screens/PaywallScreen.js",
+      "properties": [
+        "fontFamily",
+        "fontSize",
+        "lineHeight",
+        "letterSpacing"
+      ],
+      "value": "title Literata Bold 30/36; eyebrows Inter Medium 11/140% +0.04em; feature label Inter 15/140%; FREE/PLUS values Inter Medium 12.5/140%; price headline Inter Bold 14/140%",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "250:11",
+        "name": "Paywall / Cultum Plus"
+      },
+      "status": "verified-figma",
+      "reason": "Raw values in the frame (306:4764, 872:21505, 872:21513, 872:21515, 306:4787), none of them a named style."
+    },
+    {
+      "id": "chooseplan-price",
+      "consumer": "screens/ChoosePlanSheet.js",
+      "properties": [
+        "fontFamily",
+        "fontSize",
+        "lineHeight"
+      ],
+      "value": "Inter Bold 17/140%",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "299:477",
+        "name": "Plan Row amount"
+      },
+      "status": "verified-figma",
+      "reason": "Raw value in the Plan Row component."
+    },
+    {
+      "id": "wheel-items",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "fontFamily",
+        "fontSize"
+      ],
+      "value": "Inter 20 selected / 18 at 45%",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "1:11114",
+        "name": "Wheel picker"
+      },
+      "status": "verified-figma",
+      "reason": "Raw values; rows are fixed 44pt bands, so no line height."
+    },
+    {
+      "id": "remindertime-wheel-line",
+      "consumer": "screens/settings/ReminderTimeSheet.js",
+      "properties": [
+        "lineHeight"
+      ],
+      "value": "ITEM_H (the row height)",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "653:4700",
+        "name": "Wheel picker · Time"
+      },
+      "status": "verified-figma",
+      "reason": "Text styles are Figma's (Body Medium Emphasized, Heading Extra Small Emphasized); the line height is set to the fixed row height to centre each value."
+    },
+    {
+      "id": "input-line-height",
+      "consumer": "theme/foundations.js",
+      "properties": [
+        "lineHeight"
+      ],
+      "value": "omitted on single-line inputs (inputText)",
+      "source": null,
+      "status": "verified-figma",
+      "reason": "Platform constraint: iOS draws single-line TextInput text off-centre when lineHeight is set. Figma's face and size are kept; the field height carries the rest."
+    },
+    {
+      "id": "productpage-emoji-glyphs",
+      "consumer": "screens/ProductPage.js",
+      "properties": [
+        "fontSize"
+      ],
+      "value": "emoji fallback sized to the icon slot",
+      "source": null,
+      "status": "verified-figma",
+      "reason": "Not product typography: a fallback that draws a non-icon glyph at the icon's size."
+    },
+    {
+      "id": "imageviewer-v2",
+      "consumer": "screens/ImageViewer.js",
+      "properties": [
+        "fontSize",
+        "fontWeight",
+        "lineHeight"
+      ],
+      "value": "prototype text styles",
+      "source": null,
+      "status": "unresolved",
+      "reason": "V2 screen, not routed in V1 (see App.js). Migrate with its Figma frame when it ships."
+    },
+    {
+      "id": "icongallery-dev",
+      "consumer": "screens/IconGallery.js",
+      "properties": [
+        "fontSize",
+        "fontWeight"
+      ],
+      "value": "prototype text styles",
+      "source": null,
+      "status": "unresolved",
+      "reason": "Developer gallery, not a product screen."
+    },
+    {
+      "id": "textbutton-labels",
+      "consumer": "components/TextButton.js",
+      "properties": [
+        "textStyle"
+      ],
+      "value": "Button Medium / Button Small",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "26734:3379",
+        "name": "Button – Type=Ghost"
+      },
+      "status": "unresolved",
+      "reason": "No text-button component in Figma; mapped to the Ghost Button's labels. Sizes moved from 15/13.5 to 16/14."
+    },
+    {
+      "id": "textarea-counter",
+      "consumer": "components/TextArea.js",
+      "properties": [
+        "textStyle"
+      ],
+      "value": "Caption Emphasized values",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "486:27425",
+        "name": "Text Area"
+      },
+      "status": "unresolved",
+      "reason": "Figma's description says Text Area mirrors Text Input; the counter's own style was not readable through the API."
+    },
+    {
+      "id": "avatar-medium-overflow",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "textStyle"
+      ],
+      "value": "Medium initials Body Small, Medium overflow Body Large",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "3230:3388",
+        "name": "Avatar"
+      },
+      "status": "verified-figma",
+      "reason": "As drawn; the two differ only at Medium, which looks like a Figma inconsistency worth confirming."
+    },
+    {
+      "id": "confidence-ring-label",
+      "consumer": "components/ConfidenceRing.js",
+      "properties": [
+        "textStyle"
+      ],
+      "value": "Caption Emphasized",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "158:12427",
+        "name": "Pie Chart"
+      },
+      "status": "unresolved",
+      "reason": "Named style kept; its text node was not readable through the API."
+    },
+    {
+      "id": "checkbox-radius",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "borderRadius"
+      ],
+      "value": 6,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "26744:5102",
+        "name": "Checkbox – P1"
+      },
+      "status": "verified-figma",
+      "reason": "Component corner, not on the radius scale."
+    },
+    {
+      "id": "toggle-pad",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "padding"
+      ],
+      "value": 3,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27383:1945",
+        "name": "Toggle"
+      },
+      "status": "verified-figma",
+      "reason": "Thumb inset, not on the spacing scale."
+    },
+    {
+      "id": "calendar-card-radius",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "borderRadius"
+      ],
+      "value": 20,
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "362:17102",
+        "name": "Reminders / Add new reminder"
+      },
+      "status": "verified-figma",
+      "reason": "The frame wrapping the calendar card; not on the radius scale."
+    },
+    {
+      "id": "paywall-plus-corner",
+      "consumer": "screens/PaywallScreen.js",
+      "properties": [
+        "borderRadius"
+      ],
+      "value": "radius[16] for Figma 14",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "872:21508",
+        "name": "Plus cell"
+      },
+      "status": "unresolved",
+      "reason": "Rounded to the nearest scale step when the screen was built; Figma says 14."
+    },
+    {
+      "id": "overlay-opacity",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": 0.85,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "26744:5110",
+        "name": "Overlay - P3"
+      },
+      "status": "verified-figma",
+      "reason": "Component scrim; not a step of the opacity scale."
+    },
+    {
+      "id": "checkbox-disabled",
+      "consumer": "components/Checkbox.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": "opacity[50] on the empty box only",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27383:2936",
+        "name": "State=Disabled, Checked=False"
+      },
+      "status": "verified-figma",
+      "reason": "Replaces the old 0.6 on the whole control."
+    },
+    {
+      "id": "segmented-disabled",
+      "consumer": "components/SegmentedControl.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": 0.6,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27383:2285",
+        "name": "_Segment Control Item, State=Disabled"
+      },
+      "status": "unresolved",
+      "reason": "Figma shows the disabled item with text-secondary ink and no opacity."
+    },
+    {
+      "id": "tabbar-disabled",
+      "consumer": "components/TabBar.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": 0.5,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "26355:301434",
+        "name": "_Tab Bar Item, State=Disabled"
+      },
+      "status": "unresolved",
+      "reason": "Figma shows #606160 ink and no opacity."
+    },
+    {
+      "id": "dropdownmenu-disabled",
+      "consumer": "components/DropdownMenu.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": 0.5,
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27417:310",
+        "name": "_Dropdown Menu Item"
+      },
+      "status": "unresolved",
+      "reason": "Figma has no disabled menu item."
+    },
+    {
+      "id": "textbutton-states",
+      "consumer": "components/TextButton.js",
+      "properties": [
+        "opacity"
+      ],
+      "value": "pressed 0.55, disabled 0.42",
+      "source": null,
+      "status": "unresolved",
+      "reason": "Prototype values; no Figma component."
+    },
+    {
+      "id": "dialog-shadow",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "shadow"
+      ],
+      "value": "shadow.float",
+      "source": null,
+      "status": "unresolved",
+      "reason": "No Dialog component in Figma."
+    },
+    {
+      "id": "sheet-shadow",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "shadow"
+      ],
+      "value": "shadow.sheet (0 -6 28, 0.16)",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "265:159",
+        "name": "Sheet · Choose a plan"
+      },
+      "status": "unresolved",
+      "reason": "The design system's Bottom Sheet has no effect; the app's Choose-a-plan sheet draws 0 -8 32 rgba(0,0,0,0.18). Kept until Figma picks one."
+    },
+    {
+      "id": "searchbar-leading-icon",
+      "consumer": "components/SearchBar.js",
+      "properties": [
+        "icon"
+      ],
+      "value": "search",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27383:4913",
+        "name": "icons/outlined/search"
+      },
+      "status": "unresolved",
+      "reason": "Figma uses icons/outlined/search, which is not a component on the Icons canvas; the canvas's icons/search is used."
+    },
+    {
+      "id": "sheet-close-icon",
+      "consumer": "components/BottomSheet.js",
+      "properties": [
+        "icon"
+      ],
+      "value": "close",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "26220:342490",
+        "name": "icons/outlined/close"
+      },
+      "status": "unresolved",
+      "reason": "Same: icons/outlined/close is not on the Icons canvas."
+    },
+    {
+      "id": "star-filled",
+      "consumer": "assets/icons/star-filled.svg",
+      "properties": [
+        "asset"
+      ],
+      "value": "star-filled.svg",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "299:437",
+        "name": "Rating (STAR shapes)"
+      },
+      "status": "unresolved",
+      "reason": "Figma draws STAR primitives, not an icon component, so there is no node to export and compare against."
+    },
+    {
+      "id": "cultum-logo",
+      "consumer": "assets/icons/cultum-logo.svg",
+      "properties": [
+        "asset"
+      ],
+      "value": "cultum-logo.svg",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "268:7176",
+        "name": "logo mark"
+      },
+      "status": "unresolved",
+      "reason": "External brand asset; not re-exported in this pass."
+    },
+    {
+      "id": "doc-swatch-conflicts",
+      "consumer": "theme/colorTokens.js",
+      "properties": [
+        "color"
+      ],
+      "value": "background-brand light/dark, warning-primary dark",
+      "source": {
+        "file": "JyrSo87oacbcbALO8JO9At",
+        "node": "27465:14108",
+        "name": "Color Tokens"
+      },
+      "status": "unresolved",
+      "reason": "The documentation rows name one primitive and paint a different swatch (see figma-foundations.json docSwatchConflicts). The app follows the named primitive; resolve in Figma."
+    }
+  ]
+}

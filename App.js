@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
 import { ThemeProvider, useTheme, useThemeMode } from './theme/ThemeProvider';
+import FontGate from './theme/FontGate';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { GardenProvider } from './store/GardenProvider';
 import { clearState } from './store/persist';
@@ -155,9 +156,13 @@ function AppShell() {
       onModeChange={setAppearance}
     >
       <ThemedStatusBar />
-      <AuthProvider>
-        <AuthGate />
-      </AuthProvider>
+      {/* Every text style names a loaded face (theme/fonts.js), so nothing that
+          draws text mounts before they are registered. */}
+      <FontGate>
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      </FontGate>
     </ThemeProvider>
   );
 }

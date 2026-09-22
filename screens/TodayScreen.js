@@ -366,7 +366,8 @@ const makeStyles = (t) =>
     groupingRow: { alignItems: 'center', paddingVertical: space[8] },
     // Label for the "Today" segment: text + a count badge, laid out as a row.
     segLabel: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
-    segLabelText: { fontSize: 14, fontWeight: '500', color: t.text.primary },
+    // Segmented Control's item label and badge (Figma 27383:2390).
+    segLabelText: { ...typography.bodyMediumEmphasized, color: t.text.primary },
     // The count badge — a View so padding + full radius render as a real pill
     // (a Text background on iOS hugs the glyphs and ignores padding/radius).
     segCount: {
@@ -377,5 +378,5 @@ const makeStyles = (t) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    segCountText: { ...typography.captionEmphasized, color: t.brand.onPrimary },
+    segCountText: { ...typography.bodySmall, color: t.brand.onPrimary },
   });

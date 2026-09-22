@@ -362,7 +362,6 @@ function makeStyles(t, insets) {
     // caption is bold, so the weight is pinned back to 500 here.
     legal: {
       ...typography.captionEmphasized,
-      fontWeight: '500',
       color: t.text.secondary,
       textAlign: 'center',
     },

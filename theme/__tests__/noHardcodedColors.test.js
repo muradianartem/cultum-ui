@@ -18,7 +18,7 @@ const BACKDROP = 'rgba(14,18,11,0.4)';
 const ALLOWED = {
   'theme/tokens.js': [
     'rgba(16,16,16,0.12)', 'rgba(16,16,16,0.11)', 'rgba(16,16,16,0.10)',
-    'rgb(25, 27, 21)', '#7CD52B',
+    'rgba(16,16,16,0.09)', 'rgb(25, 27, 21)',
   ],
   'components/BottomSheet.js': [BACKDROP],
   'components/Snackbar.js': ['#383937', '#FCFCFC'],

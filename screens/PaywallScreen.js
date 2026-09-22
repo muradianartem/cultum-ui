@@ -35,6 +35,7 @@ import {
   State,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
+import { fontFace } from '../theme/fonts';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
 import { usePaywallResource } from '../billing/paywallContent';
@@ -360,7 +361,13 @@ function makeStyles(t, insets) {
       paddingBottom: space[24],
       gap: 28,
     },
-    title: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: t.text.primary },
+    // Figma 306:4764: a raw Literata Bold 30/36 — larger than any Heading.
+    title: {
+      fontFamily: fontFace('Literata', 700),
+      fontSize: 30,
+      lineHeight: 36,
+      color: t.text.primary,
+    },
 
     // ---- trial rail ----
     rail: { gap: 18 },
@@ -390,20 +397,21 @@ function makeStyles(t, insets) {
     // ---- free vs plus table ----
     table: {},
     tableRow: { flexDirection: 'row', alignItems: 'stretch' },
+    // Figma 872:21505: raw Inter Medium 11/140%, tracked 0.04em.
     eyebrow: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 11,
-      lineHeight: 15,
-      fontWeight: '500',
-      letterSpacing: 0.44, // Figma 0.04em
+      lineHeight: 15.4,
+      letterSpacing: 0.44,
       color: t.text.placeholder,
     },
     headerLabelCell: { flex: 1, justifyContent: 'flex-end', paddingBottom: 10 },
     headerFreeCell: { width: COL_W, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 10 },
     plusHeaderCell: { paddingVertical: 10, gap: 3 },
     plusEyebrow: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 11,
-      lineHeight: 15,
-      fontWeight: '500',
+      lineHeight: 15.4,
       letterSpacing: 0.44,
       color: t.success.onSecondary,
     },
@@ -415,7 +423,13 @@ function makeStyles(t, insets) {
       borderTopWidth: stroke[1],
       borderTopColor: t.border.primary,
     },
-    featureLabel: { fontSize: 15, lineHeight: 21, color: t.text.primary },
+    // Figma 872:21513: raw Inter 15/140%.
+    featureLabel: {
+      fontFamily: fontFace('Inter', 400),
+      fontSize: 15,
+      lineHeight: 21,
+      color: t.text.primary,
+    },
     freeCell: {
       width: COL_W,
       alignItems: 'center',
@@ -423,13 +437,19 @@ function makeStyles(t, insets) {
       borderTopWidth: stroke[1],
       borderTopColor: t.border.primary,
     },
-    freeText: { fontSize: 12.5, lineHeight: 18, fontWeight: '500', color: t.text.placeholder },
+    // Figma 872:21515: raw Inter Medium 12.5/140%.
+    freeText: {
+      fontFamily: fontFace('Inter', 500),
+      fontSize: 12.5,
+      lineHeight: 17.5,
+      color: t.text.placeholder,
+    },
     // The FREE column's metrics on the PLUS column's ink — both tokens already
     // exist on this screen, so the string case adds none.
     plusText: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 12.5,
-      lineHeight: 18,
-      fontWeight: '500',
+      lineHeight: 17.5,
       color: t.success.onSecondary,
       textAlign: 'center',
     },
@@ -465,11 +485,9 @@ function makeStyles(t, insets) {
     },
     reviewTitle: { ...typography.bodyLargeEmphasized, color: t.text.primary },
     reviewBody: { ...typography.bodyMedium, color: t.text.secondary },
-    // Figma's Caption Emphasized is Inter Medium; foundations' is bold.
-    reviewName: { ...typography.captionEmphasized, fontWeight: '500', color: t.text.placeholder },
+    reviewName: { ...typography.captionEmphasized, color: t.text.placeholder },
     footnote: {
       ...typography.captionEmphasized,
-      fontWeight: '500',
       color: t.text.placeholder,
       textAlign: 'center',
     },
@@ -482,8 +500,12 @@ function makeStyles(t, insets) {
       paddingBottom: insets.bottom + 10,
       gap: 10,
     },
+    // Figma 306:4787: a raw Inter Bold 14/140% — Body Medium Emphasized is
+    // Medium, not Bold.
     priceHeadline: {
-      ...typography.bodyMediumEmphasized,
+      fontFamily: fontFace('Inter', 700),
+      fontSize: 14,
+      lineHeight: 19.6,
       color: t.text.secondary,
       textAlign: 'center',
     },

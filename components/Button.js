@@ -6,7 +6,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
-import { button, radius } from '../theme/tokens';
+import { button } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePressScale } from './usePressScale';
 
@@ -130,8 +131,8 @@ export default function Button({
                   <Text
                     numberOfLines={1}
                     style={[
-                      styles.label,
-                      { color: isDisabled ? t.disabled.on : p.fg, fontSize: sz.fontSize },
+                      typography[sz.label],
+                      { color: isDisabled ? t.disabled.on : p.fg },
                       textStyle,
                     ]}
                   >
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   blockInner: { alignSelf: 'stretch' },
   inline: { alignSelf: 'flex-start' },
   base: {
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden', // clip the pressed state layer to the pill
@@ -172,8 +173,4 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   icon: { alignItems: 'center', justifyContent: 'center' },
-  label: {
-    fontWeight: '500', // Figma "Button/Button Medium" — Inter Medium
-    letterSpacing: 0.1,
-  },
 });

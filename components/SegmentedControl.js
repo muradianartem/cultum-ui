@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { segmented, radius } from '../theme/tokens';
+import { segmented } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     padding: segmented.pad,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
   },
   segment: {
     flex: 1,
@@ -95,9 +96,10 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
   },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 14, fontWeight: '500' },
+  // Figma "Segmented Control – P2": Body Medium Emphasized.
+  label: { ...typography.bodyMediumEmphasized },
   disabled: { opacity: 0.6 },
 });

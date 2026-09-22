@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { textInput } from '../theme/tokens';
+import { inputText, typography } from '../theme/foundations';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 
 /**
@@ -99,8 +100,10 @@ export default function TextInput({
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: 'stretch' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, lineHeight: 17 },
-  optional: { fontSize: 12, lineHeight: 17 },
+  // Figma "Text Input – P2": label and "Optional" are Caption; the helper is
+  // Inter Medium 12/140% (the Caption Emphasized values, unnamed in Figma).
+  label: { ...typography.caption },
+  optional: { ...typography.caption },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -110,6 +113,6 @@ const styles = StyleSheet.create({
     borderRadius: textInput.radius,
   },
   icon: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, fontSize: 14, padding: 0 },
-  helper: { fontSize: 12, lineHeight: 17 },
+  input: { flex: 1, ...inputText('bodyMedium'), padding: 0 },
+  helper: { ...typography.captionEmphasized },
 });

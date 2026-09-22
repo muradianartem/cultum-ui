@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { radius } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -114,7 +114,7 @@ export default function Badge({
         typeof content === 'string' ? (
           <Text
             numberOfLines={1}
-            style={[styles.label, { color: v.fg }, textStyle]}
+            style={[styles.label, size === 'sm' && styles.labelSm, { color: v.fg }, textStyle]}
           >
             {content}
           </Text>
@@ -133,13 +133,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
-    borderRadius: radius.pill,
+    borderRadius: radius.full,
     gap: 2,
   },
   icon: { alignItems: 'center', justifyContent: 'center' },
-  label: {
-    fontSize: 12, // Figma "Body/Body Small"
-    fontWeight: '400',
-    lineHeight: 14,
-  },
+  // Figma "Badge – P2": Body Small at every size.
+  label: { ...typography.bodySmall },
+  // Body Small's 16.8 line is taller than the 16px Small pill; the label keeps
+  // the 14 it has always had there (design-system/exceptions.json).
+  labelSm: { lineHeight: 14 },
 });

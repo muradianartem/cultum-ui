@@ -2,7 +2,6 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { ConfidenceRing, Icon, List, ListItem, LoadingIndicator } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, space, typography } from '../../theme/foundations';
-import { fonts } from '../../theme/tokens';
 
 // How far a row fades while another row's pick is in flight. Enough to read as
 // "not right now" without hiding which plant the row is.
@@ -89,10 +88,7 @@ const makeStyles = (t) =>
     thumb: { width: 56, height: 56, borderRadius: radius[12] },
     thumbPlaceholder: { backgroundColor: t.surface.secondary },
     title: {
-      fontFamily: fonts.display,
-      fontSize: 18,
-      lineHeight: 23,
-      fontWeight: '700',
+      ...typography.headingExtraSmallEmphasized,
       color: t.text.primary,
     },
     subtitle: { ...typography.bodyLarge, color: t.text.secondary },

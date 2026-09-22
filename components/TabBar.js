@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { typography } from '../theme/foundations';
 
 /**
  * TabBar — bottom navigation, imported from Figma "Tab Bar – P2".
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
+  // Figma "Tab Bar – P2": Caption Emphasized.
+  label: { ...typography.captionEmphasized },
   disabled: { opacity: 0.5 },
 });

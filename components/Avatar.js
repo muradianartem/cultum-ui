@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { avatar, radius } from '../theme/tokens';
+import { avatar } from '../theme/tokens';
+import { radius, typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 // The "+N" overflow sits on a dark scrim laid over a photo, so it stays light
@@ -31,12 +32,12 @@ export default function Avatar({
 }) {
   const t = useTheme();
   const dim = avatar.sizes[size] ?? avatar.sizes.md;
-  const fontSize = avatar.fontSizes[size] ?? avatar.fontSizes.md;
+  const key = avatar.sizes[size] ? size : 'md';
   const isOverflow = overflow != null;
 
   const box = [
     styles.base,
-    { width: dim, height: dim, borderRadius: radius.pill, backgroundColor: t.surface.primary },
+    { width: dim, height: dim, borderRadius: radius.full, backgroundColor: t.surface.primary },
     ring && { borderWidth: 1, borderColor: t.background.primary },
     style,
   ];
@@ -57,10 +58,10 @@ export default function Avatar({
       {isOverflow ? (
         <>
           <View style={styles.scrim} />
-          <Text style={[styles.overflow, { fontSize }]}>+{overflow}</Text>
+          <Text style={[typography[avatar.overflow[key]], styles.overflow]}>+{overflow}</Text>
         </>
       ) : !source && initials ? (
-        <Text style={[styles.initials, { fontSize, color: t.text.primary }]}>{initials}</Text>
+        <Text style={[typography[avatar.initials[key]], { color: t.text.primary }]}>{initials}</Text>
       ) : null}
     </View>
   );
@@ -112,7 +113,6 @@ const styles = StyleSheet.create({
   },
   image: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: OVERFLOW_SCRIM },
-  initials: { fontWeight: '600' },
-  overflow: { fontWeight: '600', color: OVERFLOW_INK },
+  overflow: { color: OVERFLOW_INK },
   group: { flexDirection: 'row', alignItems: 'center' },
 });
