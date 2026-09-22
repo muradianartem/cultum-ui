@@ -7,7 +7,9 @@
 // primitive's default) and the plan rows are specific to this screen.
 //
 // The plans come in as `products` — the mapped GET /billing/plans payload the
-// paywall is already holding — so the sheet owns no pricing of its own.
+// paywall is already holding — so the sheet owns no pricing of its own. On iOS
+// `termsFor` supplies StoreKit's localized price, which wins over the backend's
+// `fallbackPrice` once StoreKit has resolved the SKU.
 
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -31,7 +33,7 @@ export function detailFor(product) {
   return product.period === 'year' ? 'Billed yearly, cancel any time' : 'Cancel any time';
 }
 
-export default function ChoosePlanSheet({ visible, products, onClose, onDone, initialPlan }) {
+export default function ChoosePlanSheet({ visible, products, termsFor, onClose, onDone, initialPlan }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const [selected, setSelected] = useState(initialPlan ?? products[0]?.key);
@@ -54,6 +56,7 @@ export default function ChoosePlanSheet({ visible, products, onClose, onDone, in
         {products.map((plan) => {
           const isSelected = plan.key === selected;
           const period = `per ${plan.period}`;
+          const price = termsFor?.(plan)?.displayPrice || plan.fallbackPrice;
           return (
             <Pressable
               key={plan.key}
@@ -62,7 +65,7 @@ export default function ChoosePlanSheet({ visible, products, onClose, onDone, in
               // role=radio reads `checked`, not `selected` (it is what maps to
               // aria-checked on web and to the trait natively).
               accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={`${plan.label}, ${plan.fallbackPrice} ${period}`}
+              accessibilityLabel={`${plan.label}, ${price} ${period}`}
               style={[styles.plan, isSelected && styles.planSelected]}
               testID={`plan-${plan.key}`}
             >
@@ -77,10 +80,10 @@ export default function ChoosePlanSheet({ visible, products, onClose, onDone, in
               </View>
 
               <View style={styles.planPrice}>
-                {/* The *fallback* price — right in a USD storefront and nowhere
-                    else. Swap it for the StoreKit/Play-resolved localized price
-                    when IAP lands; api/billing.js carries the product ids. */}
-                <Text style={styles.planPriceText}>{plan.fallbackPrice}</Text>
+                {/* StoreKit's localized price on iOS. Elsewhere the *fallback*
+                    price — right in a USD storefront and nowhere else, until
+                    Play Billing lands. */}
+                <Text style={styles.planPriceText}>{price}</Text>
                 <Text style={styles.planPeriod}>{period}</Text>
               </View>
             </Pressable>

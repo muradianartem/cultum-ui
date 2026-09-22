@@ -15,10 +15,11 @@
 // endpoint is idempotent. Finishing first would leave a charged user on Free
 // with nothing left to retry.
 
-import { useEffect, useRef, useState } from 'react';
-import { ErrorCode, useIAP } from 'expo-iap';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ErrorCode, isEligibleForIntroOfferIOS, useIAP } from 'expo-iap';
 import { verifyApplePurchase } from '../api/billing';
 import { useEntitlement } from './EntitlementProvider';
+import { storeTerms } from './storeTerms';
 
 export const PURCHASE_MESSAGES = {
   unavailable: "The App Store isn't available right now. Try again in a moment.",
@@ -36,14 +37,20 @@ const UNREACHABLE = new Set(['offline', 'network', 'timeout']);
 /**
  * @param {Array<{ appleProductId: string|null }>} products  the paywall's products
  * @returns {{ supported: true, available: boolean, busy: boolean, error: string|null,
- *             purchase: (product) => Promise<boolean> }}
+ *             purchase: (product) => Promise<boolean>,
+ *             termsFor: (product) => ReturnType<typeof storeTerms> | null }}
  *   `purchase` resolves true once the backend has confirmed the purchase, and
  *   false on a cancel or any failure (which also sets `error`, except a cancel).
+ *   `termsFor` is StoreKit's price and trial for the product, or null until
+ *   StoreKit has resolved its SKU — and an unresolved SKU cannot be bought.
  */
 export default function useStorePurchase(products) {
   const { apply } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Intro-offer eligibility per subscription group: `{ [groupId]: boolean }`.
+  // A group missing here is unknown, which storeTerms reads as "no trial".
+  const [eligibility, setEligibility] = useState({});
 
   // `{ sku, resolve }` for the tap currently waiting on StoreKit, if any.
   const pending = useRef(null);
@@ -144,6 +151,43 @@ export default function useStorePurchase(products) {
     })();
   }, [connected, skuKey]);
 
+  // A returning subscriber is not owed the free trial, so ask StoreKit per group
+  // before promising one. A failed check is stored as ineligible.
+  const subscriptions = iap.subscriptions;
+  const groupKey = [...new Set((subscriptions ?? []).map((s) => s.subscriptionGroupIdIOS).filter(Boolean))]
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!groupKey) return;
+    for (const groupId of groupKey.split(',')) {
+      if (groupId in eligibility) continue;
+      (async () => {
+        let eligible;
+        try {
+          eligible = (await isEligibleForIntroOfferIOS(groupId)) === true;
+        } catch (e) {
+          if (__DEV__) console.log('[billing] intro offer eligibility failed:', e?.message ?? e);
+          eligible = false;
+        }
+        if (mounted.current) setEligibility((prev) => ({ ...prev, [groupId]: eligible }));
+      })();
+    }
+    // Keyed on the groups alone: `eligibility` only grows, and re-running on it
+    // would just skip every group it already holds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupKey]);
+
+  const termsBySku = useMemo(() => {
+    const map = new Map();
+    for (const sub of subscriptions ?? []) {
+      if (!sub?.id) continue;
+      map.set(sub.id, storeTerms(sub, { eligible: eligibility[sub.subscriptionGroupIdIOS] }));
+    }
+    return map;
+  }, [subscriptions, eligibility]);
+
+  const termsFor = (product) => termsBySku.get(product?.appleProductId) ?? null;
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -157,7 +201,9 @@ export default function useStorePurchase(products) {
   const purchase = async (product) => {
     if (pending.current) return false;
     const sku = product?.appleProductId;
-    if (!iapRef.current?.connected || !sku) {
+    // Unresolved means StoreKit has not priced it, so there is nothing the
+    // user could knowingly agree to — and requestPurchase would fail anyway.
+    if (!iapRef.current?.connected || !sku || !termsFor(product)) {
       setError(PURCHASE_MESSAGES.unavailable);
       return false;
     }
@@ -176,5 +222,5 @@ export default function useStorePurchase(products) {
     return result;
   };
 
-  return { supported: true, available: connected, busy, error, purchase };
+  return { supported: true, available: connected, busy, error, purchase, termsFor };
 }

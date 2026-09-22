@@ -29,7 +29,21 @@ const { getPaywall } = require('../../api/billing');
 
 // The store flow has its own tests (billing/__tests__/useStorePurchase.test.js);
 // here it is only what the screen asks of it and what it hands back.
-const mockStore = { supported: true, available: true, busy: false, error: null, purchase: jest.fn() };
+// `termsFor` stands in for StoreKit: by default both SKUs resolve at the
+// backend's own prices with an eligible free trial, so the headline reads the
+// same as the fallback copy unless a test changes the terms.
+const ELIGIBLE_TERMS = {
+  'com.cultum.plus.yearly': { displayPrice: '$39.99', periodLabel: 'year', trial: { days: 7, label: '7 days free' } },
+  'com.cultum.plus.monthly': { displayPrice: '$5.99', periodLabel: 'month', trial: { days: 3, label: '3 days free' } },
+};
+const mockStore = {
+  supported: true,
+  available: true,
+  busy: false,
+  error: null,
+  purchase: jest.fn(),
+  termsFor: jest.fn(),
+};
 jest.mock('../../billing/useStorePurchase', () => ({ __esModule: true, default: () => mockStore }));
 
 import PaywallScreen from '../PaywallScreen';
@@ -120,6 +134,7 @@ beforeEach(() => {
   getPaywall.mockReturnValue(new Promise(() => {}));
   Object.assign(mockStore, { supported: true, available: true, busy: false, error: null });
   mockStore.purchase.mockResolvedValue(true);
+  mockStore.termsFor.mockImplementation((p) => ELIGIBLE_TERMS[p?.appleProductId] ?? null);
 });
 
 afterEach(() => {
@@ -253,7 +268,9 @@ describe('with the live payload', () => {
   test('the whole screen follows the payload, not the file', async () => {
     // Nothing here is hardcoded anywhere in the app, so a different backend
     // response is a different screen — including a product with no trial,
-    // which drops the free-days clause from the price line.
+    // which drops the free-days clause from the price line. (The backend's
+    // price copy is what a platform without StoreKit shows.)
+    mockStore.supported = false;
     const tree = await renderWith({
       ...LIVE_RESPONSE,
       title: 'Cultum Pro, on the house',
@@ -383,5 +400,62 @@ describe('the Choose a plan sheet', () => {
     // Monthly's trial is 3 days, not the yearly plan's 7 — the headline that
     // was hardcoded could never say so.
     expect(texts(tree)).toContain('3 days free, then $5.99 a month');
+  });
+});
+
+describe('StoreKit terms (iOS)', () => {
+  const cta = (tree) =>
+    tree.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        typeof n.props.onPress === 'function' &&
+        ['Start free trial', 'Subscribe'].includes(n.props.accessibilityLabel)
+    );
+
+  test('the headline and plan rows use the StoreKit price, not the fallback', async () => {
+    mockStore.termsFor.mockImplementation((p) =>
+      p.key === 'yearly'
+        ? { displayPrice: 'CA$54.99', periodLabel: 'year', trial: { days: 7, label: '1 week free' } }
+        : { displayPrice: 'CA$7.99', periodLabel: 'month', trial: null }
+    );
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('1 week free, then CA$54.99 a year');
+    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
+
+    act(() => press(tree, 'See all plans'));
+    expect(texts(tree)).toContain('CA$54.99');
+    expect(texts(tree)).toContain('CA$7.99');
+    expect(texts(tree)).not.toContain('$39.99');
+    expect(texts(tree)).not.toContain('$5.99');
+  });
+
+  test('an ineligible user sees "Subscribe" and no trial timeline', async () => {
+    mockStore.termsFor.mockImplementation((p) => ({ ...ELIGIBLE_TERMS[p.appleProductId], trial: null }));
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('$39.99 a year');
+    expect(texts(tree)).toContain('Subscribe');
+    expect(texts(tree)).not.toContain('Start free trial');
+    for (const day of ['Today', 'Day 5', 'Day 7']) expect(texts(tree)).not.toContain(day);
+
+    await act(async () => press(tree, 'Subscribe'));
+    expect(mockStore.purchase).toHaveBeenCalledWith(expect.objectContaining({ key: 'yearly' }));
+  });
+
+  test('before StoreKit prices the plan the CTA waits, with no price or trial shown', async () => {
+    mockStore.termsFor.mockReturnValue(null);
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('Loading prices…');
+    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
+    expect(texts(tree)).not.toContain('Full access');
+    expect(cta(tree).props.accessibilityState.disabled).toBe(true);
+  });
+
+  test('without a store flow the backend copy stays', async () => {
+    mockStore.supported = false;
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(mockStore.termsFor).not.toHaveBeenCalled();
+    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
+    expect(texts(tree)).toContain('Start free trial');
+    expect(texts(tree)).toContain('Full access');
   });
 });

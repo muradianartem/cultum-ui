@@ -6,12 +6,15 @@ import TestRenderer, { act } from 'react-test-renderer';
 const mockCallbacks = { current: null };
 const mockIap = {
   connected: true,
+  subscriptions: [],
   fetchProducts: jest.fn(async () => {}),
   requestPurchase: jest.fn(async () => {}),
   finishTransaction: jest.fn(async () => {}),
 };
+const mockEligible = jest.fn();
 jest.mock('expo-iap', () => ({
   ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending', DeferredPayment: 'deferred-payment' },
+  isEligibleForIntroOfferIOS: (...args) => mockEligible(...args),
   useIAP: (options) => {
     mockCallbacks.current = options;
     return mockIap;
@@ -28,6 +31,22 @@ import useStorePurchase, { PURCHASE_MESSAGES } from '../useStorePurchase';
 
 const YEARLY = { key: 'yearly', appleProductId: 'com.cultum.plus.yearly' };
 const MONTHLY = { key: 'monthly', appleProductId: 'com.cultum.plus.monthly' };
+
+// What StoreKit resolves for those two SKUs (ProductSubscriptionIOS, trimmed).
+const storeSub = (id, displayPrice, unit) => ({
+  id,
+  displayPrice,
+  subscriptionGroupIdIOS: '21500000',
+  subscriptionPeriodNumberIOS: '1',
+  subscriptionPeriodUnitIOS: unit,
+  introductoryPricePaymentModeIOS: 'free-trial',
+  introductoryPriceNumberOfPeriodsIOS: '1',
+  introductoryPriceSubscriptionPeriodIOS: 'week',
+});
+const RESOLVED = [
+  storeSub('com.cultum.plus.yearly', 'CA$54.99', 'year'),
+  storeSub('com.cultum.plus.monthly', 'CA$7.99', 'month'),
+];
 
 const PURCHASE = {
   id: '2000000123',
@@ -48,6 +67,8 @@ function Harness() {
 beforeEach(async () => {
   jest.clearAllMocks();
   mockIap.connected = true;
+  mockIap.subscriptions = RESOLVED;
+  mockEligible.mockResolvedValue(true);
   jest.spyOn(console, 'log').mockImplementation(() => {});
   await act(async () => {
     tree = TestRenderer.create(<Harness />);
@@ -171,4 +192,62 @@ test('with no store connection it refuses instead of hanging', async () => {
   expect(ok).toBe(false);
   expect(mockIap.requestPurchase).not.toHaveBeenCalled();
   expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
+});
+
+describe('StoreKit terms', () => {
+  const rerender = async () => {
+    await act(async () => {
+      tree.update(<Harness />);
+    });
+  };
+
+  test('are null until StoreKit resolves the SKU', async () => {
+    mockIap.subscriptions = [];
+    await rerender();
+    expect(hook.termsFor(YEARLY)).toBeNull();
+
+    mockIap.subscriptions = RESOLVED;
+    await rerender();
+    expect(hook.termsFor(YEARLY)).toMatchObject({ displayPrice: 'CA$54.99', periodLabel: 'year' });
+  });
+
+  test('carry the trial once the group is known to be eligible', () => {
+    expect(mockEligible).toHaveBeenCalledTimes(1);
+    expect(mockEligible).toHaveBeenCalledWith('21500000');
+    expect(hook.termsFor(MONTHLY)).toEqual({
+      displayPrice: 'CA$7.99',
+      periodLabel: 'month',
+      trial: { days: 7, label: '1 week free' },
+    });
+  });
+
+  test('an ineligible user gets the price and no trial', async () => {
+    act(() => tree.unmount());
+    mockEligible.mockResolvedValue(false);
+    await act(async () => {
+      tree = TestRenderer.create(<Harness />);
+    });
+    expect(hook.termsFor(YEARLY)).toMatchObject({ displayPrice: 'CA$54.99', trial: null });
+  });
+
+  test('a failed eligibility check promises no trial', async () => {
+    act(() => tree.unmount());
+    mockEligible.mockRejectedValue(new Error('storekit'));
+    await act(async () => {
+      tree = TestRenderer.create(<Harness />);
+    });
+    expect(hook.termsFor(YEARLY).trial).toBeNull();
+  });
+
+  test('an unresolved SKU cannot be bought', async () => {
+    mockIap.subscriptions = [RESOLVED[1]];
+    await rerender();
+    let ok;
+    await act(async () => {
+      ok = await hook.purchase(YEARLY);
+    });
+    expect(ok).toBe(false);
+    expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+    expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
+  });
 });

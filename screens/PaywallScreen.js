@@ -13,9 +13,13 @@
 // The rating and the reviews are NOT in that payload and stay local constants;
 // there is no endpoint to hunt for.
 //
-// "Start free trial" buys the selected plan through billing/useStorePurchase:
-// StoreKit 2 plus POST /billing/apple/verify on iOS. Other platforms have no
-// store flow yet, and there the button just closes the screen.
+// The CTA buys the selected plan through billing/useStorePurchase: StoreKit 2
+// plus POST /billing/apple/verify on iOS. There StoreKit owns the price and the
+// trial — the headline, plan rows and CTA read `store.termsFor(product)`, and
+// "Start free trial" (and the trial timeline) appear only when StoreKit offers
+// a free trial this user is eligible for; otherwise the CTA reads "Subscribe".
+// Other platforms have no store flow yet: they keep the backend's fallback
+// price, and there the button just closes the screen.
 
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -35,6 +39,7 @@ import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
 import { usePaywallResource } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
+import { headline } from '../billing/storeTerms';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
@@ -49,10 +54,13 @@ const PLUS_CORNER = radius[16]; // Figma 14px — nearest step on the radius sca
 
 // Not in GET /billing/plans — the backend has no App Store review data — so
 // these stay transcribed from the Figma frame.
+// FIXME(App Review 1.1.6/3.1.2): the app has no ratings yet, so this is a made-up
+// claim on a purchase screen. Needs an owner decision before submission.
 const SOCIAL_PROOF = { rating: '4.8', count: '6.2K ratings' };
 
 /**
- * The line above the CTA, for the currently selected product.
+ * The line above the CTA from the backend's copy — what platforms without a
+ * store flow show. On iOS the headline comes from StoreKit (billing/storeTerms).
  *
  * Exported because it is the one piece of derived copy on this screen worth
  * testing on its own: it is what makes the price follow the plan sheet, which
@@ -138,6 +146,13 @@ function Paywall({ content }) {
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
 
+  // StoreKit's terms for the selected plan (iOS), or null: not resolved yet, or
+  // a platform with no store at all.
+  const terms = store.supported ? store.termsFor(product) : null;
+  const pricesPending = store.supported && !terms;
+  const offersTrial = !store.supported || Boolean(terms?.trial);
+  const ctaLabel = offersTrial ? 'Start free trial' : 'Subscribe';
+
   // iOS: StoreKit sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and
   // any other failure shows above the button through the hook's `error`.
@@ -196,28 +211,30 @@ function Paywall({ content }) {
         <View style={styles.body}>
           <Text style={styles.title}>{content.titleLines}</Text>
 
-          <View style={styles.rail}>
-            <View style={styles.railLine} />
-            {content.timeline.map((step) => {
-              const highlight = step.day === 0;
-              return (
-                <View key={step.day} style={styles.step}>
-                  <View style={[styles.dayChip, highlight && styles.dayChipActive]}>
-                    <Text
-                      numberOfLines={1}
-                      style={[styles.dayText, highlight && styles.dayTextActive]}
-                    >
-                      {step.label}
-                    </Text>
+          {offersTrial ? (
+            <View style={styles.rail}>
+              <View style={styles.railLine} />
+              {content.timeline.map((step) => {
+                const highlight = step.day === 0;
+                return (
+                  <View key={step.day} style={styles.step}>
+                    <View style={[styles.dayChip, highlight && styles.dayChipActive]}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.dayText, highlight && styles.dayTextActive]}
+                      >
+                        {step.label}
+                      </Text>
+                    </View>
+                    <View style={styles.stepText}>
+                      <Text style={styles.stepTitle}>{step.title}</Text>
+                      <Text style={styles.stepBody}>{step.body}</Text>
+                    </View>
                   </View>
-                  <View style={styles.stepText}>
-                    <Text style={styles.stepTitle}>{step.title}</Text>
-                    <Text style={styles.stepBody}>{step.body}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View style={styles.table}>
             <View style={styles.tableRow}>
@@ -286,12 +303,19 @@ function Paywall({ content }) {
       </ScrollView>
 
       <View style={styles.priceBar}>
-        <Text style={styles.priceHeadline}>{headlineFor(product)}</Text>
+        {pricesPending ? (
+          <Text style={styles.priceHeadline}>Loading prices…</Text>
+        ) : (
+          <Text style={styles.priceHeadline}>
+            {terms ? headline(terms, product) : headlineFor(product)}
+          </Text>
+        )}
         {store.error ? <Text style={styles.purchaseError}>{store.error}</Text> : null}
         <Button
           size="lg"
-          label="Start free trial"
+          label={ctaLabel}
           loading={store.busy}
+          disabled={pricesPending}
           onPress={onStartTrial}
         />
         <Button
@@ -306,6 +330,7 @@ function Paywall({ content }) {
       <ChoosePlanSheet
         visible={plansOpen}
         products={content.products}
+        termsFor={store.supported ? store.termsFor : undefined}
         initialPlan={planKey}
         onClose={() => setPlansOpen(false)}
         onDone={(next) => {

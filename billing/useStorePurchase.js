@@ -11,6 +11,8 @@ const NOT_SUPPORTED = {
   busy: false,
   error: null,
   purchase: async () => false,
+  // No store to ask, so the paywall keeps the backend's fallback price.
+  termsFor: () => null,
 };
 
 export default function useStorePurchase() {
