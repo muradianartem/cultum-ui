@@ -102,11 +102,18 @@ const sameName = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? 
 // Push
 // ---------------------------------------------------------------------------
 
-// A failure that means "the network isn't there" — stop and keep the queue.
-// Anything else is the server rejecting this particular entry, which retrying
-// forever would never fix, so it is dropped after being logged.
+// A failure that says nothing about the entry itself — stop and keep the queue.
+// That is the network not being there, the server falling over, or a 401: the
+// session could not be refreshed, and if the backend really rejected it the
+// user is signed out and the document cleared anyway. Anything else is the
+// server rejecting this particular entry, which retrying forever would never
+// fix, so it is dropped after being logged.
 const isTransient = (e) =>
-  e?.code === 'offline' || e?.code === 'network' || e?.code === 'timeout' || e?.status >= 500;
+  e?.code === 'offline' ||
+  e?.code === 'network' ||
+  e?.code === 'timeout' ||
+  e?.status >= 500 ||
+  e?.status === 401;
 
 // The plan's room ceiling. Free users get one room; the create UI checks the
 // entitlement first, so reaching this means a stale cache or a second device.
