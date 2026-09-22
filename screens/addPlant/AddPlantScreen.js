@@ -20,9 +20,9 @@
 // call back into.
 
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Icon, NavigationBar, useKeyboardVisible } from '../../components';
+import { Button, Icon, NavigationBar, useKeyboard } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
@@ -58,7 +58,7 @@ const TITLES = {
 export default function AddPlantScreen({ plant, today }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const keyboardVisible = useKeyboardVisible();
+  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
   const { back, replace, reset } = useRouter();
   const garden = useGarden();
   const gate = useRoomGate();
@@ -153,10 +153,7 @@ export default function AddPlantScreen({ plant, today }) {
       />
 
       {/* The Name step autofocuses its field — keep Continue above the keyboard. */}
-      <KeyboardAvoidingView
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.content, { paddingBottom: keyboardHeight }]}>
 
         {step === 'name' ? (
           <NameStep
@@ -238,7 +235,7 @@ export default function AddPlantScreen({ plant, today }) {
             </>
           ) : null}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <AddRoomSheet
         visible={roomSheet}

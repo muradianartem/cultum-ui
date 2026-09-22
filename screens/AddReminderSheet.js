@@ -17,9 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -34,7 +32,7 @@ import {
   ListItem,
   TextInput,
   WheelPicker,
-  useKeyboardVisible,
+  useKeyboard,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { fonts, motion, shadow, sheet } from '../theme/tokens';
@@ -63,7 +61,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   const styles = useMemo(() => makeStyles(t), [t]);
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
-  const keyboardVisible = useKeyboardVisible();
+  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
 
   const [step, setStep] = useState('label'); // 'label' | 'frequency' | 'date'
   const [label, setLabel] = useState('');
@@ -119,10 +117,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
       statusBarTranslucent
       testID="add-reminder-sheet"
     >
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
         <Pressable
           style={styles.backdrop}
           onPress={onBackdrop}
@@ -279,7 +274,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
           ) : null}
           </Pressable>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

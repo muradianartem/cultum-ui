@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Keyboard, KeyboardAvoidingView, Modal, Text, Pressable } from 'react-native';
+import { Keyboard, Modal, Text, Pressable } from 'react-native';
 import BottomSheet from '../BottomSheet';
 import { BottomSheet as BarrelBottomSheet } from '../index';
 
@@ -17,6 +17,9 @@ const texts = (tree) =>
     return Array.isArray(c) ? c : [c];
   });
 
+// Collapse a node's style array into one object.
+const flat = (node) => Object.assign({}, ...[].concat(node.props.style).filter(Boolean));
+
 const byTestID = (tree, id) =>
   tree.root.findAll((n) => typeof n.type === 'string' && n.props.testID === id);
 
@@ -29,13 +32,15 @@ function mockKeyboard() {
     return { remove: () => delete handlers[event] };
   });
   const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
-  const show = () =>
+  const fire = (suffix, event) =>
     act(() =>
       Object.keys(handlers)
-        .filter((event) => event.endsWith('Show'))
-        .forEach((event) => handlers[event]({}))
+        .filter((name) => name.endsWith(suffix))
+        .forEach((name) => handlers[name](event))
     );
-  return { dismiss, show };
+  const show = (event = {}) => fire('Show', event);
+  const hide = (event = {}) => fire('Hide', event);
+  return { dismiss, show, hide };
 }
 
 // Host Pressables expose onClick under this renderer, onPress elsewhere.
@@ -117,8 +122,6 @@ test('sheetStyle and bodyStyle override the surface and its padding', () => {
       bodyStyle={{ paddingTop: 8 }}
     />
   );
-  const flat = (node) => Object.assign({}, ...[].concat(node.props.style).filter(Boolean));
-
   const surface = tree.root.find(
     (n) => typeof n.type === 'string' && flat(n).borderTopLeftRadius != null
   );
@@ -134,9 +137,20 @@ test('sheetStyle and bodyStyle override the surface and its padding', () => {
 // A sheet with a field must stay readable while typing, and the keyboard must
 // be dismissable without losing the sheet.
 describe('keyboard', () => {
-  test('the sheet rides above the keyboard', () => {
+  // The inset comes off the keyboard event itself — a <Modal> only mounts its
+  // subtree when it opens, so a KeyboardAvoidingView has not laid out yet when
+  // an autofocused field raises the keyboard, and the sheet stays buried.
+  test('the sheet rides above the keyboard, by its height', () => {
+    const { show, hide } = mockKeyboard();
     const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
-    expect(tree.root.findAllByType(KeyboardAvoidingView)).toHaveLength(1);
+    const root = () =>
+      tree.root.find((n) => typeof n.type === 'string' && flat(n).justifyContent === 'flex-end');
+
+    expect(flat(root()).paddingBottom).toBe(0);
+    show({ endCoordinates: { height: 336 }, duration: 250, easing: 'keyboard' });
+    expect(flat(root()).paddingBottom).toBe(336);
+    hide({ duration: 250, easing: 'keyboard' });
+    expect(flat(root()).paddingBottom).toBe(0);
   });
 
   test('with the keyboard up, the backdrop hides it instead of closing', () => {
