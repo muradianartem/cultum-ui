@@ -17,6 +17,9 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../routing', () => ({
   useRouter: () => ({ back: mockBack, reset: mockReset, canGoBack: mockCanGoBack }),
 }));
+// Onboarding's only stake here is being told it is over.
+const mockComplete = jest.fn();
+jest.mock('../../onboarding', () => ({ useOnboarding: () => ({ complete: mockComplete }) }));
 
 // Only the request is stubbed: the mapper, the module cache and the hook all
 // run for real, because "bundled snapshot first, remote content when it lands"
@@ -106,10 +109,10 @@ const rows = (tree) =>
 // BottomSheet kicks off an Animated.timing on mount, so creation has to be
 // wrapped in act() or the renderer tears down mid-update.
 const mounted = [];
-const render = () => {
+const render = (props = {}) => {
   let tree;
   act(() => {
-    tree = TestRenderer.create(<PaywallScreen />);
+    tree = TestRenderer.create(<PaywallScreen {...props} />);
   });
   mounted.push(tree);
   return tree;
@@ -147,13 +150,12 @@ afterEach(() => {
   mockCanGoBack = true;
 });
 
-// Resolve the fetch before the first render, the way <PaywallLauncher> does:
-// it only opens this route once the content exists.
-const renderWith = async (payload) => {
+// Resolve the fetch before the first render, so the screen opens on content.
+const renderWith = async (payload, props = {}) => {
   getPaywall.mockResolvedValue(payload);
   let tree;
   await act(async () => {
-    tree = TestRenderer.create(<PaywallScreen />);
+    tree = TestRenderer.create(<PaywallScreen {...props} />);
   });
   mounted.push(tree);
   return tree;
@@ -457,5 +459,61 @@ describe('StoreKit terms (iOS)', () => {
     expect(texts(tree)).toContain('7 days free, then $39.99 a year');
     expect(texts(tree)).toContain('Start free trial');
     expect(texts(tree)).toContain('Full access');
+  });
+});
+
+// The paywall at the end of onboarding is its last step: every way out of it
+// finishes onboarding and lands on Today. Any other paywall is a detour.
+describe('at the end of onboarding', () => {
+  const ONBOARDING = { source: 'onboarding' };
+
+  test('Close while loading completes onboarding and goes to Today', () => {
+    const tree = render(ONBOARDING);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalledTimes(1);
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('Close from the error state completes onboarding too', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen {...ONBOARDING} />);
+    });
+    mounted.push(tree);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+  });
+
+  test('Close on the loaded paywall completes onboarding, even if history exists', async () => {
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('a confirmed purchase completes onboarding', async () => {
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    await act(async () => press(tree, 'Start free trial'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+  });
+
+  test('a cancelled or failed purchase leaves onboarding where it is', async () => {
+    mockStore.purchase.mockResolvedValue(false);
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    await act(async () => press(tree, 'Start free trial'));
+    expect(mockComplete).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
+  });
+
+  test('an ordinary paywall never completes onboarding', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
+    expect(mockComplete).not.toHaveBeenCalled();
   });
 });

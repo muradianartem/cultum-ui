@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import ScanCameraScreen from '../ScanCameraScreen';
+import { onboardingSession } from '../../../onboarding/testing';
 import { createScan } from '../../../api/scans';
 import { MOCK_SCAN } from '../../../api/__mocks__/scanFixtures';
 
@@ -202,5 +203,40 @@ describe('failure copy', () => {
 
     expect(texts(tree)).toContain('Couldn’t take the photo.');
     expect(createScan).not.toHaveBeenCalled();
+  });
+});
+
+// Close leaves the scan flow. Where to depends on who started it.
+describe('Close', () => {
+  const close = (tree) =>
+    act(() => {
+      tree.root
+        .findAll((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Close')
+        .pop()
+        .props.onPress();
+    });
+
+  test.each([
+    ['live camera', true],
+    ['permission rationale', false],
+  ])('from the %s, an ordinary scan closes to Today with no history', (_, granted) => {
+    mockPermissionState = { granted, canAskAgain: true };
+    const tree = create(<ScanCameraScreen />);
+    close(tree);
+    expect(api.route).toBe('today');
+    expect(api.canGoBack).toBe(false);
+  });
+
+  test.each([
+    ['live camera', true],
+    ['permission rationale', false],
+  ])('from the %s, an onboarding scan closes to "Add your first plant"', (_, granted) => {
+    mockPermissionState = { granted, canAskAgain: true };
+    const session = onboardingSession(<ScanCameraScreen />);
+    const tree = create(session.element);
+    session.begin();
+    close(tree);
+    expect(api.route).toBe('onboarding');
+    expect(session.current).toMatchObject({ addingPlant: false, stage: 'intro', step: 3 });
   });
 });

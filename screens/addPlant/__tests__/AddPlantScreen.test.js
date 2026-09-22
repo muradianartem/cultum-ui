@@ -9,6 +9,8 @@ import { DEFAULT_UNIT_INDEX, makeReminderDraft } from '../../addReminderData';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import ProductPage from '../../ProductPage';
 import AddPlantScreen from '../AddPlantScreen';
+import { OnboardingProvider, useOnboarding } from '../../../onboarding';
+import { FRESH } from '../../../onboarding/storage';
 
 // Fixed "today" so every date label is deterministic: Thursday 10 Sep 2026.
 const TODAY = new Date(2026, 8, 10);
@@ -297,5 +299,107 @@ describe('success', () => {
     expect(tree.router.canGoBack).toBe(false);
     // The plant was saved on the way in, so leaving this way keeps it.
     expect(garden.plants).toHaveLength(1);
+  });
+});
+
+// The same wizard, reached from onboarding's "Add your first plant". Only the
+// exits change: the plant is saved exactly as above, and then the onboarding
+// paywall takes over instead of the plant's page.
+describe('in onboarding', () => {
+  let ob;
+  function OnboardingProbe() {
+    ob = useOnboarding();
+    return null;
+  }
+
+  // Starts on the entry screen and opens the add session the way its Scan /
+  // Search buttons do — a stored add session with nothing saved is treated as
+  // interrupted, so it cannot be seeded directly.
+  function createOnboarding({ session = true } = {}) {
+    const record = { ...FRESH, stage: 'intro', step: 3 };
+    harness = renderWithGarden(
+      <OnboardingProvider initial={record} override={null}>
+        <GardenProbe />
+        <OnboardingProbe />
+        <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} />} />
+        <Route name="product" component={ProductPage} />
+        <Route name="paywall" component={() => null} />
+        <Route name="scan-camera" component={() => null} />
+      </OnboardingProvider>,
+      {
+        state: seedGarden({ now: TODAY, rooms: ['Kitchen'] }),
+        initial: 'add-plant',
+        clock: TODAY,
+      },
+    );
+    if (session) act(() => ob.beginPlant());
+    return harness;
+  }
+
+  beforeEach(() => require('expo-file-system').__files.clear());
+
+  test('saving records the plant as the onboarding one', () => {
+    const tree = createOnboarding();
+    walkTo(tree, 'success');
+    expect(ob.savedPlantId).toBe(garden.plants[0].id);
+  });
+
+  test.each(['Done', 'Close'])('%s on success opens the onboarding paywall, with no way back', (label) => {
+    const tree = createOnboarding();
+    walkTo(tree, 'success');
+    press(tree, label);
+    expect(tree.router.route).toBe('paywall');
+    expect(tree.router.params).toEqual({ source: 'onboarding' });
+    expect(tree.router.canGoBack).toBe(false);
+    expect(ob.stage).toBe('paywall');
+  });
+
+  test('a burst of finish taps saves nothing more and lands on one paywall', () => {
+    const tree = createOnboarding();
+    walkTo(tree, 'success');
+    const done = button(tree, 'Done').props.onPress;
+    act(() => {
+      done();
+      done();
+    });
+    expect(garden.plants).toHaveLength(1);
+    expect(tree.router.route).toBe('paywall');
+    expect(tree.router.canGoBack).toBe(false);
+  });
+
+  test('the plant and its reminders are created exactly once', () => {
+    const tree = createOnboarding();
+    walkTo(tree, 'reminders');
+    press(tree, 'Enable Watering');
+    press(tree, 'Continue');
+    press(tree, 'Done');
+    expect(garden.plants).toHaveLength(1);
+    expect(garden.reminders.filter((r) => r.plantId === garden.plants[0].id)).toHaveLength(1);
+  });
+
+  test('Scan another plant keeps the onboarding session and the saved plant', () => {
+    const tree = createOnboarding();
+    walkTo(tree, 'success');
+    press(tree, 'Scan another plant');
+    expect(tree.router.route).toBe('scan-camera');
+    expect(ob).toMatchObject({ addingPlant: true, savedPlantId: garden.plants[0].id });
+    expect(garden.plants).toHaveLength(1);
+  });
+
+  test('close before saving still steps back through the scan flow', () => {
+    const tree = createOnboarding();
+    act(() => tree.router.navigate('add-plant'));
+    press(tree, 'Close');
+    expect(garden.plants).toHaveLength(0);
+    expect(ob.addingPlant).toBe(true);
+  });
+
+  test('outside an onboarding add session, onboarding never hijacks Done', () => {
+    // Onboarding still running, but this plant came from ordinary Add.
+    const tree = createOnboarding({ session: false });
+    walkTo(tree, 'success');
+    press(tree, 'Done');
+    expect(tree.router.route).toBe('product');
+    expect(ob.savedPlantId).toBeNull();
   });
 });

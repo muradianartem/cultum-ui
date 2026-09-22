@@ -5,10 +5,10 @@
 //
 // The copy, the trial timeline, the comparison rows and both products come
 // from GET /billing/plans via billing/paywallContent.js. Nothing is bundled, so
-// this screen has no prices of its own to fall back on. <PaywallLauncher> only
-// opens it once that content exists, but Settings → Upgrade and the room-limit
-// gate navigate here directly, so until the content lands the screen draws
-// <PaywallPending>: a Close plus a spinner, or an error with Try again.
+// this screen has no prices of its own to fall back on. The end of onboarding,
+// Settings → Upgrade and the room-limit gate all navigate here directly, so
+// until the content lands the screen draws <PaywallPending>: a Close plus a
+// spinner, or an error with Try again.
 //
 // The rating and the reviews are NOT in that payload and stay local constants;
 // there is no endpoint to hunt for.
@@ -38,6 +38,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { fontFace } from '../theme/fonts';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
+import { useOnboarding } from '../onboarding';
 import { usePaywallResource } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
 import { headline } from '../billing/storeTerms';
@@ -87,26 +88,44 @@ const REVIEWS = [
   },
 ];
 
-export default function PaywallScreen() {
+/**
+ * @param {object} props
+ * @param {'onboarding'} [props.source]  set only by the end of onboarding. That
+ *   paywall is the last onboarding step, so every way out of it — Close, a
+ *   verified purchase — completes onboarding. Any other paywall (Settings, the
+ *   room-limit gate) is a detour and leaves onboarding alone.
+ */
+export default function PaywallScreen({ source } = {}) {
   const { content, status, retry } = usePaywallResource();
   // Hooks cannot be skipped, so the "no content" check has to happen above
-  // every other one — hence the split. Reachable by opening the route directly
-  // (Settings → Upgrade, the room gate), never through the launcher.
-  if (!content) return <PaywallPending status={status} onRetry={retry} />;
-  return <Paywall content={content} />;
+  // every other one — hence the split. Reachable before its content lands from
+  // every entry point: onboarding, Settings → Upgrade and the room gate.
+  if (!content) return <PaywallPending status={status} onRetry={retry} source={source} />;
+  return <Paywall content={content} source={source} />;
 }
 
 // Same shape as the scan flow's close: pop if there's history, else go home.
-function useClose() {
+// The onboarding paywall was entered through reset(), so it has no history —
+// and must not, or closing it could remount the finished add-plant wizard.
+function useClose(source) {
   const { back, canGoBack, reset } = useRouter();
-  return () => (canGoBack ? back() : reset('today'));
+  const { complete } = useOnboarding();
+  return () => {
+    if (source === 'onboarding') {
+      complete();
+      reset('today');
+      return;
+    }
+    if (canGoBack) back();
+    else reset('today');
+  };
 }
 
 /** The paywall before its content exists: always a way out, never a blank. */
-function PaywallPending({ status, onRetry }) {
+function PaywallPending({ status, onRetry, source }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const onClose = useClose();
+  const onClose = useClose(source);
   return (
     <View style={[pendingStyles.root, { backgroundColor: t.background.primary, paddingTop: insets.top }]}>
       <NavigationBar leading="close" onLeadingPress={onClose} divider={false} />
@@ -130,11 +149,11 @@ const pendingStyles = StyleSheet.create({
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[16] },
 });
 
-function Paywall({ content }) {
+function Paywall({ content, source }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
-  const onClose = useClose();
+  const onClose = useClose(source);
 
   const [plansOpen, setPlansOpen] = useState(false);
   const [planKey, setPlanKey] = useState(content.defaultProductKey);

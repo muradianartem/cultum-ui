@@ -130,6 +130,8 @@ export default function ScanSearchScreen() {
               primaryAction={{
                 label: 'Scan it instead',
                 leftIcon: <Icon name="outlined-scan" size={16} color={t.brand.onPrimary} />,
+                // Drops history; the camera's own close still knows the way
+                // back to onboarding (useLeaveAcquisition), so nothing strands.
                 onPress: () => reset('scan-camera'),
               }}
             />

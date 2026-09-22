@@ -1,5 +1,11 @@
 // Opens the paywall once there is something to sell.
 //
+// NOT MOUNTED. App.js stopped rendering it when onboarding arrived: a launch
+// paywall landing on top of the onboarding screens is exactly the interruption
+// that flow forbids, and onboarding now ends on the paywall itself. Kept for a
+// separately enabled preview build; mount it again only behind a check that
+// onboarding is complete (useOnboarding().active === false).
+//
 // Not a <Route>: like <NotificationRouter>, it renders nothing and sits inside
 // the Router so it can navigate. It exists because the entry decision has to
 // *wait*. <Router initial> is read once, at mount, and cannot await a fetch —
