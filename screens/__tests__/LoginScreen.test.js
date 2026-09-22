@@ -69,15 +69,22 @@ const IOS = Platform.OS;
 
 const texts = (tree) => tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
 
+// Every tree is unmounted after its test, so the screen's own cleanup cancels
+// timers such as the snackbar's auto-dismiss instead of letting them fire into
+// a torn-down Jest environment.
+const mounted = [];
+
 async function render() {
   let tree;
   await act(async () => {
     tree = TestRenderer.create(<LoginScreen />);
   });
+  mounted.push(tree);
   return tree;
 }
 
 afterEach(() => {
+  act(() => mounted.splice(0).forEach((tree) => tree.unmount()));
   jest.clearAllMocks();
   mockResponse = null;
   mockAppleAvailable = true;
