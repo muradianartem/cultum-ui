@@ -29,7 +29,18 @@ const { getPaywall } = require('../../api/billing');
 
 // The store flow has its own tests (billing/__tests__/useStorePurchase.test.js);
 // here it is only what the screen asks of it and what it hands back.
-const mockStore = { supported: true, available: true, busy: false, error: null, purchase: jest.fn() };
+const mockStore = {
+  supported: true,
+  available: true,
+  busy: false,
+  restoring: false,
+  error: null,
+  // StoreKit's localized prices, keyed by Apple product id. Empty here unless a
+  // test says otherwise, which is the pre-resolution state.
+  prices: {},
+  purchase: jest.fn(),
+  restore: jest.fn(),
+};
 jest.mock('../../billing/useStorePurchase', () => ({ __esModule: true, default: () => mockStore }));
 
 import PaywallScreen from '../PaywallScreen';
@@ -118,8 +129,16 @@ const press = (tree, label) =>
 beforeEach(() => {
   __resetPaywallCache();
   getPaywall.mockReturnValue(new Promise(() => {}));
-  Object.assign(mockStore, { supported: true, available: true, busy: false, error: null });
+  Object.assign(mockStore, {
+    supported: true,
+    available: true,
+    busy: false,
+    restoring: false,
+    error: null,
+    prices: {},
+  });
   mockStore.purchase.mockResolvedValue(true);
+  mockStore.restore.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -297,6 +316,94 @@ describe('Start free trial', () => {
     await startTrial(tree);
     expect(mockStore.purchase).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+  });
+});
+
+describe('the price StoreKit resolved', () => {
+  test('replaces the API fallback in the headline', async () => {
+    // A British storefront. The payload still says $39.99 — which is exactly
+    // why the screen must not print it.
+    mockStore.prices = { 'com.cultum.plus.yearly': '£34.99' };
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('7 days free, then £34.99 a year');
+    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
+  });
+
+  test('replaces it in the plan sheet too', async () => {
+    mockStore.prices = {
+      'com.cultum.plus.yearly': '£34.99',
+      'com.cultum.plus.monthly': '£4.99',
+    };
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => press(tree, 'See all plans'));
+    expect(texts(tree)).toContain('£34.99');
+    expect(texts(tree)).toContain('£4.99');
+    expect(texts(tree)).not.toContain('$39.99');
+  });
+
+  test('falls back per product, not all or nothing', async () => {
+    // Only one of the two resolved — a product still propagating through App
+    // Store Connect. The other keeps the fallback rather than rendering blank.
+    mockStore.prices = { 'com.cultum.plus.yearly': '£34.99' };
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => press(tree, 'See all plans'));
+    expect(texts(tree)).toContain('£34.99');
+    expect(texts(tree)).toContain('$5.99');
+  });
+
+  test('is the API fallback until the store answers', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
+  });
+});
+
+describe('Restore purchases', () => {
+  const restore = (tree) => act(async () => press(tree, 'Restore purchases'));
+
+  test('closes the screen when the restore granted Plus', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    await restore(tree);
+    expect(mockStore.restore).toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  test('stays open when there was nothing to restore', async () => {
+    // The hook has put its own message in `error`; the screen's job is only to
+    // not pretend the user is now a subscriber.
+    mockStore.restore.mockResolvedValue(false);
+    const tree = await renderWith(LIVE_RESPONSE);
+    await restore(tree);
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
+  });
+
+  test('shows whatever the hook is reporting', async () => {
+    mockStore.error = "We couldn't find an active subscription on this Apple ID.";
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain("We couldn't find an active subscription on this Apple ID.");
+  });
+
+  test('says it is working, and locks the other actions while it does', async () => {
+    mockStore.restoring = true;
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('Restoring…');
+    // Same predicate as `press` — the one shape known to match exactly one node.
+    const labelled = (label) =>
+      tree.root.find(
+        (n) =>
+          n.props.accessibilityRole === 'button' &&
+          typeof n.props.onPress === 'function' &&
+          n.props.accessibilityLabel === label
+      );
+    expect(labelled('Start free trial').props.accessibilityState.disabled).toBe(true);
+    expect(labelled('See all plans').props.accessibilityState.disabled).toBe(true);
+    expect(labelled('Close').props.accessibilityState.disabled).toBe(true);
+  });
+
+  test('is not offered on a platform with no store flow', async () => {
+    mockStore.supported = false;
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).not.toContain('Restore purchases');
   });
 });
 

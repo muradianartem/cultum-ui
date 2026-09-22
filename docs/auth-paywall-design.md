@@ -45,10 +45,27 @@ deliberately left out.
   silent, and any other failure is shown above the CTA. Other platforms resolve
   `billing/useStorePurchase.js`, which has no store flow, so the button just
   closes the screen there.
-  Still open: the Play flow (`/billing/google/verify`), a "Restore purchases"
-  entry, and StoreKit's localized price in place of `fallback_price` (right only
-  in a USD storefront). `expo-iap` is native, so it needs a rebuild and not an
-  OTA update.
+  **Prices come from StoreKit, not from the payload.** The hook exposes `prices`
+  — `displayPrice` per Apple product id, from the `fetchProducts` call it
+  already made — and both the price headline and the plan sheet prefer it.
+  `fallback_price` is USD and is now only what renders in the moment before the
+  products resolve, and on the platforms with no store flow at all. The fallback
+  is per product, not all-or-nothing: one unresolved id does not drag the other
+  back to dollars.
+  **"Restore purchases"** sits under both CTAs (hidden where `supported` is
+  false). It calls `getAvailablePurchases()` — active entitlements only, which is
+  its default — and pushes every result through the same verify-then-finish path
+  as a fresh purchase, because a *finished* transaction is never re-delivered
+  and a reinstall therefore has nothing to replay. Success is judged by the
+  backend's `is_plus`, not by finding a receipt: an expired subscription
+  restores perfectly well and grants nothing, and closing the paywall on that
+  would strand the user back on Free.
+  The backend's **409** (`AlreadyLinked` — a household sharing one Apple ID) is
+  called out separately in both paths. It is the one verify failure that a retry
+  can never fix, so it must not borrow the "it will be confirmed automatically"
+  copy: the user is holding a live subscription and has to choose an account.
+  Still open: the Play flow (`/billing/google/verify`). `expo-iap` is native, so
+  all of this needs a rebuild and not an OTA update.
 - **Figma's copy now comes from the backend.** `PRICING`, `TRIAL_STEPS`,
   `FEATURES`, `FOOTNOTE` and `ChoosePlanSheet`'s `PLANS` are gone — see
   "Content" below. `SOCIAL_PROOF` and `REVIEWS` stayed: the API has no App Store
@@ -109,7 +126,8 @@ Both new SVGs are registered as brand glyphs in
 |---|---|
 | title, trial timeline, feature table, footnote, products | `GET /billing/plans` via [api/billing.js](../api/billing.js) → [billing/paywallContent.js](../billing/paywallContent.js) |
 | rating, reviews | local constants in the screen — no endpoint |
-| price headline | `headlineFor(product)`, derived, so it follows the plan sheet |
+| **the price itself** | StoreKit `displayPrice` via `useStorePurchase#prices`, falling back per product to the payload's `fallback_price` |
+| price headline | `headlineFor(product, storePrice)`, derived, so it follows the plan sheet |
 | plan sub-label | `detailFor(product)`, derived from `period` |
 
 `mapPaywall` validates rather than trusts: a payload it cannot render is

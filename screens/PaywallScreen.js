@@ -16,13 +16,20 @@
 // "Start free trial" buys the selected plan through billing/useStorePurchase:
 // StoreKit 2 plus POST /billing/apple/verify on iOS. Other platforms have no
 // store flow yet, and there the button just closes the screen.
+//
+// Prices are the store's, not the payload's. `GET /billing/plans` carries a
+// `fallback_price` that is only right in a USD storefront; StoreKit's
+// `displayPrice` replaces it here and in the plan sheet as soon as the products
+// resolve. "Restore purchases" sits below both CTAs because Apple requires a
+// route back to a subscription this Apple ID already owns — a reinstall leaves
+// StoreKit no unfinished transaction to replay.
 
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Button, ButtonIcon, Icon } from '../components';
+import { Button, ButtonIcon, Icon, TextButton } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
@@ -50,9 +57,15 @@ const SOCIAL_PROOF = { rating: '4.8', count: '6.2K ratings' };
  * Exported because it is the one piece of derived copy on this screen worth
  * testing on its own: it is what makes the price follow the plan sheet, which
  * the hardcoded version never did.
+ *
+ * `storePrice` is StoreKit's localized `displayPrice` and wins whenever it is
+ * known — it is the only price the user will actually be charged, in their own
+ * currency and with their own tax in it. `fallbackPrice` is the API's USD
+ * placeholder, right for the instant before StoreKit answers and for the
+ * platforms that have no store flow at all.
  */
-export function headlineFor(product) {
-  const price = `${product.fallbackPrice} a ${product.period}`;
+export function headlineFor(product, storePrice = null) {
+  const price = `${storePrice ?? product.fallbackPrice} a ${product.period}`;
   return product.trialDays > 0
     ? `${product.trialDays} days free, then ${price}`
     : price;
@@ -97,6 +110,13 @@ function Paywall({ content }) {
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
 
+  // Null until StoreKit has resolved the products, and on every platform
+  // without a store flow — `headlineFor` falls back to the API's price there.
+  const storePrice = store.prices[product.appleProductId] ?? null;
+  // Either store call has the screen's full attention: both end in the
+  // entitlement changing, and neither wants the other started underneath it.
+  const busy = store.busy || store.restoring;
+
   // Same shape as the scan flow's close: pop if there's history, else go home.
   const onClose = () => (canGoBack ? back() : reset('today'));
 
@@ -115,6 +135,14 @@ function Paywall({ content }) {
       return;
     }
     if (await store.purchase(product)) onClose();
+  };
+
+  // Apple requires a way back to a subscription this Apple ID already owns: a
+  // reinstall or a new device leaves StoreKit nothing to replay. It closes the
+  // screen only if the restore actually granted Plus — an expired subscription
+  // restores fine and grants nothing, and the hook says so through `error`.
+  const onRestore = async () => {
+    if (await store.restore()) onClose();
   };
 
   return (
@@ -149,7 +177,7 @@ function Paywall({ content }) {
               icon={<Icon name="close" size={16} />}
               accessibilityLabel="Close"
               // A StoreKit sheet is up; closing under it would orphan the purchase.
-              disabled={store.busy}
+              disabled={busy}
               onPress={onClose}
             />
           </View>
@@ -248,26 +276,40 @@ function Paywall({ content }) {
       </ScrollView>
 
       <View style={styles.priceBar}>
-        <Text style={styles.priceHeadline}>{headlineFor(product)}</Text>
+        <Text style={styles.priceHeadline}>{headlineFor(product, storePrice)}</Text>
         {store.error ? <Text style={styles.purchaseError}>{store.error}</Text> : null}
         <Button
           size="lg"
           label="Start free trial"
           loading={store.busy}
+          disabled={store.restoring}
           onPress={onStartTrial}
         />
         <Button
           size="md"
           variant="ghost"
           label="See all plans"
-          disabled={store.busy}
+          disabled={busy}
           onPress={() => setPlansOpen(true)}
         />
+        {/* Store-only: there is nothing to restore on a platform with no store
+            flow, and an inert button would be worse than none. */}
+        {store.supported ? (
+          <TextButton
+            tone="muted"
+            size="sm"
+            label={store.restoring ? 'Restoring…' : 'Restore purchases'}
+            disabled={busy}
+            accessibilityLabel="Restore purchases"
+            onPress={onRestore}
+          />
+        ) : null}
       </View>
 
       <ChoosePlanSheet
         visible={plansOpen}
         products={content.products}
+        prices={store.prices}
         initialPlan={planKey}
         onClose={() => setPlansOpen(false)}
         onDone={(next) => {
