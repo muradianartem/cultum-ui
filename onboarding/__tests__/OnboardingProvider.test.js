@@ -191,3 +191,72 @@ describe('resuming through the navigator', () => {
     expect(r.texts()).toContain('paywall:onboarding');
   });
 });
+
+describe('the backend decides at sign-in', () => {
+  const reported = { ...COMPLETE, reported: true };
+  const at = (props) => mount({ signedInVia: 'login', override: null, reportShown: jest.fn(async () => ({})), ...props });
+
+  test('onboarding_shown true skips it, whatever is on disk', () => {
+    at({ serverShown: true, initial: { ...FRESH, step: 2 } });
+    expect(ob).toMatchObject({ stage: 'complete', active: false, initialRoute: 'today' });
+    expect(loadOnboardingSync()).toMatchObject({ stage: 'complete', reported: true });
+  });
+
+  test('onboarding_shown false starts it even though this phone finished it for someone', () => {
+    at({ serverShown: false, initial: reported });
+    expect(ob).toMatchObject({ stage: 'intro', step: 0, initialRoute: 'onboarding' });
+  });
+
+  test('onboarding_shown false resumes an unfinished record', () => {
+    at({ serverShown: false, initial: { ...FRESH, step: 2 } });
+    expect(ob).toMatchObject({ stage: 'intro', step: 2 });
+  });
+
+  test('onboarding_shown false does not replay a finish whose report never landed', async () => {
+    const reportShown = jest.fn(async () => ({}));
+    at({ serverShown: false, initial: { ...COMPLETE }, reportShown });
+    expect(ob).toMatchObject({ stage: 'complete', initialRoute: 'today' });
+    await act(async () => {});
+    expect(reportShown).toHaveBeenCalledWith(true);
+    expect(loadOnboardingSync()).toMatchObject({ reported: true });
+  });
+
+  test('no answer falls back to the record on this device', () => {
+    at({ serverShown: null, initial: reported });
+    expect(ob).toMatchObject({ stage: 'complete', initialRoute: 'today' });
+  });
+});
+
+describe('reporting completion', () => {
+  test('finishing sends PATCH once and records it', async () => {
+    const reportShown = jest.fn(async () => ({}));
+    mount({ signedInVia: 'login', serverShown: false, override: null, reportShown });
+    expect(reportShown).not.toHaveBeenCalled();
+    await act(async () => ob.complete());
+    expect(reportShown).toHaveBeenCalledTimes(1);
+    expect(loadOnboardingSync()).toMatchObject({ stage: 'complete', reported: true });
+  });
+
+  test('a failed report is retried at the next launch', async () => {
+    const failing = jest.fn(async () => {
+      throw new Error('offline');
+    });
+    const tree = mount({ signedInVia: 'login', serverShown: false, override: null, reportShown: failing });
+    await act(async () => ob.complete());
+    expect(loadOnboardingSync()).toMatchObject({ stage: 'complete', reported: false });
+    act(() => tree.unmount());
+
+    const retry = jest.fn(async () => ({}));
+    mount({ signedInVia: 'restore', override: null, reportShown: retry });
+    await act(async () => {});
+    expect(retry).toHaveBeenCalledWith(true);
+    expect(loadOnboardingSync()).toMatchObject({ reported: true });
+  });
+
+  test('the dev bypass never reports', async () => {
+    const reportShown = jest.fn(async () => ({}));
+    mount({ signedInVia: 'dev', override: null, reportShown });
+    await act(async () => {});
+    expect(reportShown).not.toHaveBeenCalled();
+  });
+});

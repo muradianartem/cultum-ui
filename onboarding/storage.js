@@ -2,11 +2,11 @@
 //
 // Its own document for the same reason the preferences have one
 // (lib/prefsStorage.js): `store/persist.js#clearState()` deletes the garden on
-// sign-out, and onboarding is a property of the installation, not the account.
-// There is no stable account id to key it on (the app never reads one out of
-// its tokens), so "has this phone been through onboarding" is the honest
-// question — and a completed onboarding must not replay because somebody
-// signed out and back in.
+// sign-out, and a half-finished run must survive that.
+// Whether the *account* has seen onboarding is the backend's to say
+// (GET /users/me `onboarding_shown`, read at sign-in); this record is what lets
+// an interrupted run resume on this phone, and what decides when the backend
+// could not be asked.
 //
 // Read synchronously, like the preferences: the record picks <Router initial>,
 // which is read once at mount, so there is no window in which Today could
@@ -41,6 +41,9 @@ export const FRESH = Object.freeze({
   stage: 'intro',
   step: 0,
   savedPlantId: null,
+  // Whether PATCH /users/me has been told onboarding was shown. Only
+  // meaningful once `stage` is complete; a failed report is retried at launch.
+  reported: false,
 });
 
 export const COMPLETE = Object.freeze({ ...FRESH, stage: 'complete' });
@@ -63,7 +66,9 @@ export function parseOnboarding(doc) {
   if (!Number.isInteger(doc.step) || doc.step < 0 || doc.step > ENTRY_STEP) return null;
   const savedPlantId =
     typeof doc.savedPlantId === 'string' && doc.savedPlantId ? doc.savedPlantId : null;
-  return { version: ONBOARDING_VERSION, stage: doc.stage, step: doc.step, savedPlantId };
+  // Absent from records written before the backend tracked it: not reported.
+  const reported = doc.reported === true;
+  return { version: ONBOARDING_VERSION, stage: doc.stage, step: doc.step, savedPlantId, reported };
 }
 
 /** The record as it was left, or null for none (or none worth trusting). Never throws. */

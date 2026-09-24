@@ -50,7 +50,7 @@ configureNotifications();
 // Exported for test/support/integration.js, which mounts the real gate — its
 // sign-out cleanup included — under a test shell.
 export function AuthGate() {
-  const { status, signedInVia } = useAuth();
+  const { status, signedInVia, onboardingShown } = useAuth();
   const t = useTheme();
 
   // Signing out has to take the garden with it: the document on disk, the
@@ -96,9 +96,10 @@ export function AuthGate() {
         {/* Inside the garden so an open undo can still reach it — signing out
             takes both with it. */}
         <SnackbarProvider>
-          {/* Installation-scoped, so it is not cleared on sign-out; it picks
-              the router's first route, so it has to sit above it. */}
-          <OnboardingProvider signedInVia={signedInVia}>
+          {/* The account's onboarding_shown (read at sign-in) decides; the
+              record on this device resumes an unfinished run. It picks the
+              router's first route, so it has to sit above it. */}
+          <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
             <AppRoutes />
           </OnboardingProvider>
         </SnackbarProvider>

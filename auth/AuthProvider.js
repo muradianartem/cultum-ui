@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { loadTokens, saveTokens, clearTokens, withExpiry } from '../lib/authStorage';
 import { authApi } from '../api/auth';
+import { getMe } from '../api/account';
 import { ApiError, setAuthTokenProvider, setUnauthorizedHandler } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -14,6 +15,11 @@ const AuthContext = createContext(null);
 // the fact costs a wasted round trip — and for a scan that round trip is the
 // whole photo, uploaded twice.
 const REFRESH_SKEW_MS = 60000;
+
+// How long a sign-in waits on GET /users/me before giving up on it. The answer
+// only picks the first route; without it onboarding falls back to the record
+// on this device, so a slow backend must not hold the user on the Login screen.
+const ME_TIMEOUT_MS = 8000;
 
 // What a rotation that outlived its session rejects with. The tokens it minted
 // belong to nobody now, so the caller gets what it would have got signed out.
@@ -42,10 +48,9 @@ const bypassAuth = () => __DEV__ && DEV_BYPASS_AUTH && typeof jest === 'undefine
 /**
  * The claims out of a provider ID token.
  *
- * There is no profile endpoint on the backend — no GET /users/me, and the
- * TokenResponse it mints carries neither a name nor an email — but the
- * provider's ID token already has both, so read them once at sign-in rather
- * than adding a round trip that does not exist.
+ * The TokenResponse the backend mints carries neither a name nor an email,
+ * but the provider's ID token already has both, so read them once at sign-in.
+ * (GET /users/me exists now, but is read only for `onboarding_shown`.)
  *
  * This does NOT verify the token: the backend does that in POST /auth/google
  * and POST /auth/apple, and by the time we get here it has already accepted
@@ -127,7 +132,7 @@ export function AuthProvider({ children }) {
   // 'loading' until we know whether a session was persisted.
   const [status, setStatus] = useState('loading');
   const [tokens, setTokens] = useState(null);
-  // Read off the provider ID token at sign-in; there is no profile endpoint.
+  // Read off the provider ID token at sign-in.
   const [profileName, setProfileName] = useState(null);
   const [profileEmail, setProfileEmail] = useState(null);
   const [profileEmailIsPrivate, setProfileEmailIsPrivate] = useState(false);
@@ -204,6 +209,12 @@ export function AuthProvider({ children }) {
   // committed a render before the origin) would land the user on Today with no
   // way back to the paywall for the rest of the session.
   const originRef = useRef(null);
+
+  // The account as GET /users/me returned it at sign-in, or null (a restored
+  // session, the dev bypass, or a read that failed). A ref for the same reason
+  // as `originRef`: <OnboardingProvider> reads `onboarding_shown` once, at the
+  // mount that `setStatus('signedIn')` triggers.
+  const accountRef = useRef(null);
 
   useEffect(() => {
     setAuthTokenProvider(currentAccessToken);
@@ -299,8 +310,25 @@ export function AuthProvider({ children }) {
     await persist(() => saveTokens({ ...minted, ...profile }));
     applyTokens(minted);
     setDevSession(false);
+    const generation = sessionRef.current;
+    const account = await readAccount();
+    // A rejected refresh during that read already ended this session.
+    if (generation !== sessionRef.current) throw staleRotation();
+    accountRef.current = account;
     originRef.current = 'login';
     setStatus('signedIn');
+  }
+
+  // GET /users/me for the session just minted. Best-effort: it decides whether
+  // onboarding shows, and on any failure the onboarding record on this device
+  // decides instead — never a reason to fail the sign-in itself.
+  async function readAccount() {
+    try {
+      return await getMe({ timeoutMs: ME_TIMEOUT_MS });
+    } catch (e) {
+      console.warn('[auth] GET /users/me failed:', e?.message ?? e);
+      return null;
+    }
   }
 
   // Rotate the session with the stored refresh token (backend rotates it too).
@@ -373,6 +401,7 @@ export function AuthProvider({ children }) {
     await persist(clearTokens);
     applyTokens(null);
     originRef.current = null;
+    accountRef.current = null;
     setStatus('signedOut');
   }
 
@@ -422,6 +451,12 @@ export function AuthProvider({ children }) {
     devSession,
     updateProfileName,
     signedInVia: originRef.current,
+    // `onboarding_shown` from GET /users/me at sign-in: true, false, or null
+    // when it was not asked (restore, dev) or could not be read.
+    onboardingShown:
+      typeof accountRef.current?.onboarding_shown === 'boolean'
+        ? accountRef.current.onboarding_shown
+        : null,
     completeGoogleLogin,
     completeAppleLogin,
     refreshSession,
