@@ -1,4 +1,5 @@
 import { Alert, ImageBackground } from 'react-native';
+import { act } from 'react-test-renderer';
 import { speciesDetailToVM } from '../../api/mapPlant';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
 import ProductPage from '../ProductPage';
@@ -168,7 +169,7 @@ describe('an owned plant', () => {
     expect(t).toContain('No reminders');
   });
 
-  test('the Actions list replaces the old overflow menu', () => {
+  test('the Actions list holds Edit Reminders, Rename, Move and Delete', () => {
     const state = owned();
     const t = render(<ProductPage plantId={state.plants[0].id} />, state).texts();
     expect(t).toContain('Actions');
@@ -231,6 +232,73 @@ describe('an owned plant', () => {
     await r.settle();
     expect(Alert.alert).toHaveBeenCalledWith('Couldn’t delete your plant', expect.any(String));
     expect(r.texts()).toContain('Actions');
+  });
+});
+
+describe('the navigation bar', () => {
+  const texts = (r) => r.texts().filter((x) => typeof x === 'string');
+  const menuOpen = (r) => r.tree.root.findAll((n) => n.props.accessibilityRole === 'menu').length > 0;
+
+  test('a catalog entry gets only Back, and the bar title is the common name', () => {
+    const r = render(<ProductPage plant={VM} />);
+    expect(r.find('Back')).toBeTruthy();
+    expect(r.find('Edit reminders')).toBeUndefined();
+    expect(r.find('More options')).toBeUndefined();
+    // Hero title and the (faded-out) bar title.
+    expect(texts(r).filter((x) => x === 'Snake plant')).toHaveLength(2);
+  });
+
+  test('Back pops the route stack', () => {
+    const r = render(<ProductPage plant={VM} />);
+    act(() => r.router.navigate('reminders'));
+    expect(r.router.route).toBe('reminders');
+    r.press('Back');
+    expect(r.router.route).toBe('product');
+  });
+
+  test('an owned plant gets settings and an ellipsis, titled by its nickname', () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    expect(texts(r).filter((x) => x === 'Mo')).toHaveLength(2);
+    r.press('Edit reminders');
+    expect(r.router.route).toBe('reminders');
+    expect(r.router.params).toEqual({ plantId: state.plants[0].id });
+  });
+
+  test('the ellipsis opens Rename / Move / Delete, and a tap outside closes it', () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    expect(menuOpen(r)).toBe(false);
+    r.press('More options');
+    expect(menuOpen(r)).toBe(true);
+    const menu = r.tree.root.find((n) => n.props.accessibilityRole === 'menu');
+    const items = menu
+      .findAll((n) => n.props.accessibilityRole === 'menuitem' && typeof n.props.onPress === 'function')
+      .map((n) => n.props.accessibilityLabel);
+    expect([...new Set(items)]).toEqual(['Rename', 'Move', 'Delete']);
+    r.press('Dismiss');
+    expect(menuOpen(r)).toBe(false);
+  });
+
+  test('Rename from the ellipsis closes the menu and opens the rename sheet', async () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    r.press('More options');
+    r.press('Rename'); // the menu's, being deepest
+    expect(menuOpen(r)).toBe(false);
+    r.type('Zed');
+    r.press('Save');
+    await r.settle();
+    expect(r.api.callsTo('updatePlant')).toEqual([[state.plants[0].id, { nickname: 'Zed' }]]);
+  });
+
+  test('Delete from the ellipsis asks first', () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    r.press('More options');
+    r.press('Delete');
+    expect(menuOpen(r)).toBe(false);
+    expect(r.texts()).toContain('Delete this plant?');
   });
 });
 

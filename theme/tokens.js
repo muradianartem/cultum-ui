@@ -82,6 +82,12 @@ export const menu = { radius: r[16], itemRadius: r[12], width: 208 };
 // ---- navigation bar (Figma: "Navigation bar – P2", node 26744:6012) ----
 export const navbar = { height: 56 };
 
+// ---- plant hero (App Design "Product page", node 1:11377) ----
+// The photo header and the page-ground fade over its bottom edge (Scrim,
+// 480:15929): background-primary at 0 → 50% (23% down) → 100%. The heights
+// are the frame's own and are listed in design-system/exceptions.json.
+export const hero = { height: 336, fadeHeight: 140, fadeStops: [0, 0.23, 1] };
+
 // ---- avatar (Figma: "Avatar - P3", node 26744:5099) ----
 export const avatar = {
   sizes: { xs: 24, sm: 32, md: 40, lg: 56 },
@@ -159,4 +165,4 @@ export const motion = {
   durSlow: 440,
 };
 
-export default { button, calendar, card, chip, menu, navbar, tabs, avatar, overlay, sheet, wheel, divider, toggle, checkbox, radio, loading, emptyState, snackbar, segmented, searchBar, textInput, list, elevation, shadow, motion };
+export default { button, calendar, card, chip, menu, navbar, hero, tabs, avatar, overlay, sheet, wheel, divider, toggle, checkbox, radio, loading, emptyState, snackbar, segmented, searchBar, textInput, list, elevation, shadow, motion };
