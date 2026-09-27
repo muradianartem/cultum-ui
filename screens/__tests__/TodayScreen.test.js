@@ -113,11 +113,12 @@ test('an empty garden offers a way in rather than "all caught up"', () => {
   expect(t).not.toContain('Your plants are on their own schedule.');
 });
 
-test('renders the 5-tab bar with Today active', () => {
+test('renders the 4-tab bar with Today active', () => {
   const { tree, texts, find } = render();
-  ['Discover', 'Scan/Add', 'Rooms', 'Settings'].forEach((label) =>
+  ['Scan/Add', 'Rooms', 'Settings'].forEach((label) =>
     expect(texts()).toContain(label),
   );
+  expect(texts()).not.toContain('Discover'); // hidden until V2
   expect(find('Today').props.accessibilityState.selected).toBe(true);
   expect(tree).toBeTruthy();
 });

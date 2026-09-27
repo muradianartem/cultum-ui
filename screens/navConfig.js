@@ -6,7 +6,8 @@
 
 export const TABS = [
   { value: 'today', label: 'Today', icon: 'home-check' },
-  { value: 'discover', label: 'Discover', icon: 'globe' },
+  // Discover is hidden until V2.
+  // { value: 'discover', label: 'Discover', icon: 'globe' },
   { value: 'scan', label: 'Scan/Add', icon: 'outlined-scan' },
   { value: 'rooms', label: 'Rooms', icon: 'outlined-sections' },
   { value: 'settings', label: 'Settings', icon: 'settings' },

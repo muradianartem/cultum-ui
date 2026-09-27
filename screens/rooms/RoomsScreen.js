@@ -190,7 +190,7 @@ export default function RoomsScreen() {
           value="rooms"
           onChange={(value) => {
             // Today is the router's root — reset so Rooms doesn't pile up in
-            // the back stack. Discover is inert (as on TodayScreen).
+            // the back stack.
             if (value === 'today') reset('today');
             if (value === 'scan') navigate('scan-camera');
             if (value === 'settings') navigate('settings');
