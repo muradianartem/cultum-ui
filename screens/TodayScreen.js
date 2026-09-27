@@ -242,8 +242,9 @@ export default function TodayScreen() {
               {upcoming.length > 0 ? (
                 <View style={styles.group}>
                   <Text style={styles.nextUpHeader}>Next up</Text>
-                  {/* Preview only — no onDone, so it's a plain (non-swipeable) card. */}
-                  <TaskCard task={upcoming[0]} />
+                  {/* Preview only — no onDone, so it's a plain (non-swipeable)
+                      card that opens the plant, like a card on Upcoming. */}
+                  <TaskCard task={upcoming[0]} onPress={() => openPlant(upcoming[0])} />
                 </View>
               ) : null}
             </View>
