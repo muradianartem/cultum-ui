@@ -233,3 +233,35 @@ describe('an owned plant', () => {
     expect(r.texts()).toContain('Actions');
   });
 });
+
+describe('the description', () => {
+  const LONG_ABOUT =
+    'The ZZ plant is a tropical perennial native to eastern Africa,\n\nfrom Kenya ' +
+    'to northeastern South Africa. It is grown as an ornamental plant for its ' +
+    'glossy foliage and tolerance of low light and irregular watering.';
+  const FULL = LONG_ABOUT.replace(/\s+/g, ' ');
+
+  test('a short one shows in full, with no View more', () => {
+    const t = render(<ProductPage plant={VM} />).texts();
+    expect(t).toContain('A hardy succulent that tolerates neglect.');
+    expect(t).not.toContain('View more');
+  });
+
+  test('a long one collapses behind View more / View less', () => {
+    const vm = speciesDetailToVM({ ...DETAIL, about: LONG_ABOUT });
+    const r = render(<ProductPage plant={vm} />);
+
+    const collapsed = r.texts().find((s) => typeof s === 'string' && s.startsWith('The ZZ plant'));
+    expect(collapsed.endsWith('…')).toBe(true);
+    expect(collapsed.length).toBeLessThanOrEqual(151);
+    expect(r.texts()).not.toContain(FULL);
+
+    r.press('View more');
+    expect(r.texts()).toContain(FULL);
+    expect(r.texts()).toContain('View less');
+
+    r.press('View less');
+    expect(r.texts()).not.toContain(FULL);
+    expect(r.texts()).toContain('View more');
+  });
+});

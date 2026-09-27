@@ -26,6 +26,7 @@ import {
   List,
   ListItem,
   SegmentedControl,
+  TextButton,
   useUndoSnackbar,
 } from '../components';
 import { useRouter } from '../routing';
@@ -33,6 +34,7 @@ import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
 import { nextReminderLabel } from '../store/format';
 import { showError } from '../lib/showError';
+import { truncateText } from '../lib/truncateText';
 import { speciesDetailToVM, cardToVM } from '../api/mapPlant';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
@@ -84,6 +86,29 @@ function FactCard({ icon, label, value, styles, t }) {
         <Text style={styles.factLabel} numberOfLines={1}>{label}</Text>
         <Text style={styles.factValue} numberOfLines={2}>{value}</Text>
       </View>
+    </View>
+  );
+}
+
+// The species description. Catalog copy can run to a long raw block that
+// pushes the rest of the page down, so past ~150 characters it collapses
+// behind View more / View less.
+function AboutText({ about, styles }) {
+  const [expanded, setExpanded] = useState(false);
+  const { text, full, truncated } = truncateText(about);
+  return (
+    <View style={styles.about}>
+      <Text style={styles.bodyText}>{expanded ? full : text}</Text>
+      {truncated ? (
+        <TextButton
+          label={expanded ? 'View less' : 'View more'}
+          size="sm"
+          inline
+          onPress={() => setExpanded((e) => !e)}
+          accessibilityState={{ expanded }}
+          style={styles.aboutToggle}
+        />
+      ) : null}
     </View>
   );
 }
@@ -249,13 +274,14 @@ export default function ProductPage({ plantId, plant, owned = false }) {
     },
   ];
 
-  const description = (
-    <Text style={styles.bodyText}>
-      {segment === 'journal' && isOwned
-        ? 'No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.'
-        : vm.about}
-    </Text>
-  );
+  const description =
+    segment === 'journal' && isOwned ? (
+      <Text style={styles.bodyText}>
+        No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.
+      </Text>
+    ) : (
+      <AboutText key={vm.speciesKey} about={vm.about} styles={styles} />
+    );
 
   return (
     <View style={styles.screen}>
@@ -548,6 +574,8 @@ const makeStyles = (t) =>
     heading: { ...typography.headingSmallEmphasized, color: t.text.primary },
     headingLarge: { ...typography.headingMediumEmphasized, color: t.text.primary },
     bodyText: { ...typography.bodyMedium, color: t.text.secondary },
+    about: { gap: space[4] },
+    aboutToggle: { paddingLeft: 0, paddingVertical: space[4] },
     segment: { alignSelf: 'stretch' },
 
     // ── Today's tasks ──
