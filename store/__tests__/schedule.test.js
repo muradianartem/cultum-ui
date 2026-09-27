@@ -4,7 +4,6 @@ import {
   dueLabel,
   nextDueAt,
   occurrenceAfter,
-  plantTasks,
   todayTasks,
   upcomingTasks,
 } from '../schedule';
@@ -13,9 +12,9 @@ import {
 // already come due rather than sitting an hour in the future.
 const NOW = new Date(2026, 8, 5, 11, 0, 0); // Sat 5 Sep 2026
 
-function garden({ reminders = [], roomId = 'kitchen', archived = false } = {}) {
+function garden({ reminders = [], roomId = 'kitchen' } = {}) {
   const base = emptyState();
-  const plant = { ...makePlant({ speciesKey: 'monstera', nickname: 'Penny', roomId }), archived };
+  const plant = makePlant({ speciesKey: 'monstera', nickname: 'Penny', roomId });
   return {
     ...base,
     rooms: [{ ...makeRoom({ name: 'Kitchen' }), id: 'kitchen' }],
@@ -106,15 +105,6 @@ describe('todayTasks', () => {
   test('a disabled reminder produces nothing', () => {
     const g = garden({ reminders: [{ action: 'water', enabled: false, intervalDays: 1 }] });
     expect(todayTasks(g, NOW)).toEqual([]);
-  });
-
-  test('an archived plant drops out of the day entirely', () => {
-    const g = garden({
-      archived: true,
-      reminders: [{ action: 'water', intervalDays: 1, lastDoneAt: new Date(2026, 7, 1).toISOString() }],
-    });
-    expect(todayTasks(g, NOW)).toEqual([]);
-    expect(plantTasks(g, g.plant.id, NOW)).toEqual([]);
   });
 
   test('a plant with no room still reads sensibly', () => {

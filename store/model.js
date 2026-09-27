@@ -7,20 +7,18 @@
 // is store/media.js's `fileUri`, which is path arithmetic against a constant
 // and touches no file; the I/O in that module stays on its own side.
 //
-// The shapes deliberately mirror the backend's `UserPlantOut` / `ReminderOut`
-// (see api/garden.js) so a sync is a field rename rather than a translation.
-// Where the server has no equivalent the field is marked local-only; those are
-// the ones store/sync.js must never overwrite from a pull.
+// The shapes mirror the backend's `UserPlantOut` / `ReminderOut` / `RoomOut`
+// (see api/garden.js, api/rooms.js): an entity's `id` is its server id, and
+// store/fromServer.js is the one place that translates. The few fields the
+// server has no column for are listed there.
 
 import { fileUri } from './media';
 
 /** Bump when a stored document's shape changes; store/persist.js migrates. */
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
-// Ids only have to be unique within one device's document. A timestamp gives
-// them a natural sort order, the counter separates two made in the same
-// millisecond, and the random tail keeps two devices from colliding before a
-// server id takes over.
+// Real entities take the server's id (store/fromServer.js). These ids are only
+// for the factories below, which tests use to build a garden without a server.
 let seq = 0;
 export const resetIds = () => {
   seq = 0;
@@ -138,15 +136,8 @@ export const ACTION_ORDER = [
   'custom',
 ];
 
-// Rooms come from the backend (GET /users/me/rooms); a fresh install has none
-// until the first pull lands. `icon` values are Cultum icon names
-// (components/iconRegistry.js).
-
-/**
- * The ids v1 builds seeded every install with. Only store/persist.js reads
- * this, to tell a room the user actually used from stock scenery.
- */
-export const LEGACY_DEFAULT_ROOM_IDS = ['living-room', 'kitchen', 'bedroom', 'bathroom', 'office'];
+// Rooms come from the backend (GET /users/me/rooms). `icon` values are Cultum
+// icon names (components/iconRegistry.js).
 
 /** A room's icon when the server hasn't sent one: matched on its name. */
 const ROOM_ICON_BY_NAME = {
@@ -172,18 +163,20 @@ export const roomIcon = (room) => room?.icon || iconForRoomName(room?.name);
 /** Reminders fire mid-morning unless the user moves them. */
 export const DEFAULT_TIME_OF_DAY = '09:00';
 
-/** An empty garden — what a first launch starts from. */
+/**
+ * An empty garden — what a first launch starts from.
+ *
+ * `status` is whether the lists hold the server's answer yet: 'loading' until
+ * the first GET lands, 'ready' after, 'error' when that first GET failed. It
+ * is never written to disk (store/persist.js).
+ */
 export const emptyState = () => ({
   version: STATE_VERSION,
+  status: 'loading',
+  error: null,
   plants: [],
   reminders: [],
   rooms: [],
-  outbox: [],
-  // Writes the server rejected for good (store/sync.js#drainOutbox), newest
-  // last and capped. Recorded, not shown: there is no UI for them yet, but a
-  // change that never reached the server should leave a trace.
-  failed: [],
-  lastSyncAt: null,
   profileName: null,
 });
 
@@ -191,14 +184,10 @@ export const emptyState = () => ({
 // Factories
 // ---------------------------------------------------------------------------
 
-/**
- * A plant the user owns.
- *
- * `care` is the cached SpeciesDetail the whole product page renders from, so an
- * owned plant stays fully readable offline. `dirty` records local-only fields
- * the server has no column for (today just `archived`), which must survive
- * every pull (store/sync.js). A rename or a move is pushed instead.
- */
+// Test fixtures. The app itself only ever builds entities from a server
+// response (store/fromServer.js); these make the same shapes without one.
+
+/** A plant the user owns. `care` is the SpeciesDetail its page renders from. */
 export const makePlant = ({
   speciesKey,
   nickname,
@@ -210,7 +199,6 @@ export const makePlant = ({
   now = new Date(),
 }) => ({
   id: uid('plant'),
-  serverId: null,
   speciesKey: speciesKey ?? null,
   nickname: String(nickname ?? '').trim(),
   roomId,
@@ -219,14 +207,8 @@ export const makePlant = ({
   heroUri: heroUri ?? care?.image_url ?? null,
   photoUri, // a photo the user took, preferred over the catalog image
   // Where the picture actually lives on this device, relative to the document
-  // directory (store/media.js). The two URIs above are where it *came* from;
-  // this is the only one that still resolves offline, or after a sign-out has
-  // thrown the document away and a pull rebuilt it.
+  // directory (store/media.js). The two URIs above are where it *came* from.
   imageFile: null,
-  archived: false,
-  dirty: {},
-  createdAt: now.toISOString(),
-  updatedAt: now.toISOString(),
 });
 
 /**
@@ -234,8 +216,8 @@ export const makePlant = ({
  *
  * `startAt` anchors the first occurrence before anything has been completed;
  * afterwards `lastDoneAt` drives it. `snoozedUntil` pushes a single occurrence
- * later without touching the cadence. Both `title` and `snoozedUntil` are
- * local-only — the server's ReminderOut carries neither.
+ * later without touching the cadence. `title`, `startAt` and `snoozedUntil`
+ * are device-only — the server's ReminderOut carries none of them.
  */
 export const makeReminder = ({
   plantId,
@@ -250,7 +232,6 @@ export const makeReminder = ({
   const meta = actionMeta(action);
   return {
     id: uid('rem'),
-    serverId: null,
     plantId,
     action: meta.key,
     title: String(title ?? meta.label).trim() || meta.label,
@@ -260,27 +241,18 @@ export const makeReminder = ({
     startAt: startAt ?? now.toISOString(),
     lastDoneAt: null,
     snoozedUntil: null,
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
   };
 };
 
-/**
- * A room. `serverId` is RoomOut.id once the create has been pushed; `light` and
- * `sortOrder` mirror the server's fields. `sortOrder` is assigned by the
- * reducer when the room is added, so callers leave it out.
- */
-export const makeRoom = ({ name, icon, light = 'unknown', sortOrder = 0, now = new Date() }) => {
+/** A room. `light` and `sortOrder` mirror RoomOut's fields. */
+export const makeRoom = ({ name, icon, light = 'unknown', sortOrder = 0 }) => {
   const trimmed = String(name ?? '').trim();
   return {
     id: uid('room'),
-    serverId: null,
     name: trimmed,
     icon: icon ?? iconForRoomName(trimmed),
     light,
     sortOrder,
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
   };
 };
 
@@ -295,7 +267,8 @@ export const isoDate = (d) =>
     d.getDate(),
   ).padStart(2, '0')}`;
 
-export const livePlants = (state) => state.plants.filter((p) => !p.archived);
+/** Every plant the user owns. Kept as a named selector for the views. */
+export const livePlants = (state) => state.plants;
 
 export const plantById = (state, id) => state.plants.find((p) => p.id === id) ?? null;
 
@@ -329,10 +302,9 @@ export const occupiedRooms = (state) =>
 /**
  * What a plant's card and hero render.
  *
- * The cached file first: it is the only source that survives the radio being
- * off, and after a sign-out it is the only one that survives at all. The two
- * remote/temporary URIs are the fallback for the window between a plant being
- * added and its image finishing its download.
+ * The cached file first: it loads without a round-trip. The two remote or
+ * temporary URIs are the fallback for the window between a plant being added
+ * and its image finishing its download.
  */
 export const plantPhoto = (plant) => {
   const uri = fileUri(plant?.imageFile) ?? plant?.photoUri ?? plant?.heroUri;

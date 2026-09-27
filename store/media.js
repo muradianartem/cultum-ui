@@ -1,15 +1,15 @@
-// The plant image store: bytes on disk, so a card has a picture with the radio
-// off and after the garden document has been thrown away and re-pulled.
+// The plant image store: bytes on disk, so a card draws its picture without a
+// round-trip, and keeps it after a sign-out has thrown the garden away.
 //
 // Two problems this solves, and they are different problems.
 //
 //   1. A plant's `heroUri` is a URL on the API's media host. An <Image> with a
 //      remote source needs a connection; React Native's own image cache is a
 //      memory/disk LRU the OS may drop at will, so "it worked yesterday" is not
-//      something the offline app can rely on.
-//   2. Signing out deletes the garden document (App.js), so signing back in
-//      re-adopts every plant from GET /users/me/plants. Anything that only ever
-//      lived in that document is gone.
+//      something the app can rely on.
+//   2. Signing out deletes the garden mirror (App.js), so signing back in loads
+//      every plant from GET /users/me/plants afresh. Anything that only ever
+//      lived in that mirror is gone.
 //
 // So each image is downloaded once and kept as a file, and the plant records
 // *where* rather than *what*.

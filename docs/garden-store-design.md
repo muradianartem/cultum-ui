@@ -1,5 +1,11 @@
 # The garden store — local-first plants, rooms and care reminders
 
+> **Superseded (2026-09-26).** The offline outbox, sync rounds and pull/merge
+> described below are gone: plants added to a room could be dropped silently
+> by that pipeline. Every change is now a request to the backend and only its
+> response lands in the store; the file on disk is a read-only mirror kept for
+> local notifications. See `store/GardenProvider.js` and `store/fromServer.js`.
+
 What shipped when the app stopped running on fixtures. Every feature screen used
 to hold its data in `useState` seeded from a `screens/*Data.js` module, and
 `routing/Route.js` returns `null` for a non-matching route — so a completed

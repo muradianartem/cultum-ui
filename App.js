@@ -6,7 +6,8 @@ import { Router, Route, requireSubscription } from './routing';
 import { ThemeProvider, useTheme, useThemeMode } from './theme/ThemeProvider';
 import FontGate from './theme/FontGate';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
-import { GardenProvider } from './store/GardenProvider';
+import { GardenProvider, useGarden } from './store/GardenProvider';
+import { errorMessage } from './lib/showError';
 import { clearState } from './store/persist';
 import { clearPhotos } from './store/media';
 import { clearEntitlement } from './lib/entitlementCache';
@@ -15,7 +16,7 @@ import { EntitlementProvider } from './billing/EntitlementProvider';
 import { cancelAll, configureNotifications } from './notifications';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
-import { LoadingIndicator, SnackbarProvider } from './components';
+import { Icon, LoadingIndicator, SnackbarProvider, State } from './components';
 import TodayScreen from './screens/TodayScreen';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
@@ -99,12 +100,38 @@ export function AuthGate() {
           {/* The account's onboarding_shown (read at sign-in) decides; the
               record on this device resumes an unfinished run. It picks the
               router's first route, so it has to sit above it. */}
-          <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
-            <AppRoutes />
-          </OnboardingProvider>
+          <GardenGate>
+            <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
+              <AppRoutes />
+            </OnboardingProvider>
+          </GardenGate>
         </SnackbarProvider>
       </GardenProvider>
     </EntitlementProvider>
+  );
+}
+
+// Nothing renders from the garden until the server has answered for it: a
+// loader while GET /users/me/rooms + /users/me/plants is in flight, and a Retry
+// if the first attempt failed. There is no offline copy to show instead.
+function GardenGate({ children }) {
+  const garden = useGarden();
+  const t = useTheme();
+  if (garden.status === 'ready') return children;
+  return (
+    <View style={[styles.loading, { backgroundColor: t.background.primary }]}>
+      {garden.status === 'error' ? (
+        <State
+          icon={<Icon name="cloude" size={24} color={t.text.primary} />}
+          iconVariant="secondary"
+          title="Couldn’t load your garden"
+          subtitle={errorMessage(garden.error)}
+          primaryAction={{ label: 'Try again', onPress: garden.retry }}
+        />
+      ) : (
+        <LoadingIndicator />
+      )}
+    </View>
   );
 }
 
@@ -205,5 +232,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
   },
 });

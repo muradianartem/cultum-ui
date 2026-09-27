@@ -5,9 +5,9 @@ import { API_BASE_URL } from './client';
 // <Image> can't load — it needs an absolute URL. Provider-supplied images
 // (scan candidates) already come through absolute, so leave those alone.
 //
-// Exported because the pull in store/sync.js reads the very same `image_url`
-// off UserPlantOut and has to absolutise it the same way; a plant adopted from
-// the server with a raw '/media/...' renders as a blank card.
+// Exported because store/fromServer.js reads the very same `image_url` off
+// UserPlantOut and has to absolutise it the same way; a plant loaded from the
+// server with a raw '/media/...' renders as a blank card.
 export function mediaUrl(path) {
   if (!path) return null;
   return /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
@@ -255,8 +255,8 @@ export function speciesDetailToVM(d) {
     chips: chips(d),
     faq: faq(d),
     speciesKey: d.species_key,
-    // The raw detail rides along so the store can cache it on an owned plant
-    // and rebuild this view-model offline (store/GardenProvider.js#addPlant).
+    // The raw detail rides along so a newly added plant has its care at once,
+    // before the server's copy arrives (store/GardenProvider.js#addPlant).
     detail: d,
   };
 }

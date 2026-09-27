@@ -1,4 +1,4 @@
-import { STATE_VERSION, emptyState, makeRoom } from '../model';
+import { STATE_VERSION, emptyState } from '../model';
 import { clearState, createSaver, loadState, migrate, saveState } from '../persist';
 import { seedGarden } from '../testing';
 
@@ -23,7 +23,15 @@ describe('the document on disk', () => {
     expect(loaded.plants).toHaveLength(1);
     expect(loaded.plants[0].nickname).toBe('Penny');
     expect(loaded.reminders[0].intervalDays).toBe(7);
-    expect(loaded).toEqual(garden);
+    // Read back as a mirror, never as the server's current answer.
+    expect(loaded).toEqual({ ...garden, status: 'loading' });
+  });
+
+  test('the load status is never written', async () => {
+    await saveState({ ...emptyState(), status: 'error', error: new Error('x') });
+    const raw = JSON.parse(require('expo-file-system').__files.get('file:///documents/cultum-garden.json'));
+    expect(raw).not.toHaveProperty('status');
+    expect(raw).not.toHaveProperty('error');
   });
 
   test('a second write replaces the first rather than appending', async () => {
@@ -44,87 +52,86 @@ describe('the document on disk', () => {
 });
 
 describe('migrate', () => {
-  test('a document from an older build keeps its plants and gains the new fields', () => {
-    const old = { version: 0, plants: [{ id: 'p1', nickname: 'Penny' }] };
-    const migrated = migrate(old);
-    expect(migrated.version).toBe(STATE_VERSION);
-    expect(migrated.plants[0]).toEqual({
-      id: 'p1',
-      nickname: 'Penny',
-      dirty: {},
-      imageFile: null,
-    });
-    expect(migrated.outbox).toEqual([]);
-    expect(migrated.failed).toEqual([]);
-    // Rooms come from the server now; nothing is seeded.
-    expect(migrated.rooms).toEqual([]);
-  });
-
-  test('a v2 document without `failed` gains an empty one and is otherwise unchanged', () => {
-    const doc = { version: STATE_VERSION, plants: [], reminders: [], rooms: [], outbox: [], lastSyncAt: null };
-    expect(migrate(doc)).toEqual({ ...doc, profileName: null, failed: [] });
-    const recorded = [{ op: 'plant.update', localId: 'p1', serverId: 'S1', status: 422, at: 'x' }];
-    expect(migrate({ ...doc, failed: recorded }).failed).toBe(recorded);
-  });
-
-  test('an existing dirty map is not overwritten by the default', () => {
-    const migrated = migrate({ version: 2, plants: [{ id: 'p1', dirty: { archived: true } }] });
-    expect(migrated.plants[0].dirty).toEqual({ archived: true });
-  });
-
   test('garbage, or nothing at all, is an empty garden rather than a crash', () => {
     expect(migrate(null)).toEqual(emptyState());
-    expect(migrate('nonsense')).toEqual(emptyState());
-    expect(migrate({ version: 1, plants: 'not an array' }).plants).toEqual([]);
+    expect(migrate('nope')).toEqual(emptyState());
   });
 
   test('a document from a newer build is not guessed at', () => {
-    expect(migrate({ version: STATE_VERSION + 1, plants: [{ id: 'p' }] }).plants).toEqual([]);
+    expect(migrate({ version: STATE_VERSION + 1, plants: [{ id: 'x' }] })).toEqual(emptyState());
+  });
+
+  test('a current document keeps its lists and loads as not-yet-answered', () => {
+    const doc = {
+      version: STATE_VERSION,
+      plants: [{ id: 'P1', nickname: 'Penny', roomId: 'R1' }],
+      reminders: [],
+      rooms: [{ id: 'R1', name: 'Kitchen' }],
+      profileName: 'Ada',
+    };
+    expect(migrate(doc)).toEqual({ ...emptyState(), ...doc, version: STATE_VERSION, status: 'loading' });
   });
 });
 
-describe('migrate v1 → v2 (rooms move to the server)', () => {
-  const v1 = () => ({
-    version: 1,
+describe('migrate from the offline-first builds (v1, v2)', () => {
+  const v2 = {
+    version: 2,
+    profileName: 'Ada',
     rooms: [
-      { id: 'living-room', name: 'Living Room', icon: 'living-room' },
-      { id: 'kitchen', name: 'Kitchen', icon: 'kitchen' },
-      { id: 'room_x', name: 'Balcony', icon: 'home' },
+      { id: 'room_a', serverId: 'RK', name: 'Kitchen', icon: 'kitchen', sortOrder: 0 },
+      { id: 'room_b', serverId: null, name: 'Never pushed', sortOrder: 1 },
     ],
     plants: [
-      { id: 'p1', serverId: 'S1', roomId: 'kitchen', dirty: { roomId: true, archived: true } },
-      { id: 'p2', serverId: null, roomId: 'room_x', dirty: {} },
-      { id: 'p3', serverId: 'S3', roomId: null, dirty: {} },
+      {
+        id: 'plant_a', serverId: 'P1', nickname: 'Penny', roomId: 'room_a', speciesKey: 'monstera',
+        photoUri: 'file:///cam.jpg', imageFile: 'photos/p1.jpg', archived: true, dirty: { archived: true },
+      },
+      { id: 'plant_b', serverId: null, nickname: 'Unsynced', roomId: 'room_b' },
     ],
-    outbox: [],
+    reminders: [
+      {
+        id: 'rem_a', serverId: 'M1', plantId: 'plant_a', action: 'prune', title: 'Trim the top',
+        intervalDays: 90, timeOfDay: '08:00', enabled: true, startAt: '2026-09-01T12:00:00.000Z',
+        lastDoneAt: null, snoozedUntil: '2026-09-20T09:00:00.000Z',
+      },
+      { id: 'rem_b', serverId: null, plantId: 'plant_b', action: 'water', intervalDays: 7 },
+    ],
+    outbox: [{ op: 'plant.create', localId: 'plant_b', serverId: null, attempts: 0 }],
+    failed: [{ op: 'room.create', localId: 'room_b', status: 403 }],
+    lastSyncAt: '2026-09-10T00:00:00.000Z',
+  };
+
+  test('only rows the server has survive, re-keyed to their server ids', () => {
+    const m = migrate(v2);
+    expect(m.rooms.map((r) => r.id)).toEqual(['RK']);
+    expect(m.plants.map((p) => p.id)).toEqual(['P1']);
+    expect(m.plants[0].roomId).toBe('RK');
+    expect(m.reminders.map((r) => [r.id, r.plantId])).toEqual([['M1', 'P1']]);
   });
 
-  test('stock rooms nobody used go; used and custom rooms stay, queued for creation', () => {
-    const m = migrate(v1());
-    expect(m.rooms.map((r) => r.name)).toEqual(['Kitchen', 'Balcony']);
-    expect(m.rooms[0]).toMatchObject({ serverId: null, light: 'unknown', icon: 'kitchen', sortOrder: 0 });
-    const creates = m.outbox.filter((e) => e.op === 'room.create').map((e) => e.localId);
-    expect(creates).toEqual(['kitchen', 'room_x']);
+  test('the device-only fields come along', () => {
+    const m = migrate(v2);
+    expect(m.plants[0]).toMatchObject({ photoUri: 'file:///cam.jpg', imageFile: 'photos/p1.jpg' });
+    expect(m.reminders[0]).toMatchObject({
+      action: 'prune',
+      title: 'Trim the top',
+      startAt: '2026-09-01T12:00:00.000Z',
+      snoozedUntil: '2026-09-20T09:00:00.000Z',
+    });
+    expect(m.profileName).toBe('Ada');
   });
 
-  test('a synced plant with a room is queued for a PATCH, and rename/move dirt folds into it', () => {
-    // The server only ever saw p1's room as a location string, so without the
-    // push the first pull would read room_id null and take its room away.
-    const m = migrate(v1());
-    const updates = m.outbox.filter((e) => e.op === 'plant.update');
-    expect(updates).toEqual([{ op: 'plant.update', localId: 'p1', serverId: 'S1', attempts: 0 }]);
-    expect(m.plants[0].dirty).toEqual({ archived: true });
-    // Queued after the room creates, so the room has a server id by then.
-    expect(m.outbox.map((e) => e.op)).toEqual(['room.create', 'room.create', 'plant.update']);
-  });
-
-  test('a v2 document is not migrated again', () => {
-    const room = { ...makeRoom({ name: 'Kitchen' }), serverId: 'RK' };
-    const doc = { ...emptyState(), rooms: [room] };
-    expect(migrate(doc).rooms).toEqual([room]);
-    expect(migrate(doc).outbox).toEqual([]);
+  test('the outbox, rejected writes, sync stamps and archive flags are gone', () => {
+    const m = migrate(v2);
+    for (const key of ['outbox', 'failed', 'lastSyncAt']) expect(m).not.toHaveProperty(key);
+    expect(m.plants[0]).not.toHaveProperty('archived');
+    expect(m.plants[0]).not.toHaveProperty('dirty');
+    expect(m.plants[0]).not.toHaveProperty('serverId');
+    expect(m.status).toBe('loading');
+    expect(m.version).toBe(STATE_VERSION);
   });
 });
+
 
 describe('createSaver', () => {
   test('a burst of mutations costs one write, with the last value', () => {

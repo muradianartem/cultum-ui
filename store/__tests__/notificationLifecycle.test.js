@@ -21,7 +21,7 @@ jest.mock('../../prefs', () => ({
 
 import { rescheduleAll } from '../../notifications';
 import { GardenProvider, useGarden } from '../GardenProvider';
-import { seedGarden } from '../testing';
+import { fakeGardenApi, seedGarden } from '../testing';
 
 const DEBOUNCE_MS = 1500;
 const TICK_MS = 5 * 60 * 1000;
@@ -36,18 +36,21 @@ function Probe() {
 
 let tree;
 let onAppState;
+let state;
+let api;
 const mount = () => {
   const spy = jest.spyOn(AppState, 'addEventListener');
-  const state = seedGarden({
+  state = seedGarden({
     now: START,
     rooms: ['Kitchen'],
     plants: [
       { nickname: 'Penny', room: 'Kitchen', reminders: [{ action: 'water', intervalDays: 7, dueInDays: 1 }] },
     ],
   });
+  api = fakeGardenApi(state);
   act(() => {
     tree = TestRenderer.create(
-      <GardenProvider initialState={state}>
+      <GardenProvider initialState={state} api={api}>
         <Probe />
       </GardenProvider>,
     );
@@ -97,22 +100,26 @@ test('crossing local midnight rebuilds once', () => {
   expect(rescheduleAll).toHaveBeenCalledTimes(1);
 });
 
-test('renaming a reminder rebuilds — the banner shows its title', () => {
-  act(() => garden.updateReminder(garden.reminders[0].id, { title: 'Soak the roots' }));
+test('renaming a reminder rebuilds — the banner shows its title', async () => {
+  await act(async () => {
+    await garden.updateReminder(garden.reminders[0].id, { title: 'Soak the roots' });
+  });
   settle();
   expect(rescheduleAll).toHaveBeenCalledTimes(1);
 });
 
-test('renaming a room rebuilds — the banner shows its name', () => {
-  act(() => garden.renameRoom(garden.rooms[0].id, 'Galley'));
+test('renaming a room rebuilds — the banner shows its name', async () => {
+  await act(async () => {
+    await garden.renameRoom(garden.rooms[0].id, 'Galley');
+  });
   settle();
   expect(rescheduleAll).toHaveBeenCalledTimes(1);
 });
 
-test('moving a reminder’s start date rebuilds', () => {
-  act(() =>
-    garden.updateReminder(garden.reminders[0].id, { startAt: new Date(2026, 8, 20, 12).toISOString() }),
-  );
+test('moving a reminder’s start date rebuilds', async () => {
+  await act(async () => {
+    await garden.updateReminder(garden.reminders[0].id, { startAt: new Date(2026, 8, 20, 12).toISOString() });
+  });
   settle();
   expect(rescheduleAll).toHaveBeenCalledTimes(1);
 });
@@ -120,7 +127,7 @@ test('moving a reminder’s start date rebuilds', () => {
 test('a permission granted in iOS Settings rebuilds', () => {
   mockPermission = 'granted';
   act(() => tree.update(
-    <GardenProvider initialState={null}>
+    <GardenProvider initialState={state} api={api}>
       <Probe />
     </GardenProvider>,
   ));

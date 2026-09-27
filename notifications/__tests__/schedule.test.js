@@ -48,7 +48,7 @@ test('stays inside the platform budget, keeping the soonest', () => {
   expect([...dates].sort((a, b) => a - b)).toEqual(dates);
 });
 
-test('a disabled reminder and an archived plant schedule nothing', () => {
+test('a disabled reminder schedules nothing', () => {
   const garden = seedGarden({
     now: NOW,
     plants: [
@@ -56,12 +56,6 @@ test('a disabled reminder and an archived plant schedule nothing', () => {
         nickname: 'Off',
         room: 'Kitchen',
         reminders: [{ action: 'water', enabled: false, dueInDays: 1 }],
-      },
-      {
-        nickname: 'Gone',
-        room: 'Kitchen',
-        archived: true,
-        reminders: [{ action: 'water', dueInDays: 1 }],
       },
     ],
   });

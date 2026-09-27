@@ -22,6 +22,7 @@ import { usePrefs } from '../../prefs';
 import { useAuth } from '../../auth/AuthProvider';
 import { useGarden } from '../../store/GardenProvider';
 import { timeLabel } from '../../store/format';
+import { showError } from '../../lib/showError';
 import { useTheme } from '../../theme/ThemeProvider';
 import SettingsShell, { Prose, Section } from './SettingsShell';
 import ReminderTimeSheet from './ReminderTimeSheet';
@@ -66,7 +67,7 @@ export default function NotificationsScreen() {
     // Two writes, deliberately: the preference is the default for reminders
     // made from here on, and the action re-times the ones that already exist.
     setReminderTime(next);
-    retimeAllReminders(next);
+    retimeAllReminders(next).catch((e) => showError(e, 'Couldn’t move your reminders'));
   }
 
   return (

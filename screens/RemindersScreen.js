@@ -27,6 +27,7 @@ import {
   shortDate,
 } from '../store/format';
 import { nextDueAt } from '../store/schedule';
+import { showError } from '../lib/showError';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
 import { parseShortDate } from './addReminderData';
@@ -184,7 +185,9 @@ export default function RemindersScreen({ plantId, plantName }) {
     if (!editor || !editing) return;
     const { id, field } = editor;
     if (field === 'frequency') {
-      garden.updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) });
+      garden
+        .updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) })
+        .catch((e) => showError(e, 'Couldn’t change the reminder'));
       return;
     }
     if (field === 'snooze') {
@@ -206,16 +209,18 @@ export default function RemindersScreen({ plantId, plantName }) {
 
   const addReminder = (draft) => {
     if (!plant) return;
-    garden.addReminder(plant.id, {
-      action: 'custom',
-      title: draft.title,
-      intervalDays: parseFrequency(draft.frequency),
-      startAt: draft.startAt ?? (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
-    });
+    garden
+      .addReminder(plant.id, {
+        action: 'custom',
+        title: draft.title,
+        intervalDays: parseFrequency(draft.frequency),
+        startAt: draft.startAt ?? (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
+      })
+      .catch((e) => showError(e, 'Couldn’t add the reminder'));
   };
 
   const confirmRemove = () => {
-    garden.deleteReminder(pendingRemove);
+    garden.deleteReminder(pendingRemove).catch((e) => showError(e, 'Couldn’t remove the reminder'));
     setPendingRemove(null);
   };
 
@@ -258,7 +263,11 @@ export default function RemindersScreen({ plantId, plantName }) {
               key={reminder.id}
               reminder={reminder}
               view={toView(reminder)}
-              onToggle={() => garden.toggleReminder(reminder.id, !reminder.enabled)}
+              onToggle={() =>
+                garden
+                  .toggleReminder(reminder.id, !reminder.enabled)
+                  .catch((e) => showError(e, 'Couldn’t change the reminder'))
+              }
               onEditField={(field) => openEditField(reminder.id, field)}
               onRemove={() => setPendingRemove(reminder.id)}
               styles={styles}
