@@ -137,6 +137,16 @@ test('a task card opens that plant, not a hard-coded product page', () => {
   expect(r.router.params.plantId).toBe(state.plants[0].id);
 });
 
+test('tapping the "Next up" preview opens that plant', () => {
+  const state = garden();
+  const r = render(state);
+  r.press('Complete All');
+  r.press('Complete 2 tasks');
+  pressIn(card(r, 'Trim the aerial roots'), 'Trim the aerial roots');
+  expect(r.router.route).toBe('product');
+  expect(r.router.params.plantId).toBe(state.plants[1].id); // Figgy
+});
+
 test('snoozing a task moves it out of today without changing its cadence', () => {
   const r = render();
   pressIn(card(r, 'Watering'), 'Snooze task');
