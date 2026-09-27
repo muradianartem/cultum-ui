@@ -12,20 +12,17 @@ import { radius, space, typography } from '../theme/foundations';
  *   Meta  → `meta`   ("3 plants · 2 to check")
  *
  * The mosaic is a fixed 216pt block with 2pt gutters, clipped by a 12pt radius.
- * It takes whatever photos it is given: fewer than four are cycled so the grid
- * is always full, and none at all leaves the four cells as flat surface tint
- * (a room can exist before any of its plants has a photo).
+ * Each cell is one plant's photo, filled in order; cells beyond the photos it
+ * is given stay flat surface tint (Figma 505:34660 — a one-plant room shows
+ * its photo top-left and three empty tiles). Photos are never repeated.
  *
  * The title is Figma "Heading/Heading Small" (Literata 20/26).
  */
 export default function RoomCard({ name, meta, photos = [], onPress, style, ...rest }) {
   const t = useTheme();
 
-  // Always four cells: cycle what we have, or render bare tiles when we have
-  // nothing. `% length` is guarded by the length check below.
-  const cells = [0, 1, 2, 3].map((i) =>
-    photos.length ? photos[i % photos.length] : null,
-  );
+  // Always four cells: one per photo, bare tiles for the rest.
+  const cells = [0, 1, 2, 3].map((i) => photos[i] ?? null);
 
   return (
     <Pressable

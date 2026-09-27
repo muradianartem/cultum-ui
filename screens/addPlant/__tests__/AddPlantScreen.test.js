@@ -7,7 +7,7 @@ import { nextDueAt } from '../../../store/schedule';
 import AddReminderSheet from '../../AddReminderSheet';
 import { DEFAULT_UNIT_INDEX, makeReminderDraft } from '../../addReminderData';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
-import ProductPage from '../../ProductPage';
+import TodayScreen from '../../TodayScreen';
 import AddPlantScreen from '../AddPlantScreen';
 import { OnboardingProvider, useOnboarding } from '../../../onboarding';
 import { FRESH } from '../../../onboarding/storage';
@@ -35,15 +35,15 @@ function GardenProbe() {
   return null;
 }
 
-// The product page is mounted alongside so Done can be followed all the way
-// through: the flow finishes by replacing the route with the new plant's id,
-// and what lands there has to render from the store.
+// The main screen is mounted alongside so Done can be followed all the way
+// through: the flow finishes by resetting to Today, and what lands there has
+// to render from the store.
 function create(props = {}) {
   harness = renderWithGarden(
     <>
       <GardenProbe />
       <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} {...props} />} />
-      <Route name="product" component={ProductPage} />
+      <Route name="today" component={TodayScreen} />
     </>,
     {
       // Rooms come from the server now; seed the five the design draws.
@@ -247,25 +247,32 @@ describe('success', () => {
     alert.mockRestore();
   });
 
-  test('Done opens the saved plant without adding it again', async () => {
+  test('Done goes to the main screen without adding the plant again', async () => {
     const tree = create();
     await walkTo(tree, 'success');
-    const [plant] = garden.plants;
     press(tree, 'Done');
+    expect(tree.router.route).toBe('today');
     expect(garden.plants).toHaveLength(1);
-    expect(tree.router.route).toBe('product');
-    expect(tree.router.params.plantId).toBe(plant.id);
+    expect(tree.api.callsTo('addPlant')).toHaveLength(1);
   });
 
-  test('close on success opens the saved plant', async () => {
+  test('Done leaves no flow in the stack', async () => {
+    const tree = create();
+    await walkTo(tree, 'success');
+    press(tree, 'Done');
+    expect(tree.router.canGoBack).toBe(false);
+  });
+
+  test('close on success goes to the main screen too', async () => {
     const tree = create();
     await walkTo(tree, 'success');
     press(tree, 'Close');
-    expect(tree.router.route).toBe('product');
-    expect(tree.router.params.plantId).toBe(garden.plants[0].id);
+    expect(tree.router.route).toBe('today');
+    expect(tree.router.canGoBack).toBe(false);
+    expect(garden.plants).toHaveLength(1);
   });
 
-  test('Done opens the saved plant\'s page by id', async () => {
+  test('Done lands on Today with the plant saved as chosen', async () => {
     const tree = create();
     press(tree, 'Mo');
     await walkTo(tree, 'reminders');
@@ -274,17 +281,15 @@ describe('success', () => {
     await tree.settle();
     press(tree, 'Done');
 
-    expect(tree.router.route).toBe('product');
-    const { plantId } = tree.router.params;
-    expect(plantId).toBeTruthy();
-    // The page it lands on renders from the store, under the chosen name and
-    // in the chosen room — and the watering it opted into is really scheduled,
-    // a full interval out from the moment the plant was added.
-    const t = texts(tree);
-    expect(t).toContain('Mo');
-    expect(t).toContain('Monstera deliciosa · Kitchen');
-    expect(t).toContain('All caught up');
-    expect(t).toContain('Next reminder is on Thu, Sep 17');
+    expect(tree.router.route).toBe('today');
+    // Saved under the chosen name and room, with the watering it opted into
+    // really scheduled — all before Done was tapped.
+    const [plant] = garden.plants;
+    expect(plant.nickname).toBe('Mo');
+    expect(garden.rooms.find((r) => r.id === plant.roomId).name).toBe('Kitchen');
+    expect(garden.reminders.filter((r) => r.plantId === plant.id).map((r) => r.action)).toEqual(['water']);
+    // …and Today's Next up row already shows it.
+    expect(texts(tree)).toContain('Mo · Kitchen');
   });
 
   test('a custom reminder first comes due on the day chosen for it', async () => {
@@ -350,7 +355,7 @@ describe('in onboarding', () => {
         <GardenProbe />
         <OnboardingProbe />
         <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} />} />
-        <Route name="product" component={ProductPage} />
+        <Route name="today" component={() => null} />
         <Route name="paywall" component={() => null} />
         <Route name="scan-camera" component={() => null} />
       </OnboardingProvider>,
@@ -428,7 +433,7 @@ describe('in onboarding', () => {
     const tree = createOnboarding({ session: false });
     await walkTo(tree, 'success');
     press(tree, 'Done');
-    expect(tree.router.route).toBe('product');
+    expect(tree.router.route).toBe('today');
     expect(ob.savedPlantId).toBeNull();
   });
 });

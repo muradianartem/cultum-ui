@@ -14,10 +14,9 @@
 // Leaving the reminders step creates the plant and its reminders on the server,
 // and success renders only once it has answered — that screen says the plant
 // was added, and every one of its exits (Done, close, Scan another plant) must
-// be able to rely on it. Done and close then re-enter the product page through replace()
-// with the new plant's id — a Route only renders while it matches, so
-// ProductPage is unmounted for the whole flow and there is no state there to
-// call back into.
+// be able to rely on it. Done and close then land on the main screen (Today)
+// through reset(), so no back gesture can reopen the wizard, the product page
+// it started from, or the scan screens before that.
 //
 // In onboarding (an add session the entry screen started — see
 // onboarding/OnboardingProvider.js), Done and close go to the paywall instead,
@@ -66,7 +65,7 @@ export default function AddPlantScreen({ plant, today }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
-  const { back, replace, reset } = useRouter();
+  const { back, reset } = useRouter();
   const garden = useGarden();
   const gate = useRoomGate();
   const onboarding = useOnboarding();
@@ -101,13 +100,13 @@ export default function AddPlantScreen({ plant, today }) {
       onboarding.beginPaywall();
       reset('paywall', ONBOARDING_PAYWALL);
     } else {
-      replace('product', { plantId: savedId.current });
+      reset('today');
     }
   };
 
   // The leading button steps backwards through the flow where it can, and
-  // otherwise leaves it — from success, onto the plant that was just saved
-  // rather than back to the species it came from.
+  // otherwise leaves it — from success, the same way Done does rather than
+  // back to the species it came from.
   const leave = () => {
     if (previous) setStep(previous);
     else if (step === 'success') finish();

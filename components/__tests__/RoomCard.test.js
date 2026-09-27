@@ -35,9 +35,13 @@ test('fills all four mosaic cells from four photos', () => {
   expect(images(tree).map((n) => n.props.source)).toEqual(photos);
 });
 
-test('cycles a short photo list to keep the mosaic full', () => {
-  const tree = create(<RoomCard name="x" photos={[PHOTO]} />);
-  expect(images(tree)).toHaveLength(4);
+test('shows each photo once and leaves the remaining cells empty', () => {
+  const one = images(create(<RoomCard name="x" photos={[PHOTO]} />));
+  expect(one.map((n) => n.props.source)).toEqual([PHOTO]);
+
+  const two = [{ uri: 'a' }, { uri: 'b' }];
+  const tree = create(<RoomCard name="x" photos={two} />);
+  expect(images(tree).map((n) => n.props.source)).toEqual(two);
 });
 
 test('renders no images at all when the room has no photos', () => {
