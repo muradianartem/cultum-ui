@@ -1,4 +1,5 @@
 import { act } from 'react-test-renderer';
+import { Alert } from 'react-native';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import { useGarden } from '../../../store/GardenProvider';
 import RoomsScreen from '../RoomsScreen';
@@ -101,17 +102,18 @@ describe('RoomsScreen', () => {
     expect(t).toContain('Create new room');
   });
 
-  test('Create new room adds the room to the store and the list, queued for the server', () => {
+  test('Create new room creates it on the server, and the answer lands in the list', async () => {
     const r = render(<RoomsScreen />);
     r.press('Create new room');
     expect(sheetVisible(r, 'new-room-sheet')).toBe(true);
 
     r.type('Balcony', 1); // field 0 is the search bar
     r.press('Create');
+    await r.settle();
 
     expect(r.texts()).toContain('Balcony');
     expect(roomNames()).toEqual(['Living Room', 'Kitchen', 'Bathroom', 'Balcony']);
-    expect(store.state.outbox.map((e) => e.op)).toContain('room.create');
+    expect(r.api.callsTo('createRoom').map(([body]) => body.name)).toEqual(['Balcony']);
   });
 
   test('at the plan’s room limit, Create new room opens the paywall instead', () => {
@@ -216,7 +218,7 @@ describe('RoomScreen', () => {
     expect(r.router.route).toBe('scan-search');
   });
 
-  test('Rename from the actions sheet sticks in the store and queues nothing for an unsynced room', () => {
+  test('Rename from the actions sheet goes to the server and sticks', async () => {
     const r = open('living-room');
     r.press('Room actions');
     expect(r.texts()).toContain("Change this room's name");
@@ -225,13 +227,14 @@ describe('RoomScreen', () => {
     expect(r.texts()).toContain('Rename room');
     r.type('Lounge');
     r.press('Save');
+    await r.settle();
 
     expect(r.texts()).toContain('Lounge');
     expect(roomNames()).toContain('Lounge');
     expect(roomNames()).not.toContain('Living Room');
   });
 
-  test('deleting an empty room confirms, deletes it and goes back', () => {
+  test('deleting an empty room confirms, deletes it and goes back', async () => {
     const r = open('bathroom');
     r.press('Room actions');
     r.press('Delete');
@@ -242,10 +245,27 @@ describe('RoomScreen', () => {
       'The room will be removed. Your plants and their reminders are not affected. This cannot be undone.',
     );
     r.press('Delete');
+    await r.settle();
 
     expect(roomNames()).toEqual(['Living Room', 'Kitchen']);
     expect(r.router.route).toBe('rooms');
     expect(r.texts()).toContain('Room deleted');
+  });
+
+  test('a delete the server refuses keeps the room, and the user on it', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const r = open('bathroom');
+    r.api.fail('deleteRoom', Object.assign(new Error('offline'), { code: 'offline' }));
+    r.press('Room actions');
+    r.press('Delete');
+    dismiss(r, 'room-sheet');
+    r.press('Delete');
+    await r.settle();
+
+    expect(alert).toHaveBeenCalledWith('Couldn’t delete the room', expect.any(String));
+    expect(roomNames()).toContain('Bathroom');
+    expect(r.router.route).toBe('room');
+    alert.mockRestore();
   });
 
   test('the delete dialog waits for the actions sheet to finish closing', () => {
@@ -257,7 +277,7 @@ describe('RoomScreen', () => {
     expect(r.texts()).toContain('Delete room?');
   });
 
-  test('a room with plants has to be emptied first: move them, then delete', () => {
+  test('a room with plants has to be emptied first: move them, then delete', async () => {
     const r = open('living-room');
     r.press('Room actions');
     r.press('Delete');
@@ -272,6 +292,7 @@ describe('RoomScreen', () => {
     expect(r.texts()).toContain('Move 2 plants to');
     r.press('Kitchen');
     r.press('Move and delete room');
+    await r.settle();
 
     expect(roomNames()).toEqual(['Kitchen', 'Bathroom']);
     const kitchen = store.rooms.find((room) => room.name === 'Kitchen');
@@ -280,7 +301,7 @@ describe('RoomScreen', () => {
     expect(r.texts()).toContain('Room deleted');
   });
 
-  test('or into a new room made on the spot', () => {
+  test('or into a new room made on the spot', async () => {
     const r = open('living-room');
     r.press('Room actions');
     r.press('Delete');
@@ -293,6 +314,7 @@ describe('RoomScreen', () => {
     expect(r.texts()).toContain('Every plant from Living Room moves here.');
     r.type('Balcony');
     r.press('Create and move');
+    await r.settle();
 
     expect(roomNames()).toEqual(['Kitchen', 'Bathroom', 'Balcony']);
     const balcony = store.rooms.find((room) => room.name === 'Balcony');

@@ -11,10 +11,10 @@
 // navigate() on every step — and losing it on back(). Instead the draft lives
 // here and `step` walks the PREVIOUS map, the same shape AddReminderSheet uses.
 //
-// Leaving the reminders step writes the plant and its reminders to the store
-// in one commit, before success renders — that screen says the plant was
-// added, and every one of its exits (Done, close, Scan another plant) must
-// keep it. Done and close then re-enter the product page through replace()
+// Leaving the reminders step creates the plant and its reminders on the server,
+// and success renders only once it has answered — that screen says the plant
+// was added, and every one of its exits (Done, close, Scan another plant) must
+// be able to rely on it. Done and close then re-enter the product page through replace()
 // with the new plant's id — a Route only renders while it matches, so
 // ProductPage is unmounted for the whole flow and there is no state there to
 // call back into.
@@ -34,6 +34,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
 import { parseFrequency } from '../../store/format';
+import { showError } from '../../lib/showError';
 import AddReminderSheet from '../AddReminderSheet';
 import AddRoomSheet from './AddRoomSheet';
 import { useRoomGate } from '../rooms/useRoomGate';
@@ -78,9 +79,11 @@ export default function AddPlantScreen({ plant, today }) {
   const [reminders, setReminders] = useState(() => defaultReminders(vm));
   const [roomSheet, setRoomSheet] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(false);
-  // The new plant's id, set once it is in the store. Success has no way back,
-  // so it never needs clearing.
+  // The new plant's id, set once the server has created it. Success has no
+  // way back, so it never needs clearing.
   const savedId = useRef(null);
+  // A request is out: the reminders CTA shows it and takes no second tap.
+  const [saving, setSaving] = useState(false);
 
   // Rooms come from the store, so one created here is a room everywhere —
   // the flow no longer keeps a private list that the Rooms tab never sees.
@@ -111,7 +114,13 @@ export default function AddPlantScreen({ plant, today }) {
     else back();
   };
 
-  const addRoom = (roomName) => setRoomId(garden.addRoom(roomName));
+  const addRoom = async (roomName) => {
+    try {
+      setRoomId(await garden.addRoom(roomName));
+    } catch (e) {
+      showError(e, 'Couldn’t add the room');
+    }
+  };
 
   const toggleReminder = (id) =>
     setReminders((list) =>
@@ -123,13 +132,21 @@ export default function AddPlantScreen({ plant, today }) {
 
   // Runs from the reminders CTA. A ref, not state, guards it: two taps in the
   // same frame would both still read the old state and add the plant twice.
-  const save = () => {
-    if (!savedId.current) {
-      savedId.current = garden.addPlant({
+  const inFlight = useRef(false);
+  const save = async () => {
+    if (savedId.current) {
+      setStep('success');
+      return;
+    }
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    try {
+      savedId.current = await garden.addPlant({
         speciesKey: vm?.speciesKey ?? null,
         nickname: name,
         roomId,
-        // The raw SpeciesDetail, so the plant's page renders in full offline.
+        // The raw SpeciesDetail, so the plant's page renders in full at once.
         care: vm?.detail ?? null,
         heroUri: vm?.heroUri ?? null,
         reminders: reminders
@@ -141,9 +158,21 @@ export default function AddPlantScreen({ plant, today }) {
             startAt: r.startAt ?? null,
           })),
       });
-      // A no-op outside an onboarding add session.
-      onboarding.recordSavedPlant(savedId.current);
+    } catch (e) {
+      // The plant was created but a reminder wasn't: it is still saved, so the
+      // flow goes on and only the reminder is reported.
+      if (!e?.plantId) {
+        showError(e, 'Couldn’t add your plant');
+        return;
+      }
+      savedId.current = e.plantId;
+      showError(e, 'Some reminders weren’t saved');
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
     }
+    // A no-op outside an onboarding add session.
+    onboarding.recordSavedPlant(savedId.current);
     setStep('success');
   };
 
@@ -244,6 +273,7 @@ export default function AddPlantScreen({ plant, today }) {
               label={cta.label}
               variant={cta.variant}
               size="lg"
+              loading={saving}
               onPress={save}
             />
           ) : null}

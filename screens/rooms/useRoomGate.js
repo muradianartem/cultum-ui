@@ -11,8 +11,8 @@ import { useGarden } from '../../store/GardenProvider';
  *
  * At the plan's `limits.rooms` (1 on free) it opens the paywall instead of
  * running `open`. A `null` limit — Plus, or an entitlement not fetched yet —
- * means no ceiling: the server is the real gate, and store/sync.js drops a
- * create it refuses.
+ * means no ceiling: the server is the real gate, and a create it refuses
+ * rejects, for the caller to show.
  *
  * @returns {(open?: () => void) => boolean} whether `open` ran
  */

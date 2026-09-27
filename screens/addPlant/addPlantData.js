@@ -8,7 +8,7 @@
 // Reminder rows here are a *draft* shape — `{ action, title, icon, enabled,
 // intervalDays, startAt? }`. They become real reminders only on Done, when the store
 // creates them (store/GardenProvider.js#addPlant), so nothing in this file
-// needs to know about ids, due dates or the outbox.
+// needs to know about ids or due dates.
 
 import { weekdayDate } from '../../store/format';
 import { ACTIONS, PRIMARY_ACTIONS, actionMeta } from '../../store/model';

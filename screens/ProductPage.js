@@ -4,8 +4,8 @@
 // Before it is yours it is a catalog entry: hero, description, Highlights, How
 // to care, FAQ, and a CTA to add it. Once it is yours the same page gains the
 // things only an owned plant has — today's tasks for it, an About/Journal
-// switch, and the Actions list (Edit Reminders / Rename / Move / Archive /
-// Delete) that used to be a three-item overflow menu.
+// switch, and the Actions list (Edit Reminders / Rename / Move / Delete) that
+// used to be a three-item overflow menu.
 //
 // Which life it is in is decided by the store, not by a route param: an owned
 // plant is addressed by `plantId` and every field is read live, so a rename
@@ -32,6 +32,7 @@ import { useRouter } from '../routing';
 import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
 import { nextReminderLabel } from '../store/format';
+import { showError } from '../lib/showError';
 import { speciesDetailToVM, cardToVM } from '../api/mapPlant';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
@@ -162,12 +163,12 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const [openFaq, setOpenFaq] = useState(0);
   const [renaming, setRenaming] = useState(false);
   const [moving, setMoving] = useState(false);
-  const [confirm, setConfirm] = useState(null); // 'archive' | 'delete'
+  const [confirm, setConfirm] = useState(null); // 'delete'
 
   const record = plantId ? garden.getPlant(plantId) : null;
 
-  // An owned plant renders from the SpeciesDetail cached on it, so its page is
-  // complete with the radio off. A preview renders from the VM it arrived with.
+  // An owned plant renders from the SpeciesDetail the server embeds in it
+  // (UserPlantOut.care). A preview renders from the VM it arrived with.
   const vm = useMemo(() => {
     if (record) {
       return record.care
@@ -192,24 +193,34 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const openReminders = () =>
     navigate('reminders', isOwned ? { plantId: record.id } : { plantName: vm.commonName });
 
-  const removePlant = () => {
+  // Leaves only once the server has deleted it; a refusal keeps the page up.
+  const removePlant = async () => {
     const target = record?.id;
     setConfirm(null);
     if (!target) return;
-    garden.deletePlant(target);
-    back();
+    try {
+      await garden.deletePlant(target);
+      back();
+    } catch (e) {
+      showError(e, 'Couldn’t delete your plant');
+    }
   };
 
-  const archivePlant = () => {
-    const target = record?.id;
-    setConfirm(null);
-    if (!target) return;
-    garden.archivePlant(target);
-    back();
-  };
+  const renamePlant = (name) =>
+    garden.renamePlant(record.id, name).catch((e) => showError(e, 'Couldn’t rename your plant'));
 
-  // Figma's five Actions rows. Each is a real mutation now — the two that used
-  // to close the menu and do nothing (Rename, Move) open a sheet.
+  const movePlant = (roomId) =>
+    garden.movePlant(record.id, roomId).catch((e) => showError(e, 'Couldn’t move your plant'));
+
+  /** The new room's id, or null when it wasn't created (the user is told). */
+  const addRoom = (name) =>
+    garden.addRoom(name).catch((e) => {
+      showError(e, 'Couldn’t add the room');
+      return null;
+    });
+
+  // Figma's Actions rows. Each is a real mutation — Rename and Move open a
+  // sheet. (Archive is gone: the server has nowhere to keep it.)
   const actions = [
     {
       icon: 'settings',
@@ -228,12 +239,6 @@ export default function ProductPage({ plantId, plant, owned = false }) {
       title: 'Move',
       subtitle: 'Move to another room',
       onPress: () => setMoving(true),
-    },
-    {
-      icon: 'archive',
-      title: 'Archive',
-      subtitle: 'You can restore it anytime',
-      onPress: () => setConfirm('archive'),
     },
     {
       icon: 'trash',
@@ -474,7 +479,7 @@ export default function ProductPage({ plantId, plant, owned = false }) {
         visible={renaming}
         name={record?.nickname ?? ''}
         onClose={() => setRenaming(false)}
-        onSave={(name) => garden.renamePlant(record.id, name)}
+        onSave={renamePlant}
       />
 
       <MovePlantSheet
@@ -482,18 +487,8 @@ export default function ProductPage({ plantId, plant, owned = false }) {
         rooms={garden.rooms}
         roomId={record?.roomId}
         onClose={() => setMoving(false)}
-        onMove={(roomId) => garden.movePlant(record.id, roomId)}
-        onAddRoom={(name) => garden.addRoom(name)}
-      />
-
-      <Dialog
-        testID="archive-dialog"
-        visible={confirm === 'archive'}
-        onClose={() => setConfirm(null)}
-        title="Archive this plant?"
-        description="It stops producing tasks and reminders. You can restore it anytime."
-        primaryAction={{ label: 'Archive', onPress: archivePlant }}
-        secondaryAction={{ label: 'Cancel', onPress: () => setConfirm(null) }}
+        onMove={movePlant}
+        onAddRoom={addRoom}
       />
 
       <Dialog

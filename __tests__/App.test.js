@@ -77,6 +77,17 @@ const PAYWALL_RESPONSE = {
   footnote: 'Cancel any time.',
 };
 
+// The garden is loaded from the server before any screen shows; answer with
+// an empty one.
+jest.mock('../api/garden', () => ({
+  ...jest.requireActual('../api/garden'),
+  getGarden: jest.fn(async () => []),
+}));
+jest.mock('../api/rooms', () => ({
+  ...jest.requireActual('../api/rooms'),
+  listRooms: jest.fn(async () => []),
+}));
+
 // The AuthGate keys off persisted tokens — control the branch per test.
 jest.mock('../lib/authStorage', () => ({
   loadTokens: jest.fn(),

@@ -1,9 +1,12 @@
-import { ImageBackground } from 'react-native';
+import { Alert, ImageBackground } from 'react-native';
 import { speciesDetailToVM } from '../../api/mapPlant';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
 import ProductPage from '../ProductPage';
 
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
+
+beforeEach(() => jest.spyOn(Alert, 'alert').mockImplementation(() => {}));
+afterEach(() => jest.restoreAllMocks());
 
 // A SpeciesDetail rich enough to fill every section the redesign added.
 const DETAIL = {
@@ -169,9 +172,11 @@ describe('an owned plant', () => {
     const state = owned();
     const t = render(<ProductPage plantId={state.plants[0].id} />, state).texts();
     expect(t).toContain('Actions');
-    ['Edit Reminders', 'Rename', 'Move', 'Archive', 'Delete'].forEach((label) =>
+    ['Edit Reminders', 'Rename', 'Move', 'Delete'].forEach((label) =>
       expect(t).toContain(label),
     );
+    // There is no archive: the server has nowhere to keep it.
+    expect(t).not.toContain('Archive');
   });
 
   test('Edit Reminders navigates to that plant, not to a name', () => {
@@ -182,33 +187,49 @@ describe('an owned plant', () => {
     expect(r.router.params).toEqual({ plantId: state.plants[0].id });
   });
 
-  test('Rename writes through to the store, so the hero updates in place', () => {
+  test('Rename goes to the server, and its answer updates the hero in place', async () => {
     const state = owned();
     const r = render(<ProductPage plantId={state.plants[0].id} />, state);
     r.press('Rename');
     r.type('Zed');
     r.press('Save');
+    await r.settle();
+    expect(r.api.callsTo('updatePlant')).toEqual([[state.plants[0].id, { nickname: 'Zed' }]]);
     expect(r.texts()).toContain('Zed');
     expect(r.texts()).not.toContain('Mo');
   });
 
-  test('Move puts the plant in another room', () => {
+  test('Move puts the plant in another room', async () => {
     const state = owned();
     const r = render(<ProductPage plantId={state.plants[0].id} />, state);
     r.press('Move');
     r.press('Bedroom');
     r.press('Move plant');
+    await r.settle();
     expect(r.texts()).toContain('Dracaena trifasciata · Bedroom');
   });
 
-  test('Delete asks first, then leaves the page', () => {
+  test('Delete asks first, then leaves the page', async () => {
     const state = owned();
     const r = render(<ProductPage plantId={state.plants[0].id} />, state);
     r.press('Delete');
     expect(r.texts()).toContain('Delete this plant?');
     // The dialog's own destructive confirm, which is the deepest 'Delete'.
     r.press('Delete');
+    await r.settle();
+    expect(r.api.callsTo('removePlant')).toEqual([[state.plants[0].id]]);
     expect(r.router.route).toBe('product'); // back() with an empty stack stays put
     expect(r.texts()).not.toContain('Actions'); // but the plant is gone
+  });
+
+  test('a delete the server refuses keeps the plant and says so', async () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    r.api.fail('removePlant', Object.assign(new Error('offline'), { code: 'offline' }));
+    r.press('Delete');
+    r.press('Delete');
+    await r.settle();
+    expect(Alert.alert).toHaveBeenCalledWith('Couldn’t delete your plant', expect.any(String));
+    expect(r.texts()).toContain('Actions');
   });
 });

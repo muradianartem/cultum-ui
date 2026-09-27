@@ -21,7 +21,7 @@ let prefs;
 let retimeAllReminders;
 
 beforeEach(() => {
-  retimeAllReminders = jest.fn();
+  retimeAllReminders = jest.fn(async () => {});
   prefs = {
     notificationsEnabled: true,
     notificationPermission: 'granted',

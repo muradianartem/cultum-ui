@@ -14,6 +14,7 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
+import { showError } from '../../lib/showError';
 import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
 import AddRoomSheet from '../addPlant/AddRoomSheet';
@@ -173,7 +174,9 @@ export default function RoomsScreen() {
       <AddRoomSheet
         visible={creating}
         onClose={() => setCreating(false)}
-        onConfirm={(name) => garden.addRoom(name)}
+        onConfirm={(name) =>
+          garden.addRoom(name).catch((e) => showError(e, 'Couldn’t create the room'))
+        }
         title="Create new room"
         label="Room name"
         placeholder="What's the room name?"
