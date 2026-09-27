@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Keyboard, Text } from 'react-native';
+import { Keyboard, LayoutAnimation, Text } from 'react-native';
 import { useKeyboard, useKeyboardVisible } from '../useKeyboardVisible';
 import { useKeyboard as BarrelUseKeyboard } from '../index';
 
@@ -66,6 +66,18 @@ test('takes its height from the keyboard frame, and drops it on hide', () => {
 
   hide({ duration: 250, easing: 'keyboard' });
   expect(last()).toEqual({ visible: false, height: 0 });
+});
+
+// LayoutAnimation is global: it animates whatever commits next, and for a sheet
+// that autofocuses its field that is the sheet mounting in its <Modal>. On iOS
+// the sheet then never painted, so the lift must land unanimated.
+test('never configures a LayoutAnimation', () => {
+  const configureNext = jest.spyOn(LayoutAnimation, 'configureNext');
+  const { show, hide } = mockKeyboard();
+  render(useKeyboard);
+  show({ endCoordinates: { height: 336 }, duration: 250, easing: 'keyboard' });
+  hide({ duration: 250, easing: 'keyboard' });
+  expect(configureNext).not.toHaveBeenCalled();
 });
 
 // A hardware keyboard is up with only an accessory bar, so "visible" cannot be
