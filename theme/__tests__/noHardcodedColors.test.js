@@ -25,11 +25,6 @@ const ALLOWED = {
   'components/Avatar.js': ['rgba(21,21,21,0.4)', '#FAFAFA'],
   'screens/AddReminderSheet.js': [BACKDROP],
   'screens/TaskSheet.js': [BACKDROP],
-  'screens/ProductPage.js': [
-    '#0E120B', 'rgba(21,23,20,0.28)', 'rgba(21,23,20,0)', '#151714',
-    'rgba(250,250,250,0.18)', 'rgba(250,250,250,0.34)', 'rgba(250,250,250,0.6)',
-    '#FFFFFF', '#DADBDA',
-  ],
   'screens/LoginScreen.js': [
     'rgba(13,15,10,0.5)', 'rgba(13,15,10,0.32)', 'rgba(13,15,10,0.9)', 'rgba(13,15,10,1)',
   ],

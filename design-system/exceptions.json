@@ -479,6 +479,21 @@
       },
       "status": "unresolved",
       "reason": "The documentation rows name one primitive and paint a different swatch (see figma-foundations.json docSwatchConflicts). The app follows the named primitive; resolve in Figma."
+    },
+    {
+      "id": "productpage-hero",
+      "consumer": "theme/tokens.js",
+      "properties": [
+        "height"
+      ],
+      "value": "hero 336; bottom fade 140 (stops 0 / 23% / 100%)",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "1:11378",
+        "name": "Product Page / Not added › Hero, Scrim"
+      },
+      "status": "verified-figma",
+      "reason": "Frame sizes of the screen's photo header, not a spacing value; the fade's colour is background-primary at opacity 0 / 50 / 100."
     }
   ]
 }
