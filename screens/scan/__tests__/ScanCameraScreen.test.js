@@ -149,6 +149,9 @@ describe('Searching', () => {
       (n) => n.props.source && n.props.source.uri === 'file://captured.jpg'
     );
     expect(photos.length).toBeGreaterThan(0);
+    // The scan never settles; unmount so its "slow" timer can't fire after
+    // the run has finished.
+    act(() => tree.unmount());
   });
 
   test('closing mid-scan leaves, and a late answer does not pull the user into Matches', async () => {
@@ -163,6 +166,7 @@ describe('Searching', () => {
       settle().resolve(MOCK_SCAN);
     });
     expect(api.route).toBe('today');
+    act(() => tree.unmount());
   });
 });
 
