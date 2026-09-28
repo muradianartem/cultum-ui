@@ -18,6 +18,7 @@ import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
 import { Icon, LoadingIndicator, SnackbarProvider, State } from './components';
 import TodayScreen from './screens/TodayScreen';
+import SnoozedScreen from './screens/SnoozedScreen';
 import TodaySkeleton from './screens/TodaySkeleton';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
@@ -157,6 +158,7 @@ function AppRoutes() {
       <OnboardingNavigator />
       <Route name="onboarding" component={OnboardingScreen} />
       <Route name="today" component={TodayScreen} />
+      <Route name="snoozed" component={SnoozedScreen} />
       <Route name="product" component={ProductPage} />
       <Route name="add-plant" component={AddPlantScreen} />
       <Route name="reminders" component={RemindersScreen} />

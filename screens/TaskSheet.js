@@ -4,8 +4,12 @@
 // and "snooze" pages — iOS can't present a second Modal over an open one, so the
 // back-buttoned snooze page is a step within this sheet, not a separate modal.
 //
+// `snoozed` is the variant opened from the Snoozed page (node 694:1520): the
+// badge reads "Snoozed · In 3d" and "Snooze for" becomes "Cancel snooze".
+//
 //   <TaskSheet task={task} visible onClose={…} onMarkDone={…}
 //              onSnoozeConfirm={(n, unit) => …} onOpenPlant={…} onSettings={…} />
+//   <TaskSheet task={task} snoozed visible onCancelSnooze={…} … />
 
 import { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
@@ -20,9 +24,11 @@ export default function TaskSheet({
   task,
   visible,
   initialStep = 'detail',
+  snoozed = false,
   onClose,
   onMarkDone,
   onSnoozeConfirm,
+  onCancelSnooze,
   onOpenPlant,
   onSettings,
 }) {
@@ -95,7 +101,7 @@ export default function TaskSheet({
               ) : null}
               {task?.due ? (
                 <Badge
-                  label={task.due}
+                  label={snoozed ? `Snoozed · ${task.due}` : task.due}
                   intent="neutral"
                   variant="secondary"
                   leftIcon={<Icon name="clock" size={14} color={t.text.primary} />}
@@ -112,13 +118,22 @@ export default function TaskSheet({
               leftIcon={<Icon name="check" size={20} color={t.brand.onPrimary} />}
               onPress={onMarkDone}
             />
-            <Button
-              variant="secondary"
-              size="lg"
-              label="Snooze for"
-              leftIcon={<Icon name="snooze" size={20} color={t.text.primary} />}
-              onPress={() => setStep('snooze')}
-            />
+            {snoozed ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                label="Cancel snooze"
+                onPress={onCancelSnooze}
+              />
+            ) : (
+              <Button
+                variant="secondary"
+                size="lg"
+                label="Snooze for"
+                leftIcon={<Icon name="snooze" size={20} color={t.text.primary} />}
+                onPress={() => setStep('snooze')}
+              />
+            )}
             <Button
               variant="secondary"
               size="lg"

@@ -167,9 +167,9 @@ test('a snooze pushes the reminder out and the row says until when', () => {
   const r = render();
   r.press('Watering Snooze');
   // On "None" the sheet hides the number column, so the only wheel is the unit
-  // one; picking 'days' (index 2 of [None, hours, days, …]) brings the number
+  // one; picking 'days' (index 1 of [None, days, weeks]) brings the number
   // column back at its default of 1.
-  act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(2));
+  act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(1));
   r.press('Set snooze');
   expect(r.texts()).toContain('Until 6 Sep'); // 5 Sep + 1 day
 });

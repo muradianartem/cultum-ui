@@ -15,11 +15,11 @@ test('frequency units have no hours — a cadence is whole days at least', () =>
   expect(FREQUENCY_UNITS.map((u) => u.plural)).toEqual(['days', 'weeks', 'months']);
 });
 
-test('snooze units are hours plus the frequency units, behind a "None" lead', () => {
+test('snooze units are days and weeks only, behind a "None" lead', () => {
   expect(SNOOZE_UNITS[0]).toBe(NONE_UNIT);
   expect(SNOOZE_UNITS[0].plural).toBe('None');
   expect(SNOOZE_UNITS.slice(1)).toEqual(SNOOZE_DURATION_UNITS);
-  expect(SNOOZE_DURATION_UNITS.map((u) => u.plural)).toEqual(['hours', 'days', 'weeks', 'months']);
+  expect(SNOOZE_DURATION_UNITS.map((u) => u.plural)).toEqual(['days', 'weeks']);
   expect(SNOOZE_DURATION_UNITS[DEFAULT_SNOOZE_UNIT_INDEX].plural).toBe('days');
 });
 

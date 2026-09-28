@@ -13,6 +13,8 @@ import {
   Button,
   Dialog,
   Icon,
+  List,
+  ListItem,
   SegmentedControl,
   State,
   TabBar,
@@ -71,6 +73,20 @@ function buildUpcomingGroups(tasks) {
   return order.map((k) => byDay.get(k));
 }
 
+// "3 tasks snoozed ›" (Figma "Snoozed banner", 667:17739) — the way into the
+// Snoozed page. Only rendered while something is actually snoozed.
+function SnoozedBanner({ count, onPress, color }) {
+  return (
+    <List variant="card">
+      <ListItem
+        title={count === 1 ? '1 task snoozed' : `${count} tasks snoozed`}
+        after={<Icon name="chevron-right" size={20} color={color} />}
+        onPress={onPress}
+      />
+    </List>
+  );
+}
+
 // One display group: an optional header + a stack of individual TaskCards.
 function TaskGroup({ group, onOpen, styles }) {
   return (
@@ -109,6 +125,7 @@ export default function TodayScreen() {
 
   const tasks = garden.todaysTasks;
   const upcoming = garden.upcoming;
+  const snoozedCount = garden.snoozed.length;
   const taskCount = tasks.length;
   const hasPlants = garden.plants.length > 0;
 
@@ -158,6 +175,15 @@ export default function TodayScreen() {
     { value: 'upcoming', label: 'Upcoming' },
   ];
 
+  const snoozedBanner =
+    snoozedCount > 0 ? (
+      <SnoozedBanner
+        count={snoozedCount}
+        onPress={() => navigate('snoozed')}
+        color={t.text.primary}
+      />
+    ) : null;
+
   const greeting = [salutation(garden.now), garden.profileName].filter(Boolean).join(', ');
   // A garden with no plants in it needs a way in, not an "all caught up".
   const empty = hasPlants ? EMPTY : NO_PLANTS;
@@ -193,6 +219,8 @@ export default function TodayScreen() {
             </View>
           )}
 
+          {segment === 'today' && groups.length > 0 && snoozedBanner}
+
           {segment === 'today' && groups.length > 0 && (
             <View style={styles.groups}>
               {groups.map((group) => (
@@ -223,6 +251,7 @@ export default function TodayScreen() {
                     }
                 }
               />
+              {snoozedBanner}
               {upcoming.length > 0 ? (
                 <View style={styles.group}>
                   <Text style={styles.nextUpHeader}>Next up</Text>
