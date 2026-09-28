@@ -145,7 +145,14 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
           ]}
           accessibilityViewIsModal
         >
-          <Pressable onPress={Keyboard.dismiss} accessible={false}>
+          {/* Tapping the panel hides the keyboard — but it claims the touch only
+              while the keyboard is up. A Pressable here took every touch on the
+              sheet, and the frequency wheels could no longer scroll. */}
+          <View
+            onStartShouldSetResponder={() => keyboardVisible}
+            onResponderRelease={Keyboard.dismiss}
+            testID="add-reminder-panel"
+          >
           {back ? (
             <ButtonIcon
               size="md"
@@ -273,7 +280,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
               />
             </View>
           ) : null}
-          </Pressable>
+          </View>
         </Animated.View>
       </View>
     </Modal>

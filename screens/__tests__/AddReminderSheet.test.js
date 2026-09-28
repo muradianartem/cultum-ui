@@ -263,6 +263,29 @@ describe('keyboard', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  const panel = (tree) =>
+    tree.root.findAll(
+      (n) => typeof n.type === 'string' && n.props.testID === 'add-reminder-panel'
+    )[0];
+
+  test('tapping the panel hides the keyboard', () => {
+    const { dismiss, show } = mockKeyboard();
+    const tree = create();
+    show();
+    const p = panel(tree);
+    expect(p.props.onStartShouldSetResponder()).toBe(true);
+    act(() => p.props.onResponderRelease({}));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  // A panel that claimed every touch left the frequency wheels unscrollable.
+  test('with the keyboard down, the panel leaves touches to the wheels', () => {
+    mockKeyboard();
+    const tree = create();
+    toFrequency(tree);
+    expect(panel(tree).props.onStartShouldSetResponder()).toBe(false);
+  });
+
   test('Continue puts the keyboard away before the wheel shows', () => {
     const { dismiss } = mockKeyboard();
     const tree = create();
