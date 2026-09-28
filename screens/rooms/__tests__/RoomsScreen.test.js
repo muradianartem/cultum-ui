@@ -14,7 +14,7 @@ jest.mock('../../../billing/EntitlementProvider', () => ({
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
 
 // Two rooms with plants and one (Bathroom) without — an empty room is still a
-// room, and the list shows it.
+// room, but the list tucks it behind "Show empty rooms".
 const garden = () =>
   seedGarden({
     now: NOW,
@@ -85,15 +85,46 @@ beforeEach(() => {
 afterEach(cleanupTrees);
 
 describe('RoomsScreen', () => {
-  test('lists every room, empty ones included, with their meta lines', () => {
+  test('lists the rooms with plants, with their meta lines, and hides the empty ones', () => {
     const t = render(<RoomsScreen />).texts();
     expect(t).toContain('Rooms');
     expect(t).toContain('Living Room');
     expect(t).toContain('Kitchen');
     expect(t).toContain('2 plants · 2 to check'); // both Living Room plants are due
     expect(t).toContain('1 plant'); // Kitchen has nothing due
-    expect(t).toContain('Bathroom');
-    expect(t).toContain('0 plants');
+    expect(t).not.toContain('Bathroom');
+    expect(t).not.toContain('0 plants');
+  });
+
+  test('Show empty rooms reveals them, and Hide empty rooms tucks them away again', () => {
+    const r = render(<RoomsScreen />);
+    r.press('Show empty rooms');
+    expect(r.texts()).toContain('Bathroom');
+    expect(r.texts()).toContain('0 plants');
+
+    r.press('Hide empty rooms');
+    expect(r.texts()).not.toContain('Bathroom');
+    expect(r.find('Show empty rooms')).toBeTruthy();
+  });
+
+  test('when every room is empty they all show, with no toggle', () => {
+    const r = render(<RoomsScreen />, {
+      state: seedGarden({ now: NOW, rooms: ['Office', 'Bathroom'] }),
+    });
+    expect(r.texts()).toEqual(expect.arrayContaining(['Office', 'Bathroom']));
+    expect(r.find('Show empty rooms')).toBeUndefined();
+  });
+
+  test('with no empty rooms there is nothing to toggle', () => {
+    const r = render(<RoomsScreen />, {
+      state: seedGarden({
+        now: NOW,
+        plants: [{ nickname: 'Penny', speciesKey: 'pilea-peperomioides', room: 'Kitchen' }],
+        rooms: ['Kitchen'],
+      }),
+    });
+    expect(r.texts()).toContain('Kitchen');
+    expect(r.find('Show empty rooms')).toBeUndefined();
   });
 
   test('a garden with no rooms offers to create one', () => {
@@ -132,26 +163,55 @@ describe('RoomsScreen', () => {
     expect(sheetVisible(r, 'new-room-sheet')).toBe(true);
   });
 
-  test('a plant-only query shows the plant cards and no rooms or headers', () => {
+  const selectedTab = (r) =>
+    r.tree.root
+      .findAll((n) => n.props.accessibilityRole === 'tab' && n.props.accessibilityState?.selected)
+      .map((n) => n.props.accessibilityLabel)[0];
+
+  // The tab bar has a "Rooms" item too, so press the switcher's segment by role.
+  const pressTab = (r, label) => {
+    const node = r.tree.root.findAll(
+      (n) =>
+        n.props.accessibilityRole === 'tab' &&
+        n.props.accessibilityLabel === label &&
+        typeof n.props.onPress === 'function',
+    )[0];
+    act(() => node.props.onPress());
+  };
+
+  test('a plant-only query opens the switcher on Plants', () => {
     const r = render(<RoomsScreen />);
     r.type('pilea');
+    expect(selectedTab(r)).toBe('Plants');
     const t = r.texts();
     expect(t).toContain('Penny');
     expect(t).toContain('Pilea peperomioides');
     expect(t).not.toContain('Living Room');
-    // "Rooms" is still the nav title, but no "Plants" section header appears
-    // when only one kind matched.
-    expect(t).not.toContain('Plants');
+
+    pressTab(r, 'Rooms');
+    expect(r.texts()).toContain('No rooms match “pilea”');
   });
 
-  test('a query hitting both kinds renders both sections, with headers', () => {
+  test('a query hitting both kinds opens on Rooms, and the switcher swaps to Plants', () => {
     const r = render(<RoomsScreen />);
     r.type('kitchen');
-    const t = r.texts();
-    expect(t).toContain('Plants'); // section header
-    expect(t).toContain('Kitchen'); // the room card
-    expect(t).toContain('Kitchen Monstera'); // the plant card
-    expect(t).not.toContain('Living Room');
+    expect(selectedTab(r)).toBe('Rooms');
+    expect(r.texts()).toContain('Kitchen'); // the room card
+    expect(r.texts()).not.toContain('Kitchen Monstera');
+
+    pressTab(r, 'Plants');
+    expect(selectedTab(r)).toBe('Plants');
+    expect(r.texts()).toContain('Kitchen Monstera'); // the plant card
+    expect(r.texts()).not.toContain('1 plant'); // the room card is gone
+  });
+
+  test('a new query goes back to picking the tab that has results', () => {
+    const r = render(<RoomsScreen />);
+    r.type('kitchen');
+    pressTab(r, 'Plants');
+    r.type('bath');
+    expect(selectedTab(r)).toBe('Rooms');
+    expect(r.texts()).toContain('Bathroom');
   });
 
   test('search finds an empty room by name', () => {

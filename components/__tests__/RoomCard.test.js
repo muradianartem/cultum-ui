@@ -25,6 +25,11 @@ test('renders the room name and meta line', () => {
   expect(texts(tree)).toEqual(['Living Room', '3 plants · 2 to check']);
 });
 
+test('draws the room icon in an outlined circle', () => {
+  const tree = create(<RoomCard name="Kitchen" icon={<Text>glyph</Text>} />);
+  expect(texts(tree)).toContain('glyph');
+});
+
 test('omits the meta line when there is none', () => {
   expect(texts(create(<RoomCard name="Attic" />))).toEqual(['Attic']);
 });

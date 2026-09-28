@@ -39,6 +39,7 @@ export function roomCard(state, room, now = new Date()) {
     name: room.name,
     icon: roomIcon(room),
     meta: roomMeta(plants.length, due),
+    plantCount: plants.length,
     photos: plants.map(plantPhoto).filter(Boolean).slice(0, 4),
   };
 }
