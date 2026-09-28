@@ -72,7 +72,7 @@ function buildUpcomingGroups(tasks) {
 }
 
 // One display group: an optional header + a stack of individual TaskCards.
-function TaskGroup({ group, onComplete, onOpen, onAdjust, onSnooze, styles }) {
+function TaskGroup({ group, onOpen, styles }) {
   return (
     <View style={styles.group}>
       {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
@@ -81,9 +81,6 @@ function TaskGroup({ group, onComplete, onOpen, onAdjust, onSnooze, styles }) {
           key={task.id}
           task={task}
           onPress={onOpen ? () => onOpen(task) : undefined}
-          onDone={onComplete ? () => onComplete(task) : undefined}
-          onAdjust={onAdjust ? () => onAdjust(task) : undefined}
-          onSnooze={onSnooze ? () => onSnooze(task) : undefined}
         />
       ))}
     </View>
@@ -105,9 +102,6 @@ export default function TodayScreen() {
   // `sheetOpen` is false) so the content doesn't blank mid-animation.
   const [sheetTask, setSheetTask] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Which page the sheet opens on: tapping a card lands on 'detail', the swipe
-  // "Snooze" action opens straight on the 'snooze' step.
-  const [sheetStep, setSheetStep] = useState('detail');
   // The snackbar sits above the bottom block (grouping row + tab bar); measure
   // it rather than hardcode a height, so it tracks the row coming and going.
   const [bottomH, setBottomH] = useState(0);
@@ -123,18 +117,12 @@ export default function TodayScreen() {
 
   const openSheet = (task) => {
     setSheetTask(task);
-    setSheetStep('detail');
-    setSheetOpen(true);
-  };
-  const openSnooze = (task) => {
-    setSheetTask(task);
-    setSheetStep('snooze');
     setSheetOpen(true);
   };
   const closeSheet = () => setSheetOpen(false);
 
-  // A task's "Adjust" (swipe action) and the sheet's "Reminder settings" gear
-  // both jump to that plant's notification settings.
+  // The sheet's "Reminder settings" gear jumps to that plant's notification
+  // settings.
   const openReminders = (task) => navigate('reminders', { plantId: task?.plantId });
   const openPlant = (task) => navigate('product', { plantId: task?.plantId });
 
@@ -211,11 +199,7 @@ export default function TodayScreen() {
                 <TaskGroup
                   key={group.key}
                   group={group}
-                  onComplete={(task) =>
-                    notify('Task completed', garden.completeReminder(task.reminderId))}
                   onOpen={openSheet}
-                  onAdjust={openReminders}
-                  onSnooze={openSnooze}
                   styles={styles}
                 />
               ))}
@@ -242,8 +226,7 @@ export default function TodayScreen() {
               {upcoming.length > 0 ? (
                 <View style={styles.group}>
                   <Text style={styles.nextUpHeader}>Next up</Text>
-                  {/* Preview only — no onDone, so it's a plain (non-swipeable)
-                      card that opens the plant, like a card on Upcoming. */}
+                  {/* Preview only — opens the plant, like a card on Upcoming. */}
                   <TaskCard task={upcoming[0]} onPress={() => openPlant(upcoming[0])} />
                 </View>
               ) : null}
@@ -304,7 +287,6 @@ export default function TodayScreen() {
       <TaskSheet
         task={sheetTask}
         visible={sheetOpen}
-        initialStep={sheetStep}
         onClose={closeSheet}
         onMarkDone={() => {
           if (sheetTask) {

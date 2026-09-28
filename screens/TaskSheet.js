@@ -40,7 +40,7 @@ export default function TaskSheet({
       duration: visible ? motion.dur : motion.durFast,
       useNativeDriver: true,
     }).start();
-    // Open on the requested page (the swipe "Snooze" action opens on 'snooze');
+    // Open on the requested page (default 'detail');
     // reset to 'detail' whenever the sheet is dismissed.
     setStep(visible ? initialStep : 'detail');
   }, [visible, initialStep, translateY]);

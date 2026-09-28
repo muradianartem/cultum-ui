@@ -33,8 +33,8 @@ const garden = () =>
 
 const render = (state = garden()) => renderWithGarden(<TodayScreen />, { state, clock: NOW });
 
-// The swipe actions live inside a specific card, and several cards are on
-// screen — so reach the one whose task is named, then press within it.
+// Several cards are on screen — so reach the one whose task is named, then
+// press within it.
 const card = (r, title) =>
   r.tree.root.findAllByType(TaskCard).find((c) => c.props.task.title === title);
 
@@ -97,7 +97,8 @@ test('completing a task removes it, and an emptied group disappears', () => {
   const r = render();
   expect(r.texts()).toContain('Watering');
 
-  pressIn(card(r, 'Watering'), 'Mark task done');
+  pressIn(card(r, 'Watering'), 'Watering');
+  r.press('Mark as done');
 
   expect(r.texts()).not.toContain('Watering'); // the row and its group header both go
   expect(r.texts()).toContain('Fertilizing'); // the other group remains
@@ -160,7 +161,8 @@ test('tapping the "Next up" preview opens that plant', () => {
 
 test('snoozing a task moves it out of today without changing its cadence', () => {
   const r = render();
-  pressIn(card(r, 'Watering'), 'Snooze task');
+  pressIn(card(r, 'Watering'), 'Watering');
+  r.press('Snooze for');
   // SnoozeContent opens on "2 days"; its CTA carries the choice.
   r.press('Snooze for 2 days');
 
@@ -170,7 +172,8 @@ test('snoozing a task moves it out of today without changing its cadence', () =>
 describe('the snackbar takes the action back', () => {
   test('completing one task', () => {
     const r = render();
-    pressIn(card(r, 'Watering'), 'Mark task done');
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Mark as done');
     expect(r.texts()).toContain('Task completed');
 
     r.press('Undo');
@@ -193,7 +196,8 @@ describe('the snackbar takes the action back', () => {
 
   test('snoozing', () => {
     const r = render();
-    pressIn(card(r, 'Watering'), 'Snooze task');
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
     r.press('Snooze for 2 days');
     expect(r.texts()).toContain('Snoozed for 2 days');
 
