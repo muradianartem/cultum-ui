@@ -10,17 +10,20 @@ import { useTheme } from '../theme/ThemeProvider';
  * glyph) is the leading area of a list row; `lg` (48px, a 24px glyph) is the
  * icon on a Card and the one at the top of a centred panel. The caller supplies
  * the glyph already sized — this only draws the circle around it.
+ *
+ * `variant="outlined"` is Figma Type=Outlined: no fill, a 1pt border-primary
+ * ring (the room icon on a Room Card).
  */
-export default function StateIcon({ size = 'md', children, style, ...rest }) {
+export default function StateIcon({ size = 'md', variant = 'secondary', children, style, ...rest }) {
   const t = useTheme();
   const diameter = size === 'lg' ? 48 : list.beforeBadgeSize;
+  const look =
+    variant === 'outlined'
+      ? { borderWidth: 1, borderColor: t.border.primary }
+      : { backgroundColor: t.brand.secondary };
   return (
     <View
-      style={[
-        styles.circle,
-        { width: diameter, height: diameter, backgroundColor: t.brand.secondary },
-        style,
-      ]}
+      style={[styles.circle, { width: diameter, height: diameter }, look, style]}
       {...rest}
     >
       {children}
