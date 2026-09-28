@@ -138,14 +138,15 @@ export default function RemindersScreen({ plantId, plantName }) {
         <NavigationBar
           title="Edit Reminders"
           subtitle={plant?.nickname ?? plantName}
-          leading="back"
+          leading={<Icon name="chevron-left" size={24} color={t.text.primary} />}
           onLeadingPress={back}
+          buttonVariant="secondary"
           divider={false}
           actions={
             plant
               ? [
                 {
-                  icon: <Icon name="add" size={20} color={t.text.primary} />,
+                  icon: <Icon name="add" size={24} color={t.text.primary} />,
                   onPress: openAdd,
                   accessibilityLabel: 'Add reminder',
                 },
