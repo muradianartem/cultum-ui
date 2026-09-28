@@ -79,6 +79,16 @@ test('groups by task type, and each row shows its plant, room and due badge', ()
   expect(t).toContain('3d ago');
 });
 
+test('each card carries a task-type badge on its photo', () => {
+  const r = render();
+  const badgeIcon = (title) =>
+    card(r, title)
+      .findAll((n) => n.props.accessibilityLabel && n.props.leftIcon)
+      .map((n) => n.props.leftIcon.props.name)[0];
+  expect(badgeIcon('Watering')).toBe('outlined-water');
+  expect(badgeIcon('Fertilizing')).toBe('shovel');
+});
+
 test('a task not due today stays out of the day', () => {
   expect(render().texts()).not.toContain('Trim the aerial roots');
 });

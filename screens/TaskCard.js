@@ -53,7 +53,21 @@ export default function TaskCard({ task, onPress, onDone, onAdjust, onSnooze }) 
     <List variant="card">
       <ListItem
         onPress={onPress}
-        before={<Image source={task.photo} style={styles.thumb} />}
+        before={
+          <View style={styles.thumbWrap}>
+            <Image source={task.photo} style={styles.thumb} />
+            {/* Task-type badge on the photo's corner (Figma 667:4471); the
+                card-coloured ring cuts it out of the photo. */}
+            <Badge
+              size="lg"
+              intent="neutral"
+              variant="primary"
+              leftIcon={<Icon name={task.icon} size={16} color={t.brand.onPrimary} />}
+              accessibilityLabel={task.typeHeader}
+              style={styles.typeBadge}
+            />
+          </View>
+        }
         title={task.title}
         subtitle={`${task.plant} · ${task.room}`}
         after={
@@ -93,7 +107,15 @@ export default function TaskCard({ task, onPress, onDone, onAdjust, onSnooze }) 
 
 const makeStyles = (t) =>
   StyleSheet.create({
+    thumbWrap: { width: 56, height: 56 },
     thumb: { width: 56, height: 56, borderRadius: radius[12] },
+    typeBadge: {
+      position: 'absolute',
+      right: -5,
+      bottom: -4,
+      borderWidth: 2,
+      borderColor: t.surface.primary,
+    },
     rowAfter: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
     actionsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[12] },
     action: { alignItems: 'center', gap: space[4], width: 56 },
