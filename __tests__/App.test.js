@@ -117,6 +117,8 @@ afterEach(() => {
     while (mounted.length) mounted.pop().unmount();
   });
   jest.clearAllMocks();
+  // clearAllMocks keeps implementations; undo a test's never-answering load.
+  require('../api/garden').getGarden.mockImplementation(async () => []);
   __resetPaywallCache();
   // Onboarding progress is on (in-memory) disk and outlives a tree.
   require('expo-file-system').__files.clear();
@@ -190,6 +192,34 @@ test('an unfinished onboarding resumes on its step, not on Today', async () => {
 
   expect(texts(tree)).toContain('Add your plant');
   expect(texts(tree)).not.toContain('Today\u2019s tasks');
+});
+
+// While the garden's first load is in flight, Today's skeleton stands in for
+// it — but only when Today is where the router will open.
+test('a garden still loading shows the Today skeleton', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  require('../api/garden').getGarden.mockImplementation(() => new Promise(() => {}));
+  const tree = await renderApp();
+
+  const loader = tree.root.find(
+    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'progressbar'
+  );
+  expect(loader.props.accessibilityLabel).toBe('Loading your garden');
+  expect(texts(tree)).toContain('Upcoming');
+  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+});
+
+test('a garden still loading under an unfinished onboarding keeps the plain spinner', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  writeOnboarding({ stage: 'intro', step: 1 });
+  require('../api/garden').getGarden.mockImplementation(() => new Promise(() => {}));
+  const tree = await renderApp();
+
+  const loader = tree.root.find(
+    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'progressbar'
+  );
+  expect(loader.props.accessibilityLabel).toBe('Loading');
+  expect(texts(tree)).not.toContain('Upcoming');
 });
 
 // The launch paywall is gone: onboarding ends on the paywall itself, and billing

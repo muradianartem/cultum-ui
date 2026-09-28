@@ -18,6 +18,7 @@ import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
 import { Icon, LoadingIndicator, SnackbarProvider, State } from './components';
 import TodayScreen from './screens/TodayScreen';
+import TodaySkeleton from './screens/TodaySkeleton';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
 import AddPlantScreen from './screens/addPlant/AddPlantScreen';
@@ -99,12 +100,13 @@ export function AuthGate() {
         <SnackbarProvider>
           {/* The account's onboarding_shown (read at sign-in) decides; the
               record on this device resumes an unfinished run. It picks the
-              router's first route, so it has to sit above it. */}
-          <GardenGate>
-            <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
+              router's first route, so it has to sit above it — and above
+              the garden gate, which picks its loader by that route. */}
+          <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
+            <GardenGate>
               <AppRoutes />
-            </OnboardingProvider>
-          </GardenGate>
+            </GardenGate>
+          </OnboardingProvider>
         </SnackbarProvider>
       </GardenProvider>
     </EntitlementProvider>
@@ -114,10 +116,14 @@ export function AuthGate() {
 // Nothing renders from the garden until the server has answered for it: a
 // loader while GET /users/me/rooms + /users/me/plants is in flight, and a Retry
 // if the first attempt failed. There is no offline copy to show instead.
+// The loader is Today's skeleton when Today is where the router will open;
+// an unfinished onboarding keeps the plain spinner rather than flash Today.
 function GardenGate({ children }) {
   const garden = useGarden();
+  const { initialRoute } = useOnboarding();
   const t = useTheme();
   if (garden.status === 'ready') return children;
+  if (garden.status !== 'error' && initialRoute === 'today') return <TodaySkeleton />;
   return (
     <View style={[styles.loading, { backgroundColor: t.background.primary }]}>
       {garden.status === 'error' ? (
