@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Image,
   Linking,
   Pressable,
   StyleSheet,
@@ -12,10 +13,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { ButtonIcon, Icon, LoadingIndicator, State } from '../../components';
+import { ButtonIcon, Icon, State } from '../../components';
 import { useRouter } from '../../routing';
 import { useLeaveAcquisition } from '../../onboarding';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme, useThemeMode } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { createScan } from '../../api/scans';
 import { warmUp } from '../../api/health';
@@ -33,9 +34,20 @@ const SHUTTER = '#FFFFFF';
 const SCRIM = 'rgba(0,0,0,0.55)';
 const SCRIM_FADE = 'rgba(0,0,0,0)';
 
-// Geometry of the punched-out viewfinder square.
-const VIEWFINDER_MAX = 288;
-const VIEWFINDER_INSET = 40;
+// The captured photo on the "Searching" screen (Figma 841:10533).
+const LOADING_PHOTO = 168;
+
+// Geometry of the punched-out viewfinder: Figma's 282×379 portrait rectangle
+// as a max width + ratio, placed 60/40 in the band between the top controls and
+// the capture block.
+const VIEWFINDER_MAX_WIDTH = 282;
+const VIEWFINDER_INSET = 47; // side margin on screens narrower than the max
+const VIEWFINDER_RATIO = 379 / 282; // height / width
+const VIEWFINDER_MIN_GAP = 48; // above + below, each, before it shrinks
+const VIEWFINDER_TOP_SHARE = 0.6;
+// Capture block: padding 12 + caption 22 + gap 24 + shutter 72 + padding 12.
+const CAPTURE_BLOCK_HEIGHT = 142;
+const TOP_BAR_HEIGHT = 40;
 
 // How long identification may run before the overlay admits it's slow. The
 // request itself has a much longer deadline (SCAN_TIMEOUT_MS) — this only stops
@@ -80,8 +92,9 @@ function SideControl({ icon, label, onPress, styles }) {
  * this one route). phase: 'ready' | 'analyzing' | 'error'.
  * Capture (expo-camera) or Upload (expo-image-picker) → POST /scans → Matches.
  *
- * Figma: "Scan / Camera access" (158:10369) and "Scan / Camera" (158:10382).
- * The analyzing and error overlays have no Figma frame — the upload needs them.
+ * Figma: "Scan / Camera access" (158:10369), "Scan / Camera" (158:10382) and
+ * "Scan / Loading" (739:16112), which shows the user's own photo. The error
+ * overlay has no Figma frame — the upload needs it.
  */
 export default function ScanCameraScreen() {
   const insets = useSafeAreaInsets();
@@ -90,6 +103,7 @@ export default function ScanCameraScreen() {
   // Close goes to Today — or, mid-onboarding, back to "Add your first plant".
   const leave = useLeaveAcquisition();
   const t = useTheme();
+  const { effective } = useThemeMode();
   const styles = makeStyles(t);
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -100,7 +114,11 @@ export default function ScanCameraScreen() {
   const [errorDetail, setErrorDetail] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [slow, setSlow] = useState(false);
+  const [photoUri, setPhotoUri] = useState(null);
   const cameraRef = useRef(null);
+  // Set when the user closes mid-scan, so a late answer doesn't pull them
+  // back into Matches after they've left.
+  const abandonedRef = useRef(false);
 
   const granted = !!permission?.granted;
   const busy = phase !== 'ready';
@@ -111,7 +129,7 @@ export default function ScanCameraScreen() {
     if (granted) warmUp();
   }, [granted]);
 
-  // "Identifying…" → "Still working…" so a slow scan reads as slow, not stuck.
+  // "Searching…" → "Still searching…" so a slow scan reads as slow, not stuck.
   useEffect(() => {
     if (phase !== 'analyzing') {
       setSlow(false);
@@ -129,18 +147,28 @@ export default function ScanCameraScreen() {
   }
 
   async function runScan(uri, dimensions) {
+    abandonedRef.current = false;
+    setPhotoUri(uri);
     setPhase('analyzing');
     try {
       // Shrink and normalise first: full-resolution captures are what make an
       // upload slow enough to drop, and the picker's HEIC isn't accepted at all.
       const prepared = await prepareScanImage(uri, dimensions);
       const scan = await createScan(prepared ?? uri);
+      if (abandonedRef.current) return;
       setPhase('ready');
       // Show the original, not the downscaled copy that went to the server.
       navigate('scan-matches', { photoUri: uri, scan });
     } catch (e) {
+      if (abandonedRef.current) return;
       fail(e?.code ?? 'http', e?.detail ?? e?.message);
     }
+  }
+
+  function abandonScan() {
+    abandonedRef.current = true;
+    setPhase('ready');
+    leave();
   }
 
   async function onCapture() {
@@ -204,13 +232,25 @@ export default function ScanCameraScreen() {
     );
   }
 
-  const vfSize = Math.min(width - VIEWFINDER_INSET * 2, VIEWFINDER_MAX);
-  const vfTop = Math.max(insets.top + 96, (height - vfSize) / 2 - 64);
+  const barBottom = insets.top + space[8] + TOP_BAR_HEIGHT;
+  const captureTop = height - insets.bottom - CAPTURE_BLOCK_HEIGHT;
+  const band = captureTop - barBottom;
+  // Narrow screens shrink it by width, short ones by height; the ratio holds.
+  const vfWidth = Math.min(
+    VIEWFINDER_MAX_WIDTH,
+    width - VIEWFINDER_INSET * 2,
+    (band - VIEWFINDER_MIN_GAP * 2) / VIEWFINDER_RATIO,
+  );
+  const vfHeight = vfWidth * VIEWFINDER_RATIO;
+  const vfTop = barBottom + (band - vfHeight) * VIEWFINDER_TOP_SHARE;
 
   return (
     <View style={styles.screen}>
-      {/* The live camera sits under the status bar in both themes. */}
-      <StatusBar style="light" />
+      {/* The live camera sits under the status bar in both themes; the
+          Searching screen is a themed page like any other. */}
+      <StatusBar
+        style={phase === 'analyzing' && effective !== 'dark' ? 'dark' : 'light'}
+      />
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
@@ -232,7 +272,13 @@ export default function ScanCameraScreen() {
 
       {/* Dimming mask + corner brackets */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Viewfinder width={width} height={height} size={vfSize} top={vfTop} />
+        <Viewfinder
+          width={width}
+          height={height}
+          frameWidth={vfWidth}
+          frameHeight={vfHeight}
+          top={vfTop}
+        />
       </View>
 
       {/* Top controls */}
@@ -285,12 +331,27 @@ export default function ScanCameraScreen() {
         </View>
       </View>
 
-      {/* Analyzing overlay */}
+      {/* Searching — Figma "Scan / Loading" */}
       {phase === 'analyzing' ? (
         <View style={styles.analyzing}>
-          <LoadingIndicator color={OVER_TEXT} />
+          <View style={[styles.analyzingHeader, { top: insets.top + space[8] }]}>
+            <ButtonIcon
+              variant="secondary"
+              size="md"
+              icon={<Icon name="close" size={24} color={t.brand.onSecondary} />}
+              onPress={abandonScan}
+              accessibilityLabel="Close"
+            />
+          </View>
+          {photoUri ? (
+            <Image
+              source={{ uri: photoUri }}
+              style={styles.analyzingPhoto}
+              accessibilityIgnoresInvertColors
+            />
+          ) : null}
           <Text style={styles.analyzingText}>
-            {slow ? 'Still working — this one’s taking a moment…' : 'Identifying your plant…'}
+            {slow ? 'Still searching — this one’s taking a moment…' : 'Searching for your plant…'}
           </Text>
         </View>
       ) : null}
@@ -404,12 +465,24 @@ const makeStyles = (t) =>
 
     analyzing: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(14,18,11,0.6)',
+      backgroundColor: t.background.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: space[16],
+      gap: space[20],
+      paddingHorizontal: space[32],
     },
-    analyzingText: { ...typography.bodyLarge, color: OVER_TEXT },
+    analyzingHeader: { position: 'absolute', left: space[16] },
+    analyzingPhoto: {
+      width: LOADING_PHOTO,
+      height: LOADING_PHOTO,
+      borderRadius: 18,
+      backgroundColor: t.background.secondary,
+    },
+    analyzingText: {
+      ...typography.headingExtraSmall,
+      color: t.text.primary,
+      textAlign: 'center',
+    },
 
     errorOverlay: {
       ...StyleSheet.absoluteFill,

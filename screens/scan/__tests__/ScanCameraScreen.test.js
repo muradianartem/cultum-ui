@@ -123,6 +123,53 @@ test('with permission granted, firing the shutter scans and opens Matches', asyn
   expect(api.params.scan).toBe(MOCK_SCAN);
 });
 
+// Figma "Scan / Loading": while the scan runs, the user sees their own photo.
+describe('Searching', () => {
+  const scanHangs = async () => {
+    mockPermissionState = { granted: true, canAskAgain: true };
+    let settle;
+    createScan.mockImplementationOnce(
+      () => new Promise((resolve, reject) => (settle = { resolve, reject }))
+    );
+    const tree = create(<ScanCameraScreen />);
+    // Not awaited: the scan stays in flight.
+    const node = tree.root.find(
+      (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Shutter'
+    );
+    await act(async () => {
+      node.props.onPress();
+    });
+    return { tree, settle: () => settle };
+  };
+
+  test('shows the captured photo and the searching copy', async () => {
+    const { tree } = await scanHangs();
+    expect(texts(tree)).toContain('Searching for your plant…');
+    const photos = tree.root.findAll(
+      (n) => n.props.source && n.props.source.uri === 'file://captured.jpg'
+    );
+    expect(photos.length).toBeGreaterThan(0);
+    // The scan never settles; unmount so its "slow" timer can't fire after
+    // the run has finished.
+    act(() => tree.unmount());
+  });
+
+  test('closing mid-scan leaves, and a late answer does not pull the user into Matches', async () => {
+    const { tree, settle } = await scanHangs();
+    const close = tree.root
+      .findAll((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Close')
+      .pop();
+    act(() => close.props.onPress());
+    expect(api.route).toBe('today');
+
+    await act(async () => {
+      settle().resolve(MOCK_SCAN);
+    });
+    expect(api.route).toBe('today');
+    act(() => tree.unmount());
+  });
+});
+
 test('uploads the original when preparation fails, rather than dropping the photo', async () => {
   mockPermissionState = { granted: true, canAskAgain: true };
   prepareScanImage.mockResolvedValueOnce(null);

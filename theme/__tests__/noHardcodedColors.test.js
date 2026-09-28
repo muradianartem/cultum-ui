@@ -31,7 +31,7 @@ const ALLOWED = {
   'screens/PaywallScreen.js': ['rgba(13,15,10,0.45)', 'rgba(13,15,10,0.05)'],
   'screens/scan/ScanCameraScreen.js': [
     '#0E120B', '#151515', '#606160', '#FAFAFA', '#FFFFFF',
-    'rgba(0,0,0,0.55)', 'rgba(0,0,0,0)', 'rgba(14,18,11,0.6)',
+    'rgba(0,0,0,0.55)', 'rgba(0,0,0,0)',
   ],
   'screens/scan/Viewfinder.js': ['rgba(0, 0, 0, 0.3)', '#FAFAFA'],
 };

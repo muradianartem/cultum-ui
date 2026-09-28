@@ -1,12 +1,14 @@
 import Svg, { Path } from 'react-native-svg';
 
 // Figma "Subtract" (158:12396): the whole frame dimmed, with the viewfinder
-// square punched out, plus four corner brackets. One <Svg> does both — RN has
-// no mask primitive, and four positioned Views can't give the rounded cutout.
+// rectangle punched out, plus four corner brackets ("Viewfinder", 158:10391).
+// One <Svg> does both — RN has no mask primitive, and four positioned Views
+// can't give the rounded cutout.
 const DIM = 'rgba(0, 0, 0, 0.3)';
 const BRACKET = '#FAFAFA';
+const BRACKET_OPACITY = 0.9;
 const BRACKET_WIDTH = 3;
-const ARM = 28; // straight run of each bracket beyond the corner arc
+const ARM = 20; // straight run of each bracket beyond the corner arc
 
 function roundedRect(x, y, w, h, r) {
   return (
@@ -31,23 +33,26 @@ function brackets(x, y, w, h, r) {
  *
  * @param {number} width   screen width
  * @param {number} height  screen height
- * @param {number} size    side of the square cutout
- * @param {number} top     cutout's distance from the top of the screen
- * @param {number} radius  cutout corner radius
+ * @param {number} frameWidth   cutout width
+ * @param {number} frameHeight  cutout height
+ * @param {number} top          cutout's distance from the top of the screen
+ * @param {number} radius       cutout corner radius
  */
-export default function Viewfinder({ width, height, size, top, radius = 24 }) {
-  const x = (width - size) / 2;
+export default function Viewfinder({ width, height, frameWidth, frameHeight, top, radius = 18 }) {
+  const x = (width - frameWidth) / 2;
   const y = top;
-  const dimPath = `M 0 0 H ${width} V ${height} H 0 Z ${roundedRect(x, y, size, size, radius)}`;
+  const cutout = roundedRect(x, y, frameWidth, frameHeight, radius);
+  const dimPath = `M 0 0 H ${width} V ${height} H 0 Z ${cutout}`;
 
   return (
     <Svg width={width} height={height} pointerEvents="none">
       <Path d={dimPath} fill={DIM} fillRule="evenodd" />
-      {brackets(x, y, size, size, radius).map((d, i) => (
+      {brackets(x, y, frameWidth, frameHeight, radius).map((d, i) => (
         <Path
           key={i}
           d={d}
           stroke={BRACKET}
+          strokeOpacity={BRACKET_OPACITY}
           strokeWidth={BRACKET_WIDTH}
           strokeLinecap="round"
           fill="none"
