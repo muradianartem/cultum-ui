@@ -6,36 +6,26 @@
 //                                           → Remind every 2 days  (confirms)
 //   date      (362:15028) pick the start day → Set 10 Sep  (returns to frequency)
 //
-// All three live in ONE Modal that swaps content between steps — iOS can't
+// All three live in ONE <BottomSheet> that swaps content between steps — iOS can't
 // present a second Modal over an open one, so `date` is a step within this
 // sheet rather than a sheet of its own. Same structure as TaskSheet's inline
 // "snooze" page; see that file for the original of this pattern.
 //
 //   <AddReminderSheet visible onClose={…} onConfirm={(reminder) => …} />
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Keyboard, StyleSheet, Text, View } from 'react-native';
 import {
-  Animated,
-  Keyboard,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
+  BottomSheet,
   Button,
-  ButtonIcon,
   Calendar,
   Icon,
   ListItem,
   TextInput,
   WheelPicker,
-  useKeyboard,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
-import { motion, shadow, sheet, wheel } from '../theme/tokens';
+import { wheel } from '../theme/tokens';
 import { typography } from '../theme/foundations';
 import { FREQUENCY_NUMBERS, FREQUENCY_UNITS } from './durationUnits';
 import {
@@ -60,9 +50,6 @@ const PREVIOUS = { label: null, frequency: 'label', date: 'frequency' };
 export default function AddReminderSheet({ visible, onClose, onConfirm, today }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
-  const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
-  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
 
   const [step, setStep] = useState('label'); // 'label' | 'frequency' | 'date'
   const [label, setLabel] = useState('');
@@ -71,12 +58,6 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   const [date, setDate] = useState(() => today ?? new Date());
 
   useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: visible ? 0 : 1,
-      duration: visible ? motion.dur : motion.durFast,
-      useNativeDriver: true,
-    }).start();
-
     // Every open starts a fresh reminder — reset the draft on dismiss so a
     // half-finished one never bleeds into the next.
     if (!visible) {
@@ -86,14 +67,14 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
       setUnitIndex(DEFAULT_UNIT_INDEX);
       setDate(today ?? new Date());
     }
-  }, [visible, today, translateY]);
+  }, [visible, today]);
 
   const back = PREVIOUS[step];
-  // Hardware back steps backwards through the flow, and only closes the sheet
-  // from the first step. The backdrop does the same — unless the keyboard is
-  // up, when its first tap only puts the keyboard away.
+  // Hardware back and the backdrop step backwards through the flow, and only
+  // close the sheet from the first step (BottomSheet keeps the rule that a
+  // backdrop tap with the keyboard up only puts the keyboard away). The close
+  // button and a swipe down dismiss the whole sheet.
   const stepBack = () => (back ? setStep(back) : onClose?.());
-  const onBackdrop = () => (keyboardVisible ? Keyboard.dismiss() : stepBack());
 
   // Leave the label step with the keyboard already on its way down, so it
   // doesn't linger over the wheel.
@@ -110,197 +91,122 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
   const canContinue = label.trim().length > 0;
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="fade"
+      onClose={onClose}
       onRequestClose={stepBack}
-      statusBarTranslucent
+      onBack={back ? () => setStep(back) : undefined}
       testID="add-reminder-sheet"
     >
-      <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={onBackdrop}
-          testID="add-reminder-backdrop"
-          accessibilityRole="button"
-          accessibilityLabel={back ? 'Back' : 'Close'}
-        />
+      {step === 'label' ? (
+        <View style={styles.content}>
+          <Text style={styles.title}>Add new reminder</Text>
+          <TextInput
+            label="Label"
+            placeholder="What to remind?"
+            helper={HELPER}
+            value={label}
+            onChangeText={setLabel}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={() => canContinue && toFrequency()}
+          />
+          <Button
+            variant="primary"
+            size="lg"
+            label="Continue"
+            disabled={!canContinue}
+            onPress={toFrequency}
+          />
+        </View>
+      ) : null}
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            shadow.sheet,
-            { paddingBottom: (keyboardVisible ? 0 : insets.bottom) + 12 },
-            {
-              transform: [
-                {
-                  translateY: translateY.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 700],
-                  }),
-                },
-              ],
-            },
-          ]}
-          accessibilityViewIsModal
-        >
-          {/* Tapping the panel hides the keyboard — but it claims the touch only
-              while the keyboard is up. A Pressable here took every touch on the
-              sheet, and the frequency wheels could no longer scroll. */}
-          <View
-            onStartShouldSetResponder={() => keyboardVisible}
-            onResponderRelease={Keyboard.dismiss}
-            testID="add-reminder-panel"
-          >
-          {back ? (
-            <ButtonIcon
-              size="md"
-              variant="secondary"
-              accessibilityLabel="Back"
-              icon={<Icon name="chevron-left" size={20} color={t.text.primary} />}
-              onPress={() => setStep(back)}
-              style={styles.cornerLeft}
-            />
-          ) : null}
-          <ButtonIcon
-            size="md"
-            variant="secondary"
-            accessibilityLabel="Close"
-            icon={<Icon name="close" size={20} color={t.text.primary} />}
-            onPress={onClose}
-            style={styles.cornerRight}
+      {step === 'frequency' ? (
+        <View style={styles.content}>
+          <Text style={styles.title}>When to repeat</Text>
+
+          <View style={styles.picker}>
+            <View style={styles.band} pointerEvents="none" />
+            <View style={styles.wheels}>
+              <WheelPicker
+                items={FREQUENCY_NUMBERS}
+                index={numberIndex}
+                onChange={setNumberIndex}
+                itemHeight={ITEM_H}
+                height={WHEEL_H}
+                style={styles.numberCol}
+                renderItem={(n, active) => (
+                  <Text style={[styles.number, active ? styles.active : styles.dim]}>
+                    {n}
+                  </Text>
+                )}
+              />
+              <WheelPicker
+                items={FREQUENCY_UNITS.map((u) => u.plural)}
+                index={unitIndex}
+                onChange={setUnitIndex}
+                itemHeight={ITEM_H}
+                height={WHEEL_H}
+                style={styles.unitCol}
+                renderItem={(u, active) => (
+                  <Text style={[styles.unit, active ? styles.active : styles.dim]}>
+                    {u}
+                  </Text>
+                )}
+              />
+            </View>
+          </View>
+
+          <ListItem
+            title="Start date"
+            accessibilityLabel="Start date"
+            onPress={() => setStep('date')}
+            after={
+              <View style={styles.after}>
+                <Text style={styles.afterText}>{shortDate(date)}</Text>
+                <Icon name="chevron-right" size={20} color={t.text.secondary} />
+              </View>
+            }
           />
 
-          <View style={styles.grabber}>
-            <View style={styles.handle} />
+          <Button
+            variant="primary"
+            size="lg"
+            label={frequencyLabel(numberIndex, unitIndex)}
+            onPress={confirm}
+          />
+        </View>
+      ) : null}
+
+      {step === 'date' ? (
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Start date</Text>
+            <Text style={styles.caption}>{DATE_CAPTION}</Text>
           </View>
 
-          {step === 'label' ? (
-            <View style={styles.content}>
-              <Text style={styles.title}>Add new reminder</Text>
-              <TextInput
-                label="Label"
-                placeholder="What to remind?"
-                helper={HELPER}
-                value={label}
-                onChangeText={setLabel}
-                autoFocus
-                returnKeyType="next"
-                onSubmitEditing={() => canContinue && toFrequency()}
-              />
-              <Button
-                variant="primary"
-                size="lg"
-                label="Continue"
-                disabled={!canContinue}
-                onPress={toFrequency}
-              />
-            </View>
-          ) : null}
-
-          {step === 'frequency' ? (
-            <View style={styles.content}>
-              <Text style={styles.title}>When to repeat</Text>
-
-              <View style={styles.picker}>
-                <View style={styles.band} pointerEvents="none" />
-                <View style={styles.wheels}>
-                  <WheelPicker
-                    items={FREQUENCY_NUMBERS}
-                    index={numberIndex}
-                    onChange={setNumberIndex}
-                    itemHeight={ITEM_H}
-                    height={WHEEL_H}
-                    style={styles.numberCol}
-                    renderItem={(n, active) => (
-                      <Text style={[styles.number, active ? styles.active : styles.dim]}>
-                        {n}
-                      </Text>
-                    )}
-                  />
-                  <WheelPicker
-                    items={FREQUENCY_UNITS.map((u) => u.plural)}
-                    index={unitIndex}
-                    onChange={setUnitIndex}
-                    itemHeight={ITEM_H}
-                    height={WHEEL_H}
-                    style={styles.unitCol}
-                    renderItem={(u, active) => (
-                      <Text style={[styles.unit, active ? styles.active : styles.dim]}>
-                        {u}
-                      </Text>
-                    )}
-                  />
-                </View>
-              </View>
-
-              <ListItem
-                title="Start date"
-                accessibilityLabel="Start date"
-                onPress={() => setStep('date')}
-                after={
-                  <View style={styles.after}>
-                    <Text style={styles.afterText}>{shortDate(date)}</Text>
-                    <Icon name="chevron-right" size={20} color={t.text.secondary} />
-                  </View>
-                }
-              />
-
-              <Button
-                variant="primary"
-                size="lg"
-                label={frequencyLabel(numberIndex, unitIndex)}
-                onPress={confirm}
-              />
-            </View>
-          ) : null}
-
-          {step === 'date' ? (
-            <View style={styles.content}>
-              <View style={styles.header}>
-                <Text style={styles.title}>Start date</Text>
-                <Text style={styles.caption}>{DATE_CAPTION}</Text>
-              </View>
-
-              <View style={styles.calendarWrap}>
-                <Calendar
-                  value={date}
-                  onChange={setDate}
-                  today={today}
-                  suggestions={startDateSuggestions(today ?? new Date())}
-                />
-              </View>
-
-              <Button
-                variant="primary"
-                size="lg"
-                label={setDateLabel(date)}
-                onPress={() => setStep('frequency')}
-              />
-            </View>
-          ) : null}
+          <View style={styles.calendarWrap}>
+            <Calendar
+              value={date}
+              onChange={setDate}
+              today={today}
+              suggestions={startDateSuggestions(today ?? new Date())}
+            />
           </View>
-        </Animated.View>
-      </View>
-    </Modal>
+
+          <Button
+            variant="primary"
+            size="lg"
+            label={setDateLabel(date)}
+            onPress={() => setStep('frequency')}
+          />
+        </View>
+      ) : null}
+    </BottomSheet>
   );
 }
 
 const makeStyles = (t) => StyleSheet.create({
-  root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(14,18,11,0.4)' },
-  sheet: {
-    backgroundColor: t.surface.primary, // Figma sheet ground for all three steps
-    borderTopLeftRadius: sheet.radiusTop,
-    borderTopRightRadius: sheet.radiusTop,
-    paddingTop: 32,
-  },
-  cornerLeft: { position: 'absolute', top: 12, left: 12, zIndex: 1 },
-  cornerRight: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
-  grabber: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
-  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: t.text.placeholder },
-
   content: { paddingHorizontal: 16, gap: 16 },
   header: { gap: 4 },
   title: {

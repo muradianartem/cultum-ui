@@ -338,7 +338,7 @@ function makeStyles(t, insets) {
     // The mosaic and scrim are decoration — taps fall through to the content.
     nonInteractive: { pointerEvents: 'none' },
     mosaic: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       flexDirection: 'row',
       gap: PHOTO_GAP,
       pointerEvents: 'none',

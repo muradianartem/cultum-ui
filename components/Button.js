@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   // Pressed State layer: a translucent tint over the base fill (colour comes
   // from t.interaction.pressed at render so it follows the theme).
   stateLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   row: {
     flexDirection: 'row',

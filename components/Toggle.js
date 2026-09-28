@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   // Pressed state layer: a translucent tint over the track fill (colour comes
   // from t.interaction.pressed at render so it follows the theme).
   stateLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   thumb: {
     position: 'absolute',

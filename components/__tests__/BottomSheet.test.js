@@ -1,6 +1,6 @@
 import TestRenderer, { act } from 'react-test-renderer';
 import { Keyboard, Modal, Text } from 'react-native';
-import BottomSheet from '../BottomSheet';
+import BottomSheet, { claimsDrag, shouldDismiss } from '../BottomSheet';
 import { BottomSheet as BarrelBottomSheet } from '../index';
 
 function create(el) {
@@ -187,5 +187,86 @@ describe('keyboard', () => {
     mockKeyboard();
     const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
     expect(byTestID(tree, 'bottomsheet-panel')[0].props.onStartShouldSetResponder()).toBe(false);
+  });
+});
+
+// The page behind is washed out by <Overlay> (App Design 335:9787). The old
+// backdrop spread `StyleSheet.absoluteFillObject`, which RN 0.86 no longer
+// exports — it collapsed to zero size and neither painted nor took taps.
+test('the backdrop is a full-screen Overlay scrim', () => {
+  const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+  const style = flat(byTestID(tree, 'bottomsheet-backdrop')[0]);
+  expect(style).toMatchObject({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 });
+  expect(style.opacity).toBe(0.85);
+  expect(style.backgroundColor).toBeTruthy();
+});
+
+describe('swipe down to dismiss', () => {
+  test('claims only a clearly downward drag', () => {
+    expect(claimsDrag({ dx: 0, dy: 20 })).toBe(true);
+    expect(claimsDrag({ dx: 0, dy: 4 })).toBe(false); // jitter
+    expect(claimsDrag({ dx: 0, dy: -20 })).toBe(false); // upward
+    expect(claimsDrag({ dx: 30, dy: 20 })).toBe(false); // mostly sideways
+  });
+
+  test('a long pull or a fling closes; a short, slow one springs back', () => {
+    expect(shouldDismiss({ dy: 150, vy: 0 })).toBe(true);
+    expect(shouldDismiss({ dy: 30, vy: 1.2 })).toBe(true);
+    expect(shouldDismiss({ dy: 30, vy: 0.2 })).toBe(false);
+  });
+
+  test('the sheet surface carries the pan handlers', () => {
+    const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+    const surfaces = tree.root.findAll(
+      (n) => typeof n.type === 'string' && typeof n.props.onResponderRelease === 'function' &&
+        typeof n.props.onMoveShouldSetResponder === 'function'
+    );
+    expect(surfaces.length).toBeGreaterThan(0);
+  });
+});
+
+describe('corner slots', () => {
+  test('onBack shows a back button that calls it', () => {
+    const onBack = jest.fn();
+    const tree = create(<BottomSheet visible onClose={() => {}} onBack={onBack} title="X" />);
+    const back = tree.root.findAll(
+      (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Back'
+    );
+    act(() => back.at(-1).props.onPress());
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  test('no onBack, no back button', () => {
+    const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+    expect(tree.root.findAll((n) => n.props.accessibilityLabel === 'Back')).toHaveLength(0);
+  });
+
+  test('leading / trailing replace the corner buttons', () => {
+    const tree = create(
+      <BottomSheet
+        visible
+        onClose={() => {}}
+        onBack={() => {}}
+        leading={<Text>L</Text>}
+        trailing={null}
+        title="X"
+      />
+    );
+    expect(texts(tree)).toContain('L');
+    expect(byTestID(tree, 'bottomsheet-back')).toHaveLength(0);
+    expect(byTestID(tree, 'bottomsheet-close')).toHaveLength(0);
+  });
+
+  test('onRequestClose takes the backdrop, the close button still closes', () => {
+    mockKeyboard();
+    const onClose = jest.fn();
+    const onRequestClose = jest.fn();
+    const tree = create(
+      <BottomSheet visible onClose={onClose} onRequestClose={onRequestClose} title="X" />
+    );
+    act(() => tap(byTestID(tree, 'bottomsheet-backdrop')[0]));
+    expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(tree.root.findByType(Modal).props.onRequestClose).toBe(onRequestClose);
   });
 });

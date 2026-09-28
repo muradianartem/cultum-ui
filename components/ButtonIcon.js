@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   // Pressed State layer: a translucent tint over the base fill (colour from
   // t.interaction.pressed at render so it follows the theme), as on <Button>.
   stateLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   icon: { alignItems: 'center', justifyContent: 'center' },
 });

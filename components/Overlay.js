@@ -12,6 +12,8 @@ import { useTheme } from '../theme/ThemeProvider';
  * override it. `children` render on top, undimmed.
  *
  * Renders as an absolute fill — place it inside a Modal or a positioned parent.
+ * `scrimTestID` / `scrimLabel` rename the tappable scrim for hosts like
+ * <BottomSheet>, whose backdrop reads "Close".
  */
 export default function Overlay({
   visible = true,
@@ -20,6 +22,8 @@ export default function Overlay({
   opacity = overlay.opacity,
   children,
   style,
+  scrimTestID = 'overlay-scrim',
+  scrimLabel = 'Dismiss',
   ...rest
 }) {
   const t = useTheme();
@@ -34,8 +38,8 @@ export default function Overlay({
         ]}
         onPress={onPress}
         accessibilityRole={onPress ? 'button' : 'none'}
-        accessibilityLabel={onPress ? 'Dismiss' : undefined}
-        testID="overlay-scrim"
+        accessibilityLabel={onPress ? scrimLabel : undefined}
+        testID={scrimTestID}
       />
       {children}
     </View>
