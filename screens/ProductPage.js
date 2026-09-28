@@ -648,7 +648,7 @@ const makeStyles = (t) =>
     // ── Navigation bar ── (Figma "Navigation Bar", Size=Small)
     bar: { position: 'absolute', top: 0, left: 0, right: 0 },
     barFill: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: t.background.primary,
       borderBottomLeftRadius: radius[24],
       borderBottomRightRadius: radius[24],

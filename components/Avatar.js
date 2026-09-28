@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  image: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: OVERFLOW_SCRIM },
+  image: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: OVERFLOW_SCRIM },
   overflow: { color: OVERFLOW_INK },
   group: { flexDirection: 'row', alignItems: 'center' },
 });

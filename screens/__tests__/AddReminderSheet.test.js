@@ -242,7 +242,7 @@ describe('keyboard', () => {
 
   const backdrop = (tree) =>
     tree.root.findAll(
-      (n) => typeof n.type === 'string' && n.props.testID === 'add-reminder-backdrop'
+      (n) => typeof n.type === 'string' && n.props.testID === 'bottomsheet-backdrop'
     )[0];
 
   test('with the keyboard up, the backdrop hides it and keeps the sheet', () => {
@@ -265,7 +265,7 @@ describe('keyboard', () => {
 
   const panel = (tree) =>
     tree.root.findAll(
-      (n) => typeof n.type === 'string' && n.props.testID === 'add-reminder-panel'
+      (n) => typeof n.type === 'string' && n.props.testID === 'bottomsheet-panel'
     )[0];
 
   test('tapping the panel hides the keyboard', () => {

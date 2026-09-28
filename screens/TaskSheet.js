@@ -1,18 +1,16 @@
 // TaskSheet — the task-detail bottom sheet opened by tapping a TaskCard on the
 // Today screen (Figma "Task", node 1:11089), plus its inline "Snooze" step
-// (node 1:11111). Both live in ONE Modal that swaps content between the "detail"
+// (node 1:11111). Both live in ONE <BottomSheet> that swaps content between the "detail"
 // and "snooze" pages — iOS can't present a second Modal over an open one, so the
 // back-buttoned snooze page is a step within this sheet, not a separate modal.
 //
 //   <TaskSheet task={task} visible onClose={…} onMarkDone={…}
 //              onSnoozeConfirm={(n, unit) => …} onOpenPlant={…} onSettings={…} />
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge, Button, ButtonIcon, Icon } from '../components';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { Badge, BottomSheet, Button, ButtonIcon, Icon } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
-import { sheet, shadow, motion } from '../theme/tokens';
 import { typography } from '../theme/foundations';
 import SnoozeContent from './SnoozeContent';
 
@@ -30,153 +28,115 @@ export default function TaskSheet({
 }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
-  const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(1)).current; // 0 shown, 1 hidden
   const [step, setStep] = useState(initialStep); // 'detail' | 'snooze'
 
   useEffect(() => {
-    Animated.timing(translateY, {
-      toValue: visible ? 0 : 1,
-      duration: visible ? motion.dur : motion.durFast,
-      useNativeDriver: true,
-    }).start();
     // Open on the requested page (default 'detail');
     // reset to 'detail' whenever the sheet is dismissed.
     setStep(visible ? initialStep : 'detail');
-  }, [visible, initialStep, translateY]);
+  }, [visible, initialStep]);
 
   const snoozing = step === 'snooze';
 
+  const toDetail = () => setStep('detail');
+
+  // Figma "Task" puts close top-left and settings top-right; the snooze page
+  // swaps close for back and drops settings.
+  const leading = snoozing ? (
+    <ButtonIcon
+      size="md"
+      variant="secondary"
+      accessibilityLabel="Back"
+      icon={<Icon name="chevron-left" size={20} color={t.text.primary} />}
+      onPress={toDetail}
+    />
+  ) : (
+    <ButtonIcon
+      size="md"
+      variant="secondary"
+      accessibilityLabel="Close"
+      icon={<Icon name="close" size={20} color={t.text.primary} />}
+      onPress={onClose}
+    />
+  );
+  const trailing = snoozing ? null : (
+    <ButtonIcon
+      size="md"
+      variant="secondary"
+      accessibilityLabel="Reminder settings"
+      icon={<Icon name="settings" size={20} color={t.text.primary} />}
+      onPress={onSettings}
+    />
+  );
+
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={snoozing ? () => setStep('detail') : onClose}
-      statusBarTranslucent
+      onClose={onClose}
+      onRequestClose={snoozing ? toDetail : onClose}
+      leading={leading}
+      trailing={trailing}
+      sheetStyle={snoozing ? { backgroundColor: t.surface.primary } : null}
+      bodyStyle={snoozing ? null : styles.detailBody}
+      testID="task-sheet"
     >
-      <View style={styles.root}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={snoozing ? () => setStep('detail') : onClose}
-          accessibilityLabel={snoozing ? 'Back' : 'Close'}
-        />
-
-        <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor: snoozing ? t.surface.primary : t.background.secondary },
-            shadow.sheet,
-            { paddingBottom: insets.bottom + 12 },
-            {
-              transform: [
-                { translateY: translateY.interpolate({ inputRange: [0, 1], outputRange: [0, 700] }) },
-              ],
-            },
-          ]}
-          accessibilityViewIsModal
-        >
-          {snoozing ? (
-            <ButtonIcon
-              size="md"
-              variant="secondary"
-              accessibilityLabel="Back"
-              icon={<Icon name="chevron-left" size={20} color={t.text.primary} />}
-              onPress={() => setStep('detail')}
-              style={styles.cornerLeft}
-            />
-          ) : (
-            <>
-              <ButtonIcon
-                size="md"
-                variant="secondary"
-                accessibilityLabel="Close"
-                icon={<Icon name="close" size={20} color={t.text.primary} />}
-                onPress={onClose}
-                style={styles.cornerLeft}
-              />
-              <ButtonIcon
-                size="md"
-                variant="secondary"
-                accessibilityLabel="Reminder settings"
-                icon={<Icon name="settings" size={20} color={t.text.primary} />}
-                onPress={onSettings}
-                style={styles.cornerRight}
-              />
-            </>
-          )}
-
-          <View style={styles.grabber}>
-            <View style={styles.handle} />
+      {snoozing ? (
+        <SnoozeContent onConfirm={(n, unit) => onSnoozeConfirm?.(n, unit)} />
+      ) : (
+        <View style={styles.content}>
+          <View style={styles.header}>
+            {task?.photo ? (
+              <Image source={task.photo} style={styles.photo} resizeMode="cover" />
+            ) : null}
+            <View style={styles.textBlock}>
+              <Text style={styles.title}>{task?.title}</Text>
+              {task ? (
+                <Text style={styles.subtitle}>{`${task.plant} · ${task.room}`}</Text>
+              ) : null}
+              {task?.due ? (
+                <Badge
+                  label={task.due}
+                  intent="neutral"
+                  variant="secondary"
+                  leftIcon={<Icon name="clock" size={14} color={t.text.primary} />}
+                />
+              ) : null}
+            </View>
           </View>
 
-          {snoozing ? (
-            <SnoozeContent onConfirm={(n, unit) => onSnoozeConfirm?.(n, unit)} />
-          ) : (
-            <View style={styles.content}>
-              <View style={styles.header}>
-                {task?.photo ? (
-                  <Image source={task.photo} style={styles.photo} resizeMode="cover" />
-                ) : null}
-                <View style={styles.textBlock}>
-                  <Text style={styles.title}>{task?.title}</Text>
-                  {task ? (
-                    <Text style={styles.subtitle}>{`${task.plant} · ${task.room}`}</Text>
-                  ) : null}
-                  {task?.due ? (
-                    <Badge
-                      label={task.due}
-                      intent="neutral"
-                      variant="secondary"
-                      leftIcon={<Icon name="clock" size={14} color={t.text.primary} />}
-                    />
-                  ) : null}
-                </View>
-              </View>
-
-              <View style={styles.actions}>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  label="Mark as done"
-                  leftIcon={<Icon name="check" size={20} color={t.brand.onPrimary} />}
-                  onPress={onMarkDone}
-                />
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  label="Snooze for"
-                  leftIcon={<Icon name="snooze" size={20} color={t.text.primary} />}
-                  onPress={() => setStep('snooze')}
-                />
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  label="Open plant page"
-                  onPress={onOpenPlant}
-                />
-                <Text style={styles.caption}>{CAPTION}</Text>
-              </View>
-            </View>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
+          <View style={styles.actions}>
+            <Button
+              variant="primary"
+              size="lg"
+              label="Mark as done"
+              leftIcon={<Icon name="check" size={20} color={t.brand.onPrimary} />}
+              onPress={onMarkDone}
+            />
+            <Button
+              variant="secondary"
+              size="lg"
+              label="Snooze for"
+              leftIcon={<Icon name="snooze" size={20} color={t.text.primary} />}
+              onPress={() => setStep('snooze')}
+            />
+            <Button
+              variant="secondary"
+              size="lg"
+              label="Open plant page"
+              onPress={onOpenPlant}
+            />
+            <Text style={styles.caption}>{CAPTION}</Text>
+          </View>
+        </View>
+      )}
+    </BottomSheet>
   );
 }
 
 const makeStyles = (t) => StyleSheet.create({
-  root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(14,18,11,0.4)' },
-  sheet: {
-    borderTopLeftRadius: sheet.radiusTop,
-    borderTopRightRadius: sheet.radiusTop,
-    paddingTop: 32,
-  },
-  cornerLeft: { position: 'absolute', top: 12, left: 12, zIndex: 1 },
-  cornerRight: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
-  grabber: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
-  handle: { width: 36, height: 5, borderRadius: 100, backgroundColor: t.text.placeholder },
+  // Figma "Task" hangs the photo 32px from the sheet's top edge, between the
+  // corner buttons, so the body starts closer than BottomSheet's default.
+  detailBody: { paddingTop: 11 },
   content: { paddingBottom: 8, gap: 24 },
   header: { paddingHorizontal: 16, alignItems: 'center', gap: 12 },
   photo: { width: 144, height: 144, borderRadius: 28 },

@@ -105,7 +105,7 @@ export const overlay = { opacity: 0.85 };
 export const tabs = { height: 40 };
 
 // ---- bottom sheet (Figma: "Bottom Sheet – P2", node 26744:6931) ----
-export const sheet = { radiusTop: r[16] };
+export const sheet = { radiusTop: r[24] };
 
 // ---- wheel picker items (App Design "Today / Snooze for", node 1:11114) ----
 // Unnamed Inter Regular: 20 for the selected row, 18 at 45% for the rest. No

@@ -13,18 +13,13 @@ import path from 'path';
 
 const ROOT = path.resolve(__dirname, '../..');
 
-const BACKDROP = 'rgba(14,18,11,0.4)';
-
 const ALLOWED = {
   'theme/tokens.js': [
     'rgba(16,16,16,0.12)', 'rgba(16,16,16,0.11)', 'rgba(16,16,16,0.10)',
     'rgba(16,16,16,0.09)', 'rgb(25, 27, 21)',
   ],
-  'components/BottomSheet.js': [BACKDROP],
   'components/Snackbar.js': ['#383937', '#FCFCFC'],
   'components/Avatar.js': ['rgba(21,21,21,0.4)', '#FAFAFA'],
-  'screens/AddReminderSheet.js': [BACKDROP],
-  'screens/TaskSheet.js': [BACKDROP],
   'screens/LoginScreen.js': [
     'rgba(13,15,10,0.5)', 'rgba(13,15,10,0.32)', 'rgba(13,15,10,0.9)', 'rgba(13,15,10,1)',
   ],

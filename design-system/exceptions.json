@@ -6,18 +6,16 @@
       "id": "bottomsheet-raw-text",
       "consumer": "components/BottomSheet.js",
       "properties": [
-        "fontFamily",
-        "fontSize",
         "lineHeight"
       ],
-      "value": "title Inter Bold 18/22; description Inter 16/24; caption Inter 12/16",
+      "value": "description Inter 16/24; caption Inter 12/16",
       "source": {
         "file": "JyrSo87oacbcbALO8JO9At",
         "node": "14233:14268",
         "name": "Bottom Sheet"
       },
       "status": "verified-figma",
-      "reason": "The component sets its three text layers as raw values, not named styles."
+      "reason": "The component sets its text layers as raw values, not named styles. The title now uses Heading Extra Small Emphasized, as the app's sheets do (App Design 335:9843)."
     },
     {
       "id": "dialog-description",
