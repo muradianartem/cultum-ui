@@ -100,7 +100,7 @@ describe('step 2 — frequency', () => {
     const { WheelPicker } = require('../../components');
     const [numbers, units] = tree.root.findAllByType(WheelPicker);
 
-    act(() => units.props.onChange(2)); // weeks
+    act(() => units.props.onChange(1)); // weeks
     expect(texts(tree)).toContain('Remind every 2 weeks');
 
     act(() => numbers.props.onChange(0)); // 1

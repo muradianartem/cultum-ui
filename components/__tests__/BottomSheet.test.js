@@ -173,9 +173,19 @@ describe('keyboard', () => {
   });
 
   test('tapping the panel hides the keyboard', () => {
-    const { dismiss } = mockKeyboard();
+    const { dismiss, show } = mockKeyboard();
     const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
-    act(() => tap(byTestID(tree, 'bottomsheet-panel')[0]));
+    show();
+    const panel = byTestID(tree, 'bottomsheet-panel')[0];
+    expect(panel.props.onStartShouldSetResponder()).toBe(true);
+    act(() => panel.props.onResponderRelease({}));
     expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  // A panel that claimed every touch left the wheel pickers inside unscrollable.
+  test('with the keyboard down, the panel leaves touches to its content', () => {
+    mockKeyboard();
+    const tree = create(<BottomSheet visible onClose={() => {}} title="X" />);
+    expect(byTestID(tree, 'bottomsheet-panel')[0].props.onStartShouldSetResponder()).toBe(false);
   });
 });

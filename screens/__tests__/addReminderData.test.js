@@ -31,14 +31,14 @@ describe('labels', () => {
 
   test('frequencyLabel drops the "1" for a single unit', () => {
     expect(frequencyLabel(0, DEFAULT_UNIT_INDEX)).toBe('Remind every day');
-    expect(frequencyLabel(0, 0)).toBe('Remind every hour');
-    expect(frequencyLabel(0, 3)).toBe('Remind every month');
+    expect(frequencyLabel(0, 0)).toBe('Remind every day');
+    expect(frequencyLabel(0, 2)).toBe('Remind every month');
   });
 
   test('frequencyLabel covers the whole shared unit list', () => {
-    expect(frequencyLabel(2, 0)).toBe('Remind every 3 hours');
-    expect(frequencyLabel(1, 2)).toBe('Remind every 2 weeks');
-    expect(frequencyLabel(5, 3)).toBe('Remind every 6 months');
+    expect(frequencyLabel(2, 0)).toBe('Remind every 3 days');
+    expect(frequencyLabel(1, 1)).toBe('Remind every 2 weeks');
+    expect(frequencyLabel(5, 2)).toBe('Remind every 6 months');
   });
 });
 
@@ -83,7 +83,7 @@ describe('makeReminderDraft', () => {
   // The whole point of sharing screens/durationUnits.js: a freshly created
   // reminder must be editable by ReminderValueSheet without re-formatting.
   test('the frequency it writes round-trips through the edit sheet', () => {
-    for (const unitIndex of [0, 1, 2, 3]) {
+    for (const unitIndex of [0, 1, 2]) {
       for (const numberIndex of [0, 1, 6, 29]) {
         const value = frequencyValue(numberIndex, unitIndex);
         const { a, b } = parseValue('frequency', value);

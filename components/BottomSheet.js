@@ -109,7 +109,14 @@ export default function BottomSheet({
           ]}
           accessibilityViewIsModal
         >
-          <Pressable onPress={Keyboard.dismiss} accessible={false} testID="bottomsheet-panel">
+          {/* Tapping the panel hides the keyboard — but it claims the touch only
+              while the keyboard is up. A Pressable here took every touch on the
+              sheet, and the wheel pickers inside could no longer scroll. */}
+          <View
+            onStartShouldSetResponder={() => keyboardVisible}
+            onResponderRelease={Keyboard.dismiss}
+            testID="bottomsheet-panel"
+          >
             <View style={styles.top}>
               <View style={[styles.handle, { backgroundColor: t.text.placeholder }]} />
             </View>
@@ -162,7 +169,7 @@ export default function BottomSheet({
                 </View>
               ) : null}
             </View>
-          </Pressable>
+          </View>
         </Animated.View>
       </View>
     </Modal>

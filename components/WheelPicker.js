@@ -38,7 +38,20 @@ export default function WheelPicker({
   const resolve = (y, commit) => {
     const i = Math.max(0, Math.min(items.length - 1, Math.round(y / itemHeight)));
     setActive(i);
-    if (commit && i !== index) onChange?.(i);
+    if (!commit) return;
+    // Settle exactly on the row: a slow drag can stop between two of them.
+    if (Math.abs(y - i * itemHeight) > 0.5) {
+      ref.current?.scrollTo({ y: i * itemHeight, animated: true });
+    }
+    if (i !== index) onChange?.(i);
+  };
+
+  // A drag released with speed glides on, and onMomentumScrollEnd commits
+  // where it lands. Committing at release too would re-render mid-glide and
+  // jump the wheel back — so only a drag that stops dead commits here.
+  const onScrollEndDrag = (e) => {
+    const v = e.nativeEvent.velocity?.y ?? 0;
+    if (Math.abs(v) < 0.05) resolve(e.nativeEvent.contentOffset.y, true);
   };
 
   return (
@@ -52,7 +65,7 @@ export default function WheelPicker({
       scrollEventThrottle={16}
       onScroll={(e) => resolve(e.nativeEvent.contentOffset.y, false)}
       onMomentumScrollEnd={(e) => resolve(e.nativeEvent.contentOffset.y, true)}
-      onScrollEndDrag={(e) => resolve(e.nativeEvent.contentOffset.y, true)}
+      onScrollEndDrag={onScrollEndDrag}
       contentContainerStyle={{ paddingVertical: padV }}
     >
       {items.map((item, i) => (
