@@ -2,8 +2,8 @@ import { careActions } from '../../../api/mapPlant';
 import {
   customReminderRow,
   defaultReminders,
+  draftView,
   nameSuggestions,
-  reminderSubtitle,
   remindersCta,
   successSubtitle,
   successTitle,
@@ -34,7 +34,7 @@ describe('nameSuggestions', () => {
 });
 
 describe('defaultReminders', () => {
-  test('offers the three primary actions, all off, seeded from the species', () => {
+  test('offers the three primary actions, all on, seeded from the species', () => {
     const rows = defaultReminders(
       vm({
         water_interval_days_min: 7,
@@ -42,9 +42,13 @@ describe('defaultReminders', () => {
         fertilize_interval_days: 28,
         repot_interval_months: 24,
       }),
+      TODAY,
     );
     expect(rows.map((r) => r.action)).toEqual(['water', 'fertilize', 'repot']);
-    expect(rows.every((r) => r.enabled === false)).toBe(true);
+    expect(rows.every((r) => r.enabled === true)).toBe(true);
+    // Each counts from a last-done of today until the user picks another day.
+    const todayNoon = new Date(2026, 8, 10, 12).toISOString();
+    expect(rows.every((r) => r.lastDoneAt === todayNoon)).toBe(true);
 
     // The interval the reminder will actually use, and the label the catalog
     // states — a range reads better than the flattened number behind it.
@@ -66,13 +70,32 @@ describe('defaultReminders', () => {
   });
 });
 
-describe('reminderSubtitle', () => {
-  test('says a reminder is off until it is enabled, then shows its schedule', () => {
-    expect(reminderSubtitle({ enabled: false, frequency: 'Every 7 days' })).toBe(
-      'Reminder is turned off',
-    );
-    expect(reminderSubtitle({ enabled: true, frequency: 'Every 7 days' })).toBe('Every 7 days');
-    expect(reminderSubtitle({ enabled: true, frequency: null })).toBe('Reminder is on');
+describe('draftView', () => {
+  const [water] = defaultReminders(vm({ water_interval_days_min: 7 }), TODAY);
+
+  test('reads a default row as its card: last watering today, next a week out', () => {
+    expect(draftView(water)).toEqual({
+      nextLabel: 'Next reminder: Thu, Sep 17',
+      dateLabel: 'Last watering',
+      dateValue: '10 Sep',
+      frequency: 'Every 7 days',
+    });
+  });
+
+  test('says so when the reminder is off', () => {
+    expect(draftView({ ...water, enabled: false }).nextLabel).toBe('Reminder is turned off');
+  });
+
+  test('keeps the catalog wording until the cadence is edited', () => {
+    const row = { ...water, frequency: 'Every 7–10 days' };
+    expect(draftView(row).frequency).toBe('Every 7–10 days');
+    expect(draftView({ ...row, frequency: null, intervalDays: 14 }).frequency).toBe('Every 2 weeks');
+  });
+
+  test('a custom row is dated by its start', () => {
+    const startAt = new Date(2026, 8, 12, 12).toISOString();
+    const view = draftView(customReminderRow({ title: 'Mist', frequency: '3 days', startAt }, 3));
+    expect(view).toMatchObject({ dateLabel: 'Start date', dateValue: '12 Sep', nextLabel: 'Next reminder: Sat, Sep 12' });
   });
 });
 
@@ -142,6 +165,13 @@ describe('success copy', () => {
   test('with no custom row it stays a full interval out', () => {
     expect(successSubtitle([{ enabled: true, intervalDays: 7, startAt: null }], TODAY)).toBe(
       'Next treatment is on Thu 17, Sep',
+    );
+  });
+
+  test('a picked last-done counts a full interval from that day', () => {
+    const lastDoneAt = new Date(2026, 8, 3, 12).toISOString(); // a week ago
+    expect(successSubtitle([{ enabled: true, intervalDays: 7, lastDoneAt }], TODAY)).toBe(
+      'Next treatment is on Thu 10, Sep',
     );
   });
 

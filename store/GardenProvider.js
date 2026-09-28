@@ -444,7 +444,7 @@ export function GardenProvider({ children, initialState = null, clock = null, ap
     return {
       /**
        * Commit the add-a-plant flow: POST the plant, then each reminder the
-       * flow enabled (`{ action, title, intervalDays, startAt? }`).
+       * flow enabled (`{ action, title, intervalDays, startAt?, lastDoneAt? }`).
        *
        * Resolves with the plant's id. Rejects when the plant could not be
        * created — nothing was saved. When the plant was created but a reminder
@@ -452,8 +452,10 @@ export function GardenProvider({ children, initialState = null, clock = null, ap
        * can still go on to the plant it saved.
        *
        * A row with a `startAt` (a custom reminder's chosen day) first comes due
-       * on that day; the rest count as just done, so a 7-day watering is next
-       * due in 7 days. An unparsable `startAt` counts as absent.
+       * on that day; one with a `lastDoneAt` (the "Last watering" the user
+       * picked) is next due a full interval after it; the rest count as just
+       * done, so a 7-day watering is next due in 7 days. An unparsable date
+       * counts as absent.
        */
       addPlant: ({ speciesKey, nickname, roomId = null, care = null, heroUri = null, reminders = [] }) =>
         mutate(async (server) => {
@@ -466,16 +468,15 @@ export function GardenProvider({ children, initialState = null, clock = null, ap
           });
           commit({ type: 'plant/upsert', dto, local: { care, heroUri } });
 
-          const startOf = (r) =>
-            r.startAt && !Number.isNaN(Date.parse(r.startAt)) ? r.startAt : null;
+          const valid = (iso) => (iso && !Number.isNaN(Date.parse(iso)) ? iso : null);
           let failure = null;
           for (const r of reminders) {
-            const start = startOf(r);
+            const start = valid(r.startAt);
             try {
               await createReminder(server, dto.id, {
                 ...r,
                 startAt: start ?? when,
-                lastDoneAt: start ? null : when,
+                lastDoneAt: start ? null : valid(r.lastDoneAt) ?? when,
               });
             } catch (e) {
               failure = failure ?? e;

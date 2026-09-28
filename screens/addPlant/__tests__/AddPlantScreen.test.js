@@ -5,6 +5,7 @@ import { Route } from '../../../routing';
 import { useGarden } from '../../../store/GardenProvider';
 import { nextDueAt } from '../../../store/schedule';
 import AddReminderSheet from '../../AddReminderSheet';
+import ReminderValueSheet from '../../ReminderValueSheet';
 import { DEFAULT_UNIT_INDEX, makeReminderDraft } from '../../addReminderData';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import TodayScreen from '../../TodayScreen';
@@ -62,6 +63,18 @@ const press = (r, label) => r.press(label);
 const button = (r, label) => r.find(label);
 const type = (r, value) => r.type(value);
 
+// Every reminder starts on; switch the named ones off.
+const turnOff = (r, ...titles) => titles.forEach((title) => press(r, `Enable ${title}`));
+
+// Confirm the open value sheet with a display string, as its wheel/calendar would.
+const confirmValue = (r, value) => {
+  const sheet = r.tree.root.findByType(ReminderValueSheet);
+  act(() => {
+    sheet.props.onConfirm(value);
+    sheet.props.onClose();
+  });
+};
+
 const sheetVisible = (r, testID) =>
   r.tree.root.findAll((n) => n.props.testID === testID)[0].props.visible;
 
@@ -74,7 +87,7 @@ const walkTo = async (r, step) => {
   press(r, 'Kitchen'); // select the room
   press(r, 'Continue'); // room → reminders
   if (step === 'reminders') return;
-  press(r, 'Skip for now'); // reminders → success
+  press(r, 'Continue'); // reminders → success, with the default reminders on
   await r.settle();
 };
 
@@ -154,22 +167,92 @@ describe('step 2 — room', () => {
 });
 
 describe('step 3 — reminders', () => {
-  test('both reminders start off, and enabling one shows the species interval', async () => {
+  test('every reminder starts on, counted from a last-done of today', async () => {
     const tree = create();
     await walkTo(tree, 'reminders');
     const t = texts(tree);
     expect(t).toContain('Set reminders');
     expect(t).toContain('Step 3 of 3');
-    expect(t).toContain('Watering');
-    expect(t).toContain('Fertilizing');
-    expect(t).toContain('Repotting');
+    expect(t).toEqual(expect.arrayContaining(['Watering', 'Fertilizing', 'Repotting']));
+    expect(t).toEqual(expect.arrayContaining(['Last watering', 'Last fertilizing', 'Last repotting']));
+    expect(t.filter((x) => x === 'Frequency')).toHaveLength(3);
+    expect(t.filter((x) => x === '10 Sep')).toHaveLength(3); // today
+    // The catalog's own phrasing, not a flattened number.
+    expect(t).toContain('Every 7–10 days');
+    expect(t).toContain('Next reminder: Thu, Sep 17');
+    expect(t).not.toContain('Reminder is turned off');
+    expect(t).toContain('Continue');
+    // Built-in reminders can be switched off, not removed.
+    expect(tree.tree.root.findAll((n) => n.props.accessibilityLabel === 'Remove' && n.props.onPress)).toHaveLength(0);
+  });
+
+  test('switching every reminder off turns the CTA into a skip', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    turnOff(tree, 'Watering', 'Fertilizing', 'Repotting');
+    const t = texts(tree);
     expect(t.filter((x) => x === 'Reminder is turned off')).toHaveLength(3);
     expect(t).toContain('Skip for now');
+  });
 
-    press(tree, 'Enable Watering');
-    // The catalog's own phrasing, not a flattened number.
-    expect(texts(tree)).toContain('Every 7–10 days');
-    expect(texts(tree)).toContain('Continue'); // the CTA is no longer a skip
+  test('switching a reminder off collapses its parameters; on shows them again', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    expect(texts(tree)).toContain('Last repotting');
+
+    turnOff(tree, 'Repotting');
+    let t = texts(tree);
+    expect(t).not.toContain('Last repotting');
+    expect(t.filter((x) => x === 'Frequency')).toHaveLength(2);
+    expect(t).toContain('Reminder is turned off');
+
+    press(tree, 'Enable Repotting');
+    t = texts(tree);
+    expect(t).toContain('Last repotting');
+    expect(t.filter((x) => x === 'Frequency')).toHaveLength(3);
+  });
+
+  test('Last watering opens the date sheet and moves the next reminder', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    expect(sheetVisible(tree, 'value-sheet')).toBe(false);
+    press(tree, 'Watering date');
+    expect(sheetVisible(tree, 'value-sheet')).toBe(true);
+    expect(texts(tree)).toContain('The next reminder is counted from this date.');
+
+    confirmValue(tree, '3 Sep'); // a week ago
+    const t = texts(tree);
+    expect(t).toContain('3 Sep');
+    expect(t).toContain('Next reminder: Thu, Sep 10');
+  });
+
+  test('Frequency replaces the catalog wording with the chosen cadence', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    press(tree, 'Watering Frequency');
+    confirmValue(tree, '2 weeks');
+    const t = texts(tree);
+    expect(t).not.toContain('Every 7–10 days');
+    expect(t).toContain('Every 2 weeks');
+    expect(t).toContain('Next reminder: Thu, Sep 24');
+  });
+
+  test('the edited dates and cadence are what gets saved', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    turnOff(tree, 'Fertilizing', 'Repotting');
+    press(tree, 'Watering date');
+    confirmValue(tree, '3 Sep');
+    press(tree, 'Watering Frequency');
+    confirmValue(tree, '14 days');
+    press(tree, 'Continue');
+    await tree.settle();
+
+    expect(texts(tree)).toContain('Next treatment is on Thu 17, Sep');
+    const [water] = garden.reminders;
+    expect(garden.reminders).toHaveLength(1);
+    expect(water).toMatchObject({ action: 'water', intervalDays: 14 });
+    expect(new Date(water.lastDoneAt)).toEqual(new Date(2026, 8, 3, 12));
   });
 
   test('the add-reminder sheet appends a custom row', async () => {
@@ -179,6 +262,27 @@ describe('step 3 — reminders', () => {
 
     press(tree, 'Add custom reminder');
     expect(sheetVisible(tree, 'add-reminder-sheet')).toBe(true);
+  });
+
+  test('a custom reminder can be removed before it is saved', async () => {
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    press(tree, 'Add custom reminder');
+    const draft = makeReminderDraft({
+      label: 'Mist the leaves',
+      numberIndex: 2,
+      unitIndex: DEFAULT_UNIT_INDEX,
+      date: new Date(2026, 8, 12),
+    });
+    const sheet = tree.tree.root.findByType(AddReminderSheet);
+    act(() => {
+      sheet.props.onConfirm(draft);
+      sheet.props.onClose();
+    });
+    expect(texts(tree)).toEqual(expect.arrayContaining(['Mist the leaves', 'Start date', '12 Sep']));
+
+    press(tree, 'Remove');
+    expect(texts(tree)).not.toContain('Mist the leaves');
   });
 
   test('back returns to the room step with the room still selected', async () => {
@@ -194,7 +298,10 @@ describe('success', () => {
   test('skipping every reminder says nothing is scheduled', async () => {
     const tree = create();
     press(tree, 'Mo');
-    await walkTo(tree, 'success');
+    await walkTo(tree, 'reminders');
+    turnOff(tree, 'Watering', 'Fertilizing', 'Repotting');
+    press(tree, 'Skip for now');
+    await tree.settle();
     const t = texts(tree);
     expect(t).toContain('Mo added to your plants in the kitchen room');
     expect(t).toContain('There is no reminder set for now');
@@ -202,10 +309,9 @@ describe('success', () => {
     expect(t).toContain('Done');
   });
 
-  test('an enabled reminder dates the next treatment', async () => {
+  test('the default reminders date the next treatment', async () => {
     const tree = create();
     await walkTo(tree, 'reminders');
-    press(tree, 'Enable Watering');
     press(tree, 'Continue');
     await tree.settle();
     expect(texts(tree)).toContain('Next treatment is on Thu 17, Sep');
@@ -217,7 +323,7 @@ describe('success', () => {
     await walkTo(tree, 'reminders');
     expect(garden.plants).toHaveLength(0);
 
-    press(tree, 'Skip for now');
+    press(tree, 'Continue');
     await tree.settle();
     expect(texts(tree)).toContain('Mo added to your plants in the kitchen room');
     expect(garden.plants).toHaveLength(1);
@@ -232,14 +338,14 @@ describe('success', () => {
     await walkTo(tree, 'reminders');
     tree.api.fail('addPlant', Object.assign(new Error('offline'), { code: 'offline' }));
 
-    press(tree, 'Skip for now');
+    press(tree, 'Continue');
     await tree.settle();
     expect(alert).toHaveBeenCalledWith('Couldn’t add your plant', expect.stringMatching(/offline/));
     expect(texts(tree)).toContain('Set reminders');
     expect(garden.plants).toHaveLength(0);
 
     // Trying again once the server answers goes through, once.
-    press(tree, 'Skip for now');
+    press(tree, 'Continue');
     await tree.settle();
     expect(texts(tree)).toContain('Swiss cheese plant added to your plants in the kitchen room');
     expect(tree.api.callsTo('addPlant')).toHaveLength(2);
@@ -276,7 +382,7 @@ describe('success', () => {
     const tree = create();
     press(tree, 'Mo');
     await walkTo(tree, 'reminders');
-    press(tree, 'Enable Watering');
+    turnOff(tree, 'Fertilizing', 'Repotting');
     press(tree, 'Continue');
     await tree.settle();
     press(tree, 'Done');
@@ -295,7 +401,6 @@ describe('success', () => {
   test('a custom reminder first comes due on the day chosen for it', async () => {
     const tree = create();
     await walkTo(tree, 'reminders');
-    press(tree, 'Enable Watering');
     press(tree, 'Add custom reminder');
     // The sheet's own wheels and calendar have their tests; what matters here
     // is what the flow does with the draft it hands back.
@@ -320,8 +425,8 @@ describe('success', () => {
     expect(custom).toMatchObject({ title: 'Mist the leaves', intervalDays: 30, lastDoneAt: null });
     const [hh, mm] = custom.timeOfDay.split(':').map(Number);
     expect(nextDueAt(custom)).toEqual(new Date(2026, 8, 11, hh, mm));
-    // A suggested reminder still counts as just done.
-    expect(water.lastDoneAt).not.toBeNull();
+    // A suggested reminder counts from its last-done — today, by default.
+    expect(new Date(water.lastDoneAt)).toEqual(new Date(2026, 8, 10, 12));
   });
 
   test('Scan another plant resets to the camera, leaving no flow in the stack', async () => {
@@ -403,12 +508,11 @@ describe('in onboarding', () => {
   test('the plant and its reminders are created exactly once', async () => {
     const tree = createOnboarding();
     await walkTo(tree, 'reminders');
-    press(tree, 'Enable Watering');
     press(tree, 'Continue');
     await tree.settle();
     press(tree, 'Done');
     expect(garden.plants).toHaveLength(1);
-    expect(garden.reminders.filter((r) => r.plantId === garden.plants[0].id)).toHaveLength(1);
+    expect(garden.reminders.filter((r) => r.plantId === garden.plants[0].id)).toHaveLength(3);
   });
 
   test('Scan another plant keeps the onboarding session and the saved plant', async () => {

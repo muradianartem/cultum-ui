@@ -11,8 +11,8 @@ import { wheel } from '../theme/tokens';
 import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import {
-  DEFAULT_FREQUENCY_UNIT_INDEX,
-  FREQUENCY_UNITS as UNITS,
+  DEFAULT_SNOOZE_UNIT_INDEX,
+  SNOOZE_DURATION_UNITS as UNITS,
   SNOOZE_NUMBERS as NUMBERS,
   unitLabel,
 } from './durationUnits';
@@ -25,7 +25,7 @@ export default function SnoozeContent({ onConfirm }) {
   const styles = useMemo(() => makeStyles(t), [t]);
   // Default to "2 days", matching the Figma.
   const [numberIndex, setNumberIndex] = useState(1);
-  const [unitIndex, setUnitIndex] = useState(DEFAULT_FREQUENCY_UNIT_INDEX);
+  const [unitIndex, setUnitIndex] = useState(DEFAULT_SNOOZE_UNIT_INDEX);
 
   const number = NUMBERS[numberIndex];
   const label = unitLabel(UNITS[unitIndex], number);

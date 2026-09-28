@@ -32,9 +32,11 @@ import { ONBOARDING_PAYWALL, useOnboarding } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
-import { parseFrequency } from '../../store/format';
+import { frequencyValue, parseFrequency } from '../../store/format';
 import { showError } from '../../lib/showError';
 import AddReminderSheet from '../AddReminderSheet';
+import ReminderValueSheet from '../ReminderValueSheet';
+import { parseShortDate } from '../addReminderData';
 import AddRoomSheet from './AddRoomSheet';
 import { useRoomGate } from '../rooms/useRoomGate';
 import NameStep from './NameStep';
@@ -44,6 +46,8 @@ import SuccessStep from './SuccessStep';
 import {
   customReminderRow,
   defaultReminders,
+  draftView,
+  noon,
   nameSuggestions,
   remindersCta,
   successSubtitle,
@@ -75,9 +79,13 @@ export default function AddPlantScreen({ plant, today }) {
   const [step, setStep] = useState('name');
   const [name, setName] = useState(() => vm?.commonName ?? '');
   const [roomId, setRoomId] = useState(null);
-  const [reminders, setReminders] = useState(() => defaultReminders(vm));
+  const [reminders, setReminders] = useState(() => defaultReminders(vm, today ?? new Date()));
   const [roomSheet, setRoomSheet] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(false);
+  // Value editor: { id, field } while a card's detail row is being edited.
+  // Kept after close so the sheet doesn't blank while it slides out.
+  const [editor, setEditor] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   // The new plant's id, set once the server has created it. Success has no
   // way back, so it never needs clearing.
   const savedId = useRef(null);
@@ -129,6 +137,34 @@ export default function AddPlantScreen({ plant, today }) {
   const addCustomReminder = (draft) =>
     setReminders((list) => [...list, customReminderRow(draft, parseFrequency(draft.frequency))]);
 
+  // Nothing is saved yet, so a custom row just leaves the draft — no confirm.
+  const removeReminder = (id) => setReminders((list) => list.filter((r) => r.id !== id));
+
+  const editing = editor ? reminders.find((r) => r.id === editor.id) : null;
+  // The sheet speaks the wheel's vocabulary ("7 days"), not the card's
+  // "Every 7 days", so its frequency is re-derived from the interval.
+  const editingView = editing
+    ? { ...draftView(editing), frequency: frequencyValue(editing.intervalDays) }
+    : null;
+
+  /** Write a sheet's display string back into the draft row. */
+  const applyEdit = (value) => {
+    if (!editor) return;
+    const { id, field } = editor;
+    setReminders((list) =>
+      list.map((r) => {
+        if (r.id !== id) return r;
+        if (field === 'frequency') {
+          // The catalog's "Every 7–10 days" no longer describes it.
+          return { ...r, intervalDays: parseFrequency(value, r.intervalDays), frequency: null };
+        }
+        const date = noon(parseShortDate(value, today ?? new Date())).toISOString();
+        // A built-in row counts from its last-done; a custom one from its start.
+        return r.action === 'custom' ? { ...r, startAt: date } : { ...r, lastDoneAt: date };
+      })
+    );
+  };
+
   // Runs from the reminders CTA. A ref, not state, guards it: two taps in the
   // same frame would both still read the old state and add the plant twice.
   const inFlight = useRef(false);
@@ -155,6 +191,7 @@ export default function AddPlantScreen({ plant, today }) {
             title: r.title,
             intervalDays: r.intervalDays,
             startAt: r.startAt ?? null,
+            lastDoneAt: r.lastDoneAt ?? null,
           })),
       });
     } catch (e) {
@@ -175,17 +212,25 @@ export default function AddPlantScreen({ plant, today }) {
     setStep('success');
   };
 
-  // Both sheets are Modals, and iOS won't present a second over an open one —
-  // so only one of them is ever mounted visible at a time. At the plan's room
-  // limit the paywall opens instead.
+  // All three sheets are Modals, and iOS won't present a second over an open
+  // one — so only one of them is ever mounted visible at a time. At the plan's
+  // room limit the paywall opens instead.
   const openRoomSheet = () =>
     gate(() => {
       setReminderSheet(false);
+      setEditorOpen(false);
       setRoomSheet(true);
     });
   const openReminderSheet = () => {
     setRoomSheet(false);
+    setEditorOpen(false);
     setReminderSheet(true);
+  };
+  const openEditField = (id, field) => {
+    setRoomSheet(false);
+    setReminderSheet(false);
+    setEditor({ id, field });
+    setEditorOpen(true);
   };
 
   const addAction = {
@@ -231,6 +276,8 @@ export default function AddPlantScreen({ plant, today }) {
           <RemindersStep
             reminders={reminders}
             onToggle={toggleReminder}
+            onEditField={openEditField}
+            onRemove={removeReminder}
             onAddCustom={openReminderSheet}
           />
         ) : null}
@@ -303,6 +350,15 @@ export default function AddPlantScreen({ plant, today }) {
         today={today}
         onClose={() => setReminderSheet(false)}
         onConfirm={addCustomReminder}
+      />
+
+      <ReminderValueSheet
+        visible={editorOpen}
+        field={editor?.field}
+        reminder={editingView}
+        today={today}
+        onClose={() => setEditorOpen(false)}
+        onConfirm={applyEdit}
       />
     </View>
   );

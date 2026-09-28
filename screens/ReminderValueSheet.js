@@ -138,6 +138,9 @@ export default function ReminderValueSheet({
   // A date row is titled by what it actually holds — "Last watering" on a
   // built-in reminder, "Start date" on a custom one.
   const title = isCalendar ? reminder?.dateLabel ?? cfg.title : cfg.title;
+  // A last-done date is what the schedule counts from — say so (Figma 362:14988).
+  const subtitle =
+    isCalendar && /^Last /.test(title) ? 'The next reminder is counted from this date.' : null;
 
   return (
     <BottomSheet
@@ -150,7 +153,10 @@ export default function ReminderValueSheet({
       }}
     >
       <View style={styles.wrap}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
         {isCalendar ? (
           <View style={styles.calendarWrap}>
             <Calendar
@@ -198,11 +204,13 @@ export default function ReminderValueSheet({
 
 const makeStyles = (t) => StyleSheet.create({
   wrap: { paddingHorizontal: 16, gap: 16 },
+  header: { gap: 4 },
   title: {
     ...typography.headingExtraSmallEmphasized, // SnoozeContent's title (Figma 1:11113)
     color: t.text.primary,
     textAlign: 'center',
   },
+  subtitle: { ...typography.bodyMedium, color: t.text.secondary, textAlign: 'center' },
   // Figma wraps the #FAFAFA calendar card in a bordered 20px-radius frame.
   calendarWrap: {
     overflow: 'hidden',
