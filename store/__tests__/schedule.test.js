@@ -4,6 +4,7 @@ import {
   dueLabel,
   nextDueAt,
   occurrenceAfter,
+  snoozedTasks,
   todayTasks,
   upcomingTasks,
 } from '../schedule';
@@ -145,5 +146,36 @@ describe('nextDueAt across a DST change', () => {
       expect(r.lastDoneAt).toBeNull();
       expect(nextDueAt(r)).toEqual(new Date(2026, month, day, 9, 0));
     }
+  });
+});
+
+describe('snoozedTasks', () => {
+  const dueToday = { startAt: new Date(2026, 8, 5).toISOString(), intervalDays: 7 };
+
+  test('lists an occurrence a snooze is holding back, due when the snooze ends', () => {
+    const until = new Date(2026, 8, 8, 11, 0).toISOString();
+    const g = garden({ reminders: [{ ...dueToday, snoozedUntil: until }] });
+    const tasks = snoozedTasks(g, NOW);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].dueAt).toBe(until);
+    expect(tasks[0].due).toBe('In 3d');
+    // …and it is off Today while snoozed.
+    expect(todayTasks(g, NOW)).toHaveLength(0);
+  });
+
+  test('ignores expired snoozes, overtaken snoozes and disabled reminders', () => {
+    const g = garden({
+      reminders: [
+        // expired: the snooze ended this morning
+        { ...dueToday, snoozedUntil: new Date(2026, 8, 5, 8, 0).toISOString() },
+        // overtaken: the natural date (in 10 days) is later than the snooze
+        { startAt: new Date(2026, 8, 15).toISOString(), snoozedUntil: new Date(2026, 8, 7).toISOString() },
+        // disabled
+        { ...dueToday, enabled: false, snoozedUntil: new Date(2026, 8, 8).toISOString() },
+        // never snoozed
+        dueToday,
+      ],
+    });
+    expect(snoozedTasks(g, NOW)).toEqual([]);
   });
 });

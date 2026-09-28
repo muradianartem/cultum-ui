@@ -179,6 +179,27 @@ export function upcomingTasks(state, now = new Date(), horizonDays = 30) {
   );
 }
 
+/**
+ * Occurrences a snooze is currently holding back — what the Today screen's
+ * "N tasks snoozed" banner counts and the Snoozed page lists. A snooze only
+ * counts while it is still ahead of `now` and is what actually sets the due
+ * date; one the natural schedule has already overtaken isn't holding anything.
+ */
+export function snoozedTasks(state, now = new Date()) {
+  const out = [];
+  for (const { reminder, plant } of activePairs(state)) {
+    if (!reminder.snoozedUntil) continue;
+    const until = new Date(reminder.snoozedUntil);
+    const due = nextDueAt(reminder);
+    if (until > now && due && due.getTime() === until.getTime()) {
+      out.push(toTask(state, plant, reminder, due, now));
+    }
+  }
+  return out.sort(
+    (a, b) => new Date(a.dueAt) - new Date(b.dueAt) || a.plant.localeCompare(b.plant),
+  );
+}
+
 /** Today's tasks for one plant — what the product page's task list shows. */
 export const plantTasks = (state, plantId, now = new Date()) =>
   todayTasks(state, now).filter((t) => t.plantId === plantId);

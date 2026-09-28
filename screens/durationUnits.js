@@ -5,8 +5,8 @@
 // [days, weeks, months], and its snooze had [None, hours, days, weeks]. So
 // creating a reminder and editing the same field afterwards offered different
 // options. One list now backs all of them: FREQUENCY_UNITS for a repeat, and
-// snooze adds its "None" lead and hours — a cadence can't be hourly (the store
-// keeps whole days), but putting a plant off for a few hours is reasonable.
+// snooze is days and weeks only (behind its "None" lead) — putting a plant off
+// by hours is noise, and a months-long snooze is really a schedule change.
 //
 // Pure: no React/RN imports, so it unit-tests directly.
 
@@ -25,13 +25,13 @@ export const FREQUENCY_UNITS = [
 ];
 
 // Snooze leads with a "None" option (index 0) that hides the number column,
-// then hours, then the repeat units.
+// then days and weeks.
 export const NONE_UNIT = unit('None', 'None');
-export const SNOOZE_DURATION_UNITS = [unit('hours', 'hour'), ...FREQUENCY_UNITS];
+export const SNOOZE_DURATION_UNITS = [unit('days', 'day'), unit('weeks', 'week')];
 export const SNOOZE_UNITS = [NONE_UNIT, ...SNOOZE_DURATION_UNITS];
 
 // Index of 'days' within SNOOZE_DURATION_UNITS — what a snooze opens on.
-export const DEFAULT_SNOOZE_UNIT_INDEX = 1;
+export const DEFAULT_SNOOZE_UNIT_INDEX = 0;
 
 // Index of 'days' within FREQUENCY_UNITS — the default a repeat opens on, and
 // the fallback when a stored value can't be parsed.

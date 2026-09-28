@@ -6,9 +6,9 @@ import { DEFAULT_FREQUENCY_UNIT_INDEX } from '../durationUnits';
 // screens/addReminderData.js, which addReminderData.test.js covers.
 //
 // Frequency and snooze both read their units from screens/durationUnits.js:
-// FREQUENCY_UNITS is [days, weeks, months]; SNOOZE_UNITS is [None, hours,
-// days, weeks, months]. So the unit index for "days" is 0 on the frequency
-// wheel and 2 on the snooze wheel.
+// FREQUENCY_UNITS is [days, weeks, months]; SNOOZE_UNITS is [None, days,
+// weeks]. So the unit index for "days" is 0 on the frequency wheel and 1 on
+// the snooze wheel.
 const DAYS_UNIT = DEFAULT_FREQUENCY_UNIT_INDEX; // 0
 
 describe('buildResult', () => {
@@ -32,9 +32,13 @@ describe('buildResult', () => {
   });
 
   test('snooze formats number + unit for a real unit', () => {
-    // SNOOZE numbers 1..12; units [None, hours, days, weeks, months].
-    expect(buildResult('snooze', 1, 2)).toBe('2 days');
-    expect(buildResult('snooze', 0, 1)).toBe('1 hour');
+    // SNOOZE numbers 1..12; units [None, days, weeks].
+    expect(buildResult('snooze', 1, 1)).toBe('2 days');
+    expect(buildResult('snooze', 0, 2)).toBe('1 week');
+  });
+
+  test('snooze offers days and weeks only', () => {
+    expect(FIELD.snooze.units.map((u) => u.plural)).toEqual(['None', 'days', 'weeks']);
   });
 });
 

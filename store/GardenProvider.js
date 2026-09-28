@@ -52,7 +52,7 @@ import {
 import { importPhoto, reconcile, sweep } from './media';
 import { createSaver, loadState } from './persist';
 import { reducer } from './reducer';
-import { nextTaskForPlant, plantTasks, todayTasks, upcomingTasks } from './schedule';
+import { nextTaskForPlant, plantTasks, snoozedTasks, todayTasks, upcomingTasks } from './schedule';
 import { mediaUrl } from '../api/mapPlant';
 
 
@@ -716,6 +716,7 @@ export function GardenProvider({ children, initialState = null, clock = null, ap
 
       todaysTasks: todayTasks(state, now),
       upcoming: upcomingTasks(state, now),
+      snoozed: snoozedTasks(state, now),
 
       ...actions,
     };

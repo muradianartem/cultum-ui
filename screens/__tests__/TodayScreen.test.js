@@ -169,6 +169,34 @@ test('snoozing a task moves it out of today without changing its cadence', () =>
   expect(r.texts()).not.toContain('Watering');
 });
 
+describe('the snoozed banner', () => {
+  test('is hidden while nothing is snoozed', () => {
+    expect(render().texts().join(' ')).not.toMatch(/snoozed/);
+  });
+
+  test('appears once a task is snoozed, and opens the Snoozed page', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    expect(r.texts()).toContain('1 task snoozed');
+
+    r.press('1 task snoozed');
+    expect(r.router.route).toBe('snoozed');
+  });
+
+  test('still shows on the "All caught up" state', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    pressIn(card(r, 'Fertilizing'), 'Fertilizing');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    expect(r.texts()).toContain('2 tasks snoozed');
+  });
+});
+
 describe('the snackbar takes the action back', () => {
   test('completing one task', () => {
     const r = render();
