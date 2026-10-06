@@ -17,6 +17,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, BottomSheet } from '../components';
+import { storeSku } from '../billing/stores';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, stroke, typography } from '../theme/foundations';
 
@@ -66,7 +67,7 @@ export default function ChoosePlanSheet({
         {products.map((plan) => {
           const isSelected = plan.key === selected;
           const period = `per ${plan.period}`;
-          const price = prices[plan.appleProductId] ?? plan.fallbackPrice;
+          const price = prices[storeSku(plan)] ?? plan.fallbackPrice;
           return (
             <Pressable
               key={plan.key}

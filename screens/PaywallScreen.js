@@ -14,15 +14,16 @@
 // there is no endpoint to hunt for.
 //
 // "Start free trial" buys the selected plan through billing/useStorePurchase:
-// StoreKit 2 plus POST /billing/apple/verify on iOS. Other platforms have no
-// store flow yet, and there the button just closes the screen.
+// StoreKit 2 plus POST /billing/apple/verify on iOS, Play Billing plus
+// POST /billing/google/verify on Android. Web has no store flow, and there the
+// button just closes the screen.
 //
 // Prices are the store's, not the payload's. `GET /billing/plans` carries a
-// `fallback_price` that is only right in a USD storefront; StoreKit's
-// `displayPrice` replaces it here and in the plan sheet as soon as the products
+// `fallback_price` that is only right in a USD storefront; the store's
+// localized price replaces it here and in the plan sheet as soon as the products
 // resolve. "Restore purchases" sits below both CTAs because Apple requires a
 // route back to a subscription this Apple ID already owns — a reinstall leaves
-// StoreKit no unfinished transaction to replay.
+// the store no unfinished transaction to replay. Play gets the same button.
 
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -35,6 +36,7 @@ import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
 import { usePaywallContent } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
+import { storeSku } from '../billing/stores';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
@@ -110,9 +112,9 @@ function Paywall({ content }) {
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
 
-  // Null until StoreKit has resolved the products, and on every platform
+  // Null until the store has resolved the products, and on every platform
   // without a store flow — `headlineFor` falls back to the API's price there.
-  const storePrice = store.prices[product.appleProductId] ?? null;
+  const storePrice = store.prices[storeSku(product)] ?? null;
   // Either store call has the screen's full attention: both end in the
   // entitlement changing, and neither wants the other started underneath it.
   const busy = store.busy || store.restoring;
@@ -120,12 +122,12 @@ function Paywall({ content }) {
   // Same shape as the scan flow's close: pop if there's history, else go home.
   const onClose = () => (canGoBack ? back() : reset('today'));
 
-  // iOS: StoreKit sheet → backend verify → new entitlement. The paywall closes
+  // Store sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and
   // any other failure shows above the button through the hook's `error`.
   const onStartTrial = async () => {
     if (!store.supported) {
-      // No store flow on this platform yet, so keep the screen walkable.
+      // No store flow on web, so keep the screen walkable.
       if (__DEV__) {
         console.log('[paywall] start trial (no store flow here) —', product.key, {
           google: product.googleProductId,

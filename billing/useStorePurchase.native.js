@@ -1,19 +1,22 @@
-// Buying Plus through StoreKit 2, then telling the backend about it.
+// Buying Plus through StoreKit 2 or Play Billing, then telling the backend.
 //
-// iOS only: Metro picks this file over billing/useStorePurchase.js on iOS, so
-// Android and web never load expo-iap at all.
+// iOS and Android: Metro picks this file over billing/useStorePurchase.js on
+// both native platforms, so web never loads expo-iap at all. What differs
+// between the two stores lives in billing/stores.js; the flow here is shared.
 //
 // The order is the whole point:
 //
-//   requestPurchase → StoreKit sheet → onPurchaseSuccess(purchase)
-//     → POST /billing/apple/verify (the JWS) → apply the entitlement it returns
+//   requestPurchase → store sheet → onPurchaseSuccess(purchase)
+//     → POST /billing/{apple,google}/verify → apply the entitlement it returns
 //     → finishTransaction
 //
 // Finishing only after the backend has the transaction is what makes a failed
-// verify recoverable. StoreKit re-delivers an unfinished transaction the next
+// verify recoverable. Both stores re-deliver an unfinished purchase the next
 // time the store connects, it arrives through the same callback, and the
-// endpoint is idempotent. Finishing first would leave a charged user on Free
-// with nothing left to retry.
+// endpoints are idempotent. Finishing first would leave a charged user on Free
+// with nothing left to retry. (On Play "finish" is the acknowledgement, which
+// the backend already made while verifying - so here it is only a fallback,
+// and an "already acknowledged" failure is harmless.)
 //
 // Three callers now share that delivery step — a fresh purchase, a replay, and
 // `restore()` — so it lives in `deliver()` and each caller only decides what to
@@ -21,26 +24,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ErrorCode, getAvailablePurchases, useIAP } from 'expo-iap';
-import { verifyApplePurchase } from '../api/billing';
 import { useEntitlement } from './EntitlementProvider';
-
-export const PURCHASE_MESSAGES = {
-  unavailable: "The App Store isn't available right now. Try again in a moment.",
-  pending: 'Your purchase is waiting for approval.',
-  failed: "The App Store couldn't complete the purchase. Try again.",
-  verifyOffline:
-    "Your purchase went through, but we couldn't confirm it while you're offline. It will be confirmed automatically.",
-  verifyFailed: "Your purchase went through, but we couldn't confirm it yet. It will be retried automatically.",
-  // Restore is the one flow where "nothing happened" is a legitimate outcome
-  // and has to be said out loud: the button gives no other feedback, and the
-  // usual reason is a different Apple ID rather than a fault.
-  nothingToRestore: "We couldn't find an active subscription on this Apple ID.",
-  restoreFailed: "We couldn't reach the App Store to restore your purchase. Try again.",
-  // The backend's 409: this subscription is live on another Cultum account,
-  // usually a household sharing one Apple ID. Never says "we'll retry" — the
-  // answer will not change on its own, and the user has to pick an account.
-  alreadyLinked: 'This subscription is already active on another Cultum account.',
-};
+import { storeFor } from './stores';
 
 // The backend's "that purchase belongs to somebody else" answer.
 const CONFLICT = 409;
@@ -49,25 +34,34 @@ const CONFLICT = 409;
 // server answering and refusing.
 const UNREACHABLE = new Set(['offline', 'network', 'timeout']);
 
+// Play's "paid with cash at a shop, not yet settled". Not a subscription yet:
+// verifying it would record an expired row, and acknowledging it is refused.
+// Play delivers it again, as purchased, once the payment clears.
+const isPending = (purchase) => purchase?.purchaseState === 'pending';
+
 /**
- * @param {Array<{ appleProductId: string|null }>} products  the paywall's products
+ * @param {Array<{ appleProductId: string|null, googleProductId: string|null }>} products
+ *   the paywall's products
  * @returns {{ supported: true, available: boolean, busy: boolean, restoring: boolean,
  *             error: string|null, prices: Record<string, string>,
  *             purchase: (product) => Promise<boolean>, restore: () => Promise<boolean> }}
  *   `purchase` resolves true once the backend has confirmed the purchase, and
  *   false on a cancel or any failure (which also sets `error`, except a cancel).
  *   `restore` resolves true only if a restored purchase actually granted Plus.
- *   `prices` maps an Apple product id to StoreKit's localized `displayPrice`.
+ *   `prices` maps this platform's store product id (billing/stores.js#storeSku)
+ *   to the store's localized price.
  */
 export default function useStorePurchase(products) {
+  const store = storeFor();
+  const MESSAGES = store.messages;
   const { apply } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState(null);
 
-  // `{ sku, resolve }` for the tap currently waiting on StoreKit, if any.
+  // `{ sku, resolve }` for the tap currently waiting on the store, if any.
   const pending = useRef(null);
-  // Transactions being verified. StoreKit can hand the same one over twice
+  // Transactions being verified. The store can hand the same one over twice
   // (the purchase, then a replay on reconnect) before either has finished.
   const inFlight = useRef(new Set());
   // Mirrors `restoring` for the guards. A second tap arrives before React has
@@ -91,7 +85,7 @@ export default function useStorePurchase(products) {
 
   /**
    * Verify one transaction with the backend, apply what it answers, and only
-   * then let StoreKit forget it.
+   * then let the store forget it.
    *
    * @returns {Promise<{ status: 'ok'|'busy'|'failed', dto?: object,
    *                     unreachable?: boolean, httpStatus?: number }>}
@@ -99,20 +93,15 @@ export default function useStorePurchase(products) {
    *   which is not a failure — the entitlement still lands, just not from here.
    */
   const deliver = async (purchase) => {
-    const key = purchase?.transactionId ?? purchase?.id;
+    const key = store.keyOf(purchase);
     if (!key || inFlight.current.has(key)) return { status: 'busy' };
     inFlight.current.add(key);
     try {
       let dto;
       try {
-        dto = await verifyApplePurchase({
-          // On iOS expo-iap's unified `purchaseToken` is the StoreKit 2 JWS.
-          // With no JWS the id alone is still accepted by the backend.
-          signedTransaction: purchase.purchaseToken,
-          transactionId: purchase.transactionId ?? purchase.id,
-        });
+        dto = await store.verify(purchase);
       } catch (e) {
-        if (__DEV__) console.log('[billing] apple verify failed, transaction left unfinished:', e?.message ?? e);
+        if (__DEV__) console.log(`[billing] ${store.id} verify failed, transaction left unfinished:`, e?.message ?? e);
         return { status: 'failed', unreachable: UNREACHABLE.has(e?.code), httpStatus: e?.status };
       }
 
@@ -135,6 +124,10 @@ export default function useStorePurchase(products) {
   // with no tap waiting is verified all the same, just silently.
   const onPurchaseSuccess = async (purchase) => {
     const forTap = pending.current != null && pending.current.sku === purchase?.productId;
+    if (isPending(purchase)) {
+      if (forTap) settle(false, MESSAGES.pending);
+      return;
+    }
     const result = await deliver(purchase);
     // Nothing to report: either nobody is waiting, or the transaction is
     // already being delivered by the call that got there first.
@@ -142,8 +135,8 @@ export default function useStorePurchase(products) {
     if (result.status === 'ok') return settle(true);
     // A conflict is the one verify failure that will never come good on a
     // retry, so it must not be dressed up as one that will.
-    if (result.httpStatus === CONFLICT) return settle(false, PURCHASE_MESSAGES.alreadyLinked);
-    settle(false, result.unreachable ? PURCHASE_MESSAGES.verifyOffline : PURCHASE_MESSAGES.verifyFailed);
+    if (result.httpStatus === CONFLICT) return settle(false, MESSAGES.alreadyLinked);
+    settle(false, result.unreachable ? MESSAGES.verifyOffline : MESSAGES.verifyFailed);
   };
 
   const onPurchaseError = (e) => {
@@ -151,36 +144,39 @@ export default function useStorePurchase(products) {
     if (!pending.current) return;
     if (e?.code === ErrorCode.UserCancelled) return settle(false);
     if (e?.code === ErrorCode.Pending || e?.code === ErrorCode.DeferredPayment) {
-      return settle(false, PURCHASE_MESSAGES.pending);
+      return settle(false, MESSAGES.pending);
     }
     if (__DEV__) console.log('[billing] purchase failed:', e?.code, e?.message);
-    settle(false, PURCHASE_MESSAGES.failed);
+    settle(false, MESSAGES.failed);
   };
 
   const iap = useIAP({ onPurchaseSuccess, onPurchaseError });
   iapRef.current = iap;
   const { connected } = iap;
 
-  // What StoreKit actually resolved. "SKU not found" at purchase time almost
+  // What the store actually resolved. "SKU not found" at purchase time almost
   // always means this came back empty: the products are not sellable for this
-  // bundle id / environment yet (App Store Connect state, Paid Apps agreement,
-  // or a Simulator with no sandbox account or .storekit file).
+  // app / environment yet. On iOS: App Store Connect state, Paid Apps
+  // agreement, or a Simulator with no sandbox account or .storekit file. On
+  // Android: a build not installed from a Play testing track, a tester not on
+  // the licence list, or a subscription with no active base plan.
   const resolved = (iap.subscriptions ?? []).map((s) => s.id).join(',');
   useEffect(() => {
-    if (__DEV__ && connected) console.log('[billing] StoreKit resolved subscriptions:', resolved || '(none)');
+    if (__DEV__ && connected) console.log(`[billing] ${store.id} resolved subscriptions:`, resolved || '(none)');
   }, [connected, resolved]);
 
   // The real, localized, tax-inclusive price for this user's storefront, which
   // is the only price the paywall is allowed to show. `fallback_price` from the
   // API is right in a USD storefront and nowhere else, so it is only the
-  // placeholder for the instant before StoreKit answers.
+  // placeholder for the instant before the store answers.
   //
   // Keyed by product id rather than by our own `key` because that is the one
   // identifier both sides share. Empty until `fetchProducts` resolves.
   const prices = useMemo(() => {
     const byId = {};
     for (const s of iap.subscriptions ?? []) {
-      if (s?.id && s?.displayPrice) byId[s.id] = s.displayPrice;
+      const price = store.priceOf(s);
+      if (s?.id && price) byId[s.id] = price;
     }
     return byId;
     // `resolved` changes whenever the subscription set does, and reading the
@@ -188,9 +184,9 @@ export default function useStorePurchase(products) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved]);
 
-  // StoreKit has to have resolved a product before it can sell it.
+  // The store has to have resolved a product before it can sell it.
   const skuKey = products
-    .map((p) => p.appleProductId)
+    .map((p) => store.skuOf(p))
     .filter(Boolean)
     .join(',');
   useEffect(() => {
@@ -216,9 +212,12 @@ export default function useStorePurchase(products) {
 
   const purchase = async (product) => {
     if (pending.current || restoringRef.current) return false;
-    const sku = product?.appleProductId;
-    if (!iapRef.current?.connected || !sku) {
-      setError(PURCHASE_MESSAGES.unavailable);
+    const sku = store.skuOf(product);
+    // Play needs the resolved product itself - its offer token says which base
+    // plan or trial is being bought - so an unresolved one cannot be sold.
+    const subscription = (iapRef.current?.subscriptions ?? []).find((s) => s?.id === sku);
+    if (!iapRef.current?.connected || !sku || (store.id === 'google' && !subscription)) {
+      setError(MESSAGES.unavailable);
       return false;
     }
     setBusy(true);
@@ -227,7 +226,7 @@ export default function useStorePurchase(products) {
       pending.current = { sku, resolve };
     });
     try {
-      await iapRef.current.requestPurchase({ request: { apple: { sku } }, type: 'subs' });
+      await iapRef.current.requestPurchase({ request: store.purchaseRequest(sku, subscription), type: 'subs' });
     } catch (e) {
       // Some failures reject here as well as (or instead of) emitting an
       // error event; onPurchaseError ignores whichever arrives second.
@@ -237,11 +236,11 @@ export default function useStorePurchase(products) {
   };
 
   /**
-   * Re-attach a subscription this Apple ID already owns.
+   * Re-attach a subscription this Apple ID / Google account already owns.
    *
    * Apple requires this: a reinstall, a new device or a second account leaves
-   * StoreKit with nothing to replay, because a *finished* transaction is never
-   * re-delivered. `getAvailablePurchases` asks for the current entitlements
+   * the store with nothing to replay, because a *finished* transaction is never
+   * re-delivered. On Play it is the same button for the same reasons. `getAvailablePurchases` asks for the current entitlements
    * instead of the event stream — active items only, which is its default.
    *
    * Every one of them goes through the same verify-then-finish path as a fresh
@@ -253,7 +252,7 @@ export default function useStorePurchase(products) {
   const restore = async () => {
     if (pending.current || restoringRef.current) return false;
     if (!iapRef.current?.connected) {
-      setError(PURCHASE_MESSAGES.unavailable);
+      setError(MESSAGES.unavailable);
       return false;
     }
     restoringRef.current = true;
@@ -262,7 +261,7 @@ export default function useStorePurchase(products) {
     try {
       const owned = await getAvailablePurchases();
       let granted = false;
-      // A transaction another caller is already delivering (a StoreKit replay
+      // A transaction another caller is already delivering (a store replay
       // racing this tap). It may well be about to grant Plus, so it is not
       // evidence of nothing to restore — and saying so would be a lie the
       // entitlement contradicts a second later.
@@ -272,6 +271,11 @@ export default function useStorePurchase(products) {
       // subscription and needs to know which account has it.
       let conflict = false;
       for (const purchase of owned ?? []) {
+        // Not paid for yet, so nothing to restore; it arrives on its own later.
+        if (isPending(purchase)) {
+          undecided = true;
+          continue;
+        }
         const result = await deliver(purchase);
         if (result.status === 'busy') undecided = true;
         if (result.httpStatus === CONFLICT) conflict = true;
@@ -279,12 +283,12 @@ export default function useStorePurchase(products) {
       }
       if (!mounted.current) return granted;
       if (granted) return granted;
-      if (conflict) setError(PURCHASE_MESSAGES.alreadyLinked);
-      else if (!undecided) setError(PURCHASE_MESSAGES.nothingToRestore);
+      if (conflict) setError(MESSAGES.alreadyLinked);
+      else if (!undecided) setError(MESSAGES.nothingToRestore);
       return granted;
     } catch (e) {
       if (__DEV__) console.log('[billing] restore failed:', e?.message ?? e);
-      if (mounted.current) setError(PURCHASE_MESSAGES.restoreFailed);
+      if (mounted.current) setError(MESSAGES.restoreFailed);
       return false;
     } finally {
       restoringRef.current = false;

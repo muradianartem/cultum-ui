@@ -27,11 +27,15 @@ jest.mock('expo-iap', () => ({
 
 const mockApply = jest.fn();
 jest.mock('../EntitlementProvider', () => ({ useEntitlement: () => ({ apply: mockApply }) }));
-jest.mock('../../api/billing', () => ({ verifyApplePurchase: jest.fn() }));
-const { verifyApplePurchase } = require('../../api/billing');
+jest.mock('../../api/billing', () => ({ verifyApplePurchase: jest.fn(), verifyGooglePurchase: jest.fn() }));
+const { verifyApplePurchase, verifyGooglePurchase } = require('../../api/billing');
 
-// Jest resolves the .ios.js file (jest-expo's default platform), same as Metro on iOS.
-import useStorePurchase, { PURCHASE_MESSAGES } from '../useStorePurchase';
+// Jest resolves the .native.js file (jest-expo's default platform is iOS), same as Metro.
+import { Platform } from 'react-native';
+import useStorePurchase from '../useStorePurchase';
+import { storeFor } from '../stores';
+
+const PURCHASE_MESSAGES = storeFor('ios').messages;
 
 const YEARLY = { key: 'yearly', appleProductId: 'com.cultum.plus.yearly' };
 const MONTHLY = { key: 'monthly', appleProductId: 'com.cultum.plus.monthly' };
@@ -332,5 +336,155 @@ describe('restore', () => {
     expect(await restore()).toBe(false);
     expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
+  });
+});
+
+describe('on Android (Google Play)', () => {
+  const PLAY = storeFor('android').messages;
+  const YEARLY_PLAY = { key: 'yearly', googleProductId: 'cultum_plus_yearly' };
+  const phase = (formattedPrice, priceAmountMicros, recurrenceMode) => ({
+    formattedPrice,
+    priceAmountMicros,
+    recurrenceMode,
+    billingPeriod: 'P1Y',
+    billingCycleCount: 0,
+    priceCurrencyCode: 'EUR',
+  });
+  const SUBSCRIPTION = {
+    id: 'cultum_plus_yearly',
+    // Play's product-level price can be the trial's "Free".
+    displayPrice: 'Free',
+    subscriptionOffers: [
+      {
+        id: 'free-trial',
+        offerTokenAndroid: 'trial-token',
+        pricingPhasesAndroid: {
+          pricingPhaseList: [phase('Free', '0', 2), phase('€39.99', '39990000', 1)],
+        },
+      },
+      {
+        id: 'yearly',
+        offerTokenAndroid: 'base-token',
+        pricingPhasesAndroid: { pricingPhaseList: [phase('€39.99', '39990000', 1)] },
+      },
+    ],
+  };
+  const PLAY_PURCHASE = {
+    id: 'GPA.1234-5678',
+    productId: 'cultum_plus_yearly',
+    purchaseToken: 'play-purchase-token',
+    purchaseState: 'purchased',
+  };
+
+  let originalOS;
+  function PlayHarness() {
+    hook = useStorePurchase([YEARLY_PLAY]);
+    return null;
+  }
+
+  beforeEach(async () => {
+    originalOS = Platform.OS;
+    Platform.OS = 'android';
+    mockIap.subscriptions = [SUBSCRIPTION];
+    act(() => tree.unmount());
+    await act(async () => {
+      tree = TestRenderer.create(<PlayHarness />);
+    });
+  });
+
+  afterEach(() => {
+    Platform.OS = originalOS;
+  });
+
+  const startPlayPurchase = async () => {
+    const box = {};
+    await act(async () => {
+      box.result = hook.purchase(YEARLY_PLAY);
+    });
+    return box;
+  };
+
+  test('resolves the Play product ids', () => {
+    expect(mockIap.fetchProducts).toHaveBeenCalledWith({ skus: ['cultum_plus_yearly'], type: 'subs' });
+  });
+
+  test('shows the recurring price, not the trial', () => {
+    expect(hook.prices).toEqual({ cultum_plus_yearly: '€39.99' });
+  });
+
+  test('buys the trial offer, verifies the purchase token, then finishes', async () => {
+    verifyGooglePurchase.mockResolvedValue(PLUS);
+    const { result } = await startPlayPurchase();
+
+    expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+      request: {
+        google: {
+          skus: ['cultum_plus_yearly'],
+          subscriptionOffers: [{ sku: 'cultum_plus_yearly', offerToken: 'trial-token' }],
+        },
+      },
+      type: 'subs',
+    });
+
+    await act(async () => {
+      await mockCallbacks.current.onPurchaseSuccess(PLAY_PURCHASE);
+    });
+
+    await expect(result).resolves.toBe(true);
+    expect(verifyGooglePurchase).toHaveBeenCalledWith({
+      purchaseToken: 'play-purchase-token',
+      productId: 'cultum_plus_yearly',
+    });
+    expect(verifyApplePurchase).not.toHaveBeenCalled();
+    expect(mockApply).toHaveBeenCalledWith(PLUS);
+    expect(mockIap.finishTransaction).toHaveBeenCalledWith({ purchase: PLAY_PURCHASE, isConsumable: false });
+    expect(hook.error).toBeNull();
+  });
+
+  test('a pending purchase is neither verified nor finished', async () => {
+    const { result } = await startPlayPurchase();
+    await act(async () => {
+      await mockCallbacks.current.onPurchaseSuccess({ ...PLAY_PURCHASE, purchaseState: 'pending' });
+    });
+
+    await expect(result).resolves.toBe(false);
+    expect(verifyGooglePurchase).not.toHaveBeenCalled();
+    expect(mockIap.finishTransaction).not.toHaveBeenCalled();
+    expect(hook.error).toBe(PLAY.pending);
+  });
+
+  test('a product Play has not resolved cannot be bought', async () => {
+    mockIap.subscriptions = [];
+    act(() => tree.unmount());
+    await act(async () => {
+      tree = TestRenderer.create(<PlayHarness />);
+    });
+    let ok;
+    await act(async () => {
+      ok = await hook.purchase(YEARLY_PLAY);
+    });
+    expect(ok).toBe(false);
+    expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+    expect(hook.error).toBe(PLAY.unavailable);
+  });
+
+  test('restore speaks of the Google account', async () => {
+    mockGetAvailablePurchases.mockResolvedValue([]);
+    await act(async () => {
+      await hook.restore();
+    });
+    expect(hook.error).toBe(PLAY.nothingToRestore);
+    expect(PLAY.nothingToRestore).toMatch(/Google account/);
+  });
+
+  test('restore verifies an owned Play subscription', async () => {
+    mockGetAvailablePurchases.mockResolvedValue([PLAY_PURCHASE]);
+    verifyGooglePurchase.mockResolvedValue(PLUS);
+    let ok;
+    await act(async () => {
+      ok = await hook.restore();
+    });
+    expect(ok).toBe(true);
+    expect(verifyGooglePurchase).toHaveBeenCalledTimes(1);
   });
 });
