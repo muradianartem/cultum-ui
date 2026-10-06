@@ -31,14 +31,14 @@ describe('labels', () => {
 
   test('frequencyLabel drops the "1" for a single unit', () => {
     expect(frequencyLabel(0, DEFAULT_UNIT_INDEX)).toBe('Remind every day');
-    expect(frequencyLabel(0, 0)).toBe('Remind every hour');
-    expect(frequencyLabel(0, 3)).toBe('Remind every month');
+    expect(frequencyLabel(0, 0)).toBe('Remind every day');
+    expect(frequencyLabel(0, 2)).toBe('Remind every month');
   });
 
   test('frequencyLabel covers the whole shared unit list', () => {
-    expect(frequencyLabel(2, 0)).toBe('Remind every 3 hours');
-    expect(frequencyLabel(1, 2)).toBe('Remind every 2 weeks');
-    expect(frequencyLabel(5, 3)).toBe('Remind every 6 months');
+    expect(frequencyLabel(2, 0)).toBe('Remind every 3 days');
+    expect(frequencyLabel(1, 1)).toBe('Remind every 2 weeks');
+    expect(frequencyLabel(5, 2)).toBe('Remind every 6 months');
   });
 });
 
@@ -56,8 +56,24 @@ describe('makeReminderDraft', () => {
     expect(build()).toEqual({
       title: 'Rotate the pot',
       dateValue: '10 Sep',
+      startAt: new Date(2026, 8, 10, 12).toISOString(),
       frequency: '2 days',
     });
+  });
+
+  test('startAt is local noon on the chosen day', () => {
+    const start = new Date(build({ date: new Date(2026, 8, 10, 23, 45) }).startAt);
+    expect([start.getFullYear(), start.getMonth(), start.getDate(), start.getHours()]).toEqual([2026, 8, 10, 12]);
+  });
+
+  // "31 Dec" alone can't say which year; parseShortDate would have to guess.
+  test('startAt keeps the year the display string drops', () => {
+    const draft = build({ date: new Date(2025, 11, 31) });
+    expect(draft.dateValue).toBe('31 Dec');
+    const start = new Date(draft.startAt);
+    expect([start.getFullYear(), start.getMonth(), start.getDate()]).toEqual([2025, 11, 31]);
+    // ...whereas from 2 Jan 2027 the string alone lands on the nearest 31 Dec.
+    expect(parseShortDate(draft.dateValue, new Date(2027, 0, 2)).getFullYear()).toBe(2026);
   });
 
   test('trims the typed label', () => {
@@ -67,7 +83,7 @@ describe('makeReminderDraft', () => {
   // The whole point of sharing screens/durationUnits.js: a freshly created
   // reminder must be editable by ReminderValueSheet without re-formatting.
   test('the frequency it writes round-trips through the edit sheet', () => {
-    for (const unitIndex of [0, 1, 2, 3]) {
+    for (const unitIndex of [0, 1, 2]) {
       for (const numberIndex of [0, 1, 6, 29]) {
         const value = frequencyValue(numberIndex, unitIndex);
         const { a, b } = parseValue('frequency', value);

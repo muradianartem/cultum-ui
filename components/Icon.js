@@ -3,7 +3,8 @@ import { useTheme } from '../theme/ThemeProvider';
 import { ICON_XML, ICON_NAMES } from './iconRegistry';
 
 /**
- * Icon — the Cultum icon set (158 glyphs from the design-system "Icons" frame).
+ * Icon — the Cultum icon set: the design-system "Icons" frame (node 27338:14830)
+ * plus two local extensions, catalogued in design-system/icon-manifest.json.
  *
  * All monochrome icons render in `color` (they were normalised to
  * fill="currentColor" at build time). The multicolour brand logos — facebook,

@@ -27,7 +27,7 @@ export const plantCard = (plant) => ({
 });
 
 /**
- * One room card: its plants' photos as the 2×2 mosaic, and a meta line that
+ * One room card: the first four plants' photos as the 2×2 mosaic, and a meta line that
  * mentions what needs attention only when something does.
  */
 export function roomCard(state, room, now = new Date()) {
@@ -39,7 +39,8 @@ export function roomCard(state, room, now = new Date()) {
     name: room.name,
     icon: roomIcon(room),
     meta: roomMeta(plants.length, due),
-    photos: plants.map(plantPhoto).filter(Boolean),
+    plantCount: plants.length,
+    photos: plants.map(plantPhoto).filter(Boolean).slice(0, 4),
   };
 }
 

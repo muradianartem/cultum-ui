@@ -11,24 +11,32 @@
 // navigate() on every step — and losing it on back(). Instead the draft lives
 // here and `step` walks the PREVIOUS map, the same shape AddReminderSheet uses.
 //
-// Leaving the reminders step writes the plant and its reminders to the store
-// in one commit, before success renders — that screen says the plant was
-// added, and every one of its exits (Done, close, Scan another plant) must
-// keep it. Done and close then re-enter the product page through replace()
-// with the new plant's id — a Route only renders while it matches, so
-// ProductPage is unmounted for the whole flow and there is no state there to
-// call back into.
+// Leaving the reminders step creates the plant and its reminders on the server,
+// and success renders only once it has answered — that screen says the plant
+// was added, and every one of its exits (Done, close, Scan another plant) must
+// be able to rely on it. Done and close then land on the main screen (Today)
+// through reset(), so no back gesture can reopen the wizard, the product page
+// it started from, or the scan screens before that.
+//
+// In onboarding (an add session the entry screen started — see
+// onboarding/OnboardingProvider.js), Done and close go to the paywall instead,
+// through reset() so closing the paywall can never remount this wizard. The
+// plant is already saved by then; nothing on that path saves it again.
 
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Icon, NavigationBar, useKeyboardVisible } from '../../components';
+import { Button, Icon, NavigationBar, useKeyboard } from '../../components';
 import { useRouter } from '../../routing';
+import { ONBOARDING_PAYWALL, useOnboarding } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
-import { parseFrequency } from '../../store/format';
+import { frequencyValue, parseFrequency } from '../../store/format';
+import { showError } from '../../lib/showError';
 import AddReminderSheet from '../AddReminderSheet';
+import ReminderValueSheet from '../ReminderValueSheet';
+import { parseShortDate } from '../addReminderData';
 import AddRoomSheet from './AddRoomSheet';
 import { useRoomGate } from '../rooms/useRoomGate';
 import NameStep from './NameStep';
@@ -38,6 +46,8 @@ import SuccessStep from './SuccessStep';
 import {
   customReminderRow,
   defaultReminders,
+  draftView,
+  noon,
   nameSuggestions,
   remindersCta,
   successSubtitle,
@@ -58,22 +68,29 @@ const TITLES = {
 export default function AddPlantScreen({ plant, today }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const keyboardVisible = useKeyboardVisible();
-  const { back, replace, reset } = useRouter();
+  const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
+  const { back, reset } = useRouter();
   const garden = useGarden();
   const gate = useRoomGate();
+  const onboarding = useOnboarding();
 
   const vm = plant;
 
   const [step, setStep] = useState('name');
   const [name, setName] = useState(() => vm?.commonName ?? '');
   const [roomId, setRoomId] = useState(null);
-  const [reminders, setReminders] = useState(() => defaultReminders(vm));
+  const [reminders, setReminders] = useState(() => defaultReminders(vm, today ?? new Date()));
   const [roomSheet, setRoomSheet] = useState(false);
   const [reminderSheet, setReminderSheet] = useState(false);
-  // The new plant's id, set once it is in the store. Success has no way back,
-  // so it never needs clearing.
+  // Value editor: { id, field } while a card's detail row is being edited.
+  // Kept after close so the sheet doesn't blank while it slides out.
+  const [editor, setEditor] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  // The new plant's id, set once the server has created it. Success has no
+  // way back, so it never needs clearing.
   const savedId = useRef(null);
+  // A request is out: the reminders CTA shows it and takes no second tap.
+  const [saving, setSaving] = useState(false);
 
   // Rooms come from the store, so one created here is a room everywhere —
   // the flow no longer keeps a private list that the Rooms tab never sees.
@@ -81,18 +98,36 @@ export default function AddPlantScreen({ plant, today }) {
   const room = rooms.find((r) => r.id === roomId) ?? null;
   const previous = PREVIOUS[step];
 
-  const openPlant = () => replace('product', { plantId: savedId.current });
+  // One way out of success for both Done and close. A ref guards it for the
+  // same reason `save` has one: two taps in one frame would both navigate.
+  const finished = useRef(false);
+  const finish = () => {
+    if (finished.current) return;
+    finished.current = true;
+    if (onboarding.addingPlant) {
+      onboarding.beginPaywall();
+      reset('paywall', ONBOARDING_PAYWALL);
+    } else {
+      reset('today');
+    }
+  };
 
   // The leading button steps backwards through the flow where it can, and
-  // otherwise leaves it — from success, onto the plant that was just saved
-  // rather than back to the species it came from.
+  // otherwise leaves it — from success, the same way Done does rather than
+  // back to the species it came from.
   const leave = () => {
     if (previous) setStep(previous);
-    else if (step === 'success') openPlant();
+    else if (step === 'success') finish();
     else back();
   };
 
-  const addRoom = (roomName) => setRoomId(garden.addRoom(roomName));
+  const addRoom = async (roomName) => {
+    try {
+      setRoomId(await garden.addRoom(roomName));
+    } catch (e) {
+      showError(e, 'Couldn’t add the room');
+    }
+  };
 
   const toggleReminder = (id) =>
     setReminders((list) =>
@@ -102,36 +137,100 @@ export default function AddPlantScreen({ plant, today }) {
   const addCustomReminder = (draft) =>
     setReminders((list) => [...list, customReminderRow(draft, parseFrequency(draft.frequency))]);
 
+  // Nothing is saved yet, so a custom row just leaves the draft — no confirm.
+  const removeReminder = (id) => setReminders((list) => list.filter((r) => r.id !== id));
+
+  const editing = editor ? reminders.find((r) => r.id === editor.id) : null;
+  // The sheet speaks the wheel's vocabulary ("7 days"), not the card's
+  // "Every 7 days", so its frequency is re-derived from the interval.
+  const editingView = editing
+    ? { ...draftView(editing), frequency: frequencyValue(editing.intervalDays) }
+    : null;
+
+  /** Write a sheet's display string back into the draft row. */
+  const applyEdit = (value) => {
+    if (!editor) return;
+    const { id, field } = editor;
+    setReminders((list) =>
+      list.map((r) => {
+        if (r.id !== id) return r;
+        if (field === 'frequency') {
+          // The catalog's "Every 7–10 days" no longer describes it.
+          return { ...r, intervalDays: parseFrequency(value, r.intervalDays), frequency: null };
+        }
+        const date = noon(parseShortDate(value, today ?? new Date())).toISOString();
+        // A built-in row counts from its last-done; a custom one from its start.
+        return r.action === 'custom' ? { ...r, startAt: date } : { ...r, lastDoneAt: date };
+      })
+    );
+  };
+
   // Runs from the reminders CTA. A ref, not state, guards it: two taps in the
   // same frame would both still read the old state and add the plant twice.
-  const save = () => {
-    if (!savedId.current) {
-      savedId.current = garden.addPlant({
+  const inFlight = useRef(false);
+  const save = async () => {
+    if (savedId.current) {
+      setStep('success');
+      return;
+    }
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaving(true);
+    try {
+      savedId.current = await garden.addPlant({
         speciesKey: vm?.speciesKey ?? null,
         nickname: name,
         roomId,
-        // The raw SpeciesDetail, so the plant's page renders in full offline.
+        // The raw SpeciesDetail, so the plant's page renders in full at once.
         care: vm?.detail ?? null,
         heroUri: vm?.heroUri ?? null,
         reminders: reminders
           .filter((r) => r.enabled)
-          .map((r) => ({ action: r.action, title: r.title, intervalDays: r.intervalDays })),
+          .map((r) => ({
+            action: r.action,
+            title: r.title,
+            intervalDays: r.intervalDays,
+            startAt: r.startAt ?? null,
+            lastDoneAt: r.lastDoneAt ?? null,
+          })),
       });
+    } catch (e) {
+      // The plant was created but a reminder wasn't: it is still saved, so the
+      // flow goes on and only the reminder is reported.
+      if (!e?.plantId) {
+        showError(e, 'Couldn’t add your plant');
+        return;
+      }
+      savedId.current = e.plantId;
+      showError(e, 'Some reminders weren’t saved');
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
     }
+    // A no-op outside an onboarding add session.
+    onboarding.recordSavedPlant(savedId.current);
     setStep('success');
   };
 
-  // Both sheets are Modals, and iOS won't present a second over an open one —
-  // so only one of them is ever mounted visible at a time. At the plan's room
-  // limit the paywall opens instead.
+  // All three sheets are Modals, and iOS won't present a second over an open
+  // one — so only one of them is ever mounted visible at a time. At the plan's
+  // room limit the paywall opens instead.
   const openRoomSheet = () =>
     gate(() => {
       setReminderSheet(false);
+      setEditorOpen(false);
       setRoomSheet(true);
     });
   const openReminderSheet = () => {
     setRoomSheet(false);
+    setEditorOpen(false);
     setReminderSheet(true);
+  };
+  const openEditField = (id, field) => {
+    setRoomSheet(false);
+    setReminderSheet(false);
+    setEditor({ id, field });
+    setEditorOpen(true);
   };
 
   const addAction = {
@@ -153,10 +252,7 @@ export default function AddPlantScreen({ plant, today }) {
       />
 
       {/* The Name step autofocuses its field — keep Continue above the keyboard. */}
-      <KeyboardAvoidingView
-        style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={[styles.content, { paddingBottom: keyboardHeight }]}>
 
         {step === 'name' ? (
           <NameStep
@@ -180,6 +276,8 @@ export default function AddPlantScreen({ plant, today }) {
           <RemindersStep
             reminders={reminders}
             onToggle={toggleReminder}
+            onEditField={openEditField}
+            onRemove={removeReminder}
             onAddCustom={openReminderSheet}
           />
         ) : null}
@@ -221,6 +319,7 @@ export default function AddPlantScreen({ plant, today }) {
               label={cta.label}
               variant={cta.variant}
               size="lg"
+              loading={saving}
               onPress={save}
             />
           ) : null}
@@ -234,11 +333,11 @@ export default function AddPlantScreen({ plant, today }) {
                 leftIcon={<Icon name="outlined-scan" size={20} color={t.text.primary} />}
                 onPress={() => reset('scan-camera')}
               />
-              <Button label="Done" size="lg" onPress={openPlant} />
+              <Button label="Done" size="lg" onPress={finish} />
             </>
           ) : null}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <AddRoomSheet
         visible={roomSheet}
@@ -251,6 +350,15 @@ export default function AddPlantScreen({ plant, today }) {
         today={today}
         onClose={() => setReminderSheet(false)}
         onConfirm={addCustomReminder}
+      />
+
+      <ReminderValueSheet
+        visible={editorOpen}
+        field={editor?.field}
+        reminder={editingView}
+        today={today}
+        onClose={() => setEditorOpen(false)}
+        onConfirm={applyEdit}
       />
     </View>
   );

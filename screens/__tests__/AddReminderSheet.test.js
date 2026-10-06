@@ -100,7 +100,7 @@ describe('step 2 — frequency', () => {
     const { WheelPicker } = require('../../components');
     const [numbers, units] = tree.root.findAllByType(WheelPicker);
 
-    act(() => units.props.onChange(2)); // weeks
+    act(() => units.props.onChange(1)); // weeks
     expect(texts(tree)).toContain('Remind every 2 weeks');
 
     act(() => numbers.props.onChange(0)); // 1
@@ -128,6 +128,7 @@ describe('step 2 — frequency', () => {
     expect(onConfirm.mock.calls[0][0]).toEqual({
       title: 'Rotate the pot',
       dateValue: '10 Sep',
+      startAt: new Date(2026, 8, 10, 12).toISOString(),
       frequency: '2 days',
     });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -241,7 +242,7 @@ describe('keyboard', () => {
 
   const backdrop = (tree) =>
     tree.root.findAll(
-      (n) => typeof n.type === 'string' && n.props.testID === 'add-reminder-backdrop'
+      (n) => typeof n.type === 'string' && n.props.testID === 'bottomsheet-backdrop'
     )[0];
 
   test('with the keyboard up, the backdrop hides it and keeps the sheet', () => {
@@ -260,6 +261,29 @@ describe('keyboard', () => {
     const tree = create({ onClose });
     act(() => { const n = backdrop(tree); (n.props.onClick ?? n.props.onPress)({}); });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  const panel = (tree) =>
+    tree.root.findAll(
+      (n) => typeof n.type === 'string' && n.props.testID === 'bottomsheet-panel'
+    )[0];
+
+  test('tapping the panel hides the keyboard', () => {
+    const { dismiss, show } = mockKeyboard();
+    const tree = create();
+    show();
+    const p = panel(tree);
+    expect(p.props.onStartShouldSetResponder()).toBe(true);
+    act(() => p.props.onResponderRelease({}));
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  // A panel that claimed every touch left the frequency wheels unscrollable.
+  test('with the keyboard down, the panel leaves touches to the wheels', () => {
+    mockKeyboard();
+    const tree = create();
+    toFrequency(tree);
+    expect(panel(tree).props.onStartShouldSetResponder()).toBe(false);
   });
 
   test('Continue puts the keyboard away before the wheel shows', () => {

@@ -23,7 +23,7 @@
 // say about the result.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ErrorCode, getAvailablePurchases, useIAP } from 'expo-iap';
+import { ErrorCode, getAvailablePurchases, isEligibleForIntroOfferIOS, useIAP } from 'expo-iap';
 import { useEntitlement } from './EntitlementProvider';
 import { storeFor } from './stores';
 
@@ -43,13 +43,15 @@ const isPending = (purchase) => purchase?.purchaseState === 'pending';
  * @param {Array<{ appleProductId: string|null, googleProductId: string|null }>} products
  *   the paywall's products
  * @returns {{ supported: true, available: boolean, busy: boolean, restoring: boolean,
- *             error: string|null, prices: Record<string, string>,
- *             purchase: (product) => Promise<boolean>, restore: () => Promise<boolean> }}
+ *             error: string|null, purchase: (product) => Promise<boolean>,
+ *             restore: () => Promise<boolean>,
+ *             termsFor: (product) => ReturnType<typeof storeTerms> | null }}
  *   `purchase` resolves true once the backend has confirmed the purchase, and
  *   false on a cancel or any failure (which also sets `error`, except a cancel).
  *   `restore` resolves true only if a restored purchase actually granted Plus.
- *   `prices` maps this platform's store product id (billing/stores.js#storeSku)
- *   to the store's localized price.
+ *   `termsFor` is the store's price and trial for the product (shaped like
+ *   billing/storeTerms.js), or null until the store has resolved its SKU — and
+ *   an unresolved SKU cannot be bought.
  */
 export default function useStorePurchase(products) {
   const store = storeFor();
@@ -58,6 +60,11 @@ export default function useStorePurchase(products) {
   const [busy, setBusy] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState(null);
+  // Intro-offer eligibility per App Store subscription group:
+  // `{ [groupId]: boolean }`. A group missing here is unknown, which storeTerms
+  // reads as "no trial". Play needs none of this: it only returns offers the
+  // user is eligible for.
+  const [eligibility, setEligibility] = useState({});
 
   // `{ sku, resolve }` for the tap currently waiting on the store, if any.
   const pending = useRef(null);
@@ -163,26 +170,7 @@ export default function useStorePurchase(products) {
   const resolved = (iap.subscriptions ?? []).map((s) => s.id).join(',');
   useEffect(() => {
     if (__DEV__ && connected) console.log(`[billing] ${store.id} resolved subscriptions:`, resolved || '(none)');
-  }, [connected, resolved]);
-
-  // The real, localized, tax-inclusive price for this user's storefront, which
-  // is the only price the paywall is allowed to show. `fallback_price` from the
-  // API is right in a USD storefront and nowhere else, so it is only the
-  // placeholder for the instant before the store answers.
-  //
-  // Keyed by product id rather than by our own `key` because that is the one
-  // identifier both sides share. Empty until `fetchProducts` resolves.
-  const prices = useMemo(() => {
-    const byId = {};
-    for (const s of iap.subscriptions ?? []) {
-      const price = store.priceOf(s);
-      if (s?.id && price) byId[s.id] = price;
-    }
-    return byId;
-    // `resolved` changes whenever the subscription set does, and reading the
-    // array itself here would rebuild the map on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved]);
+  }, [connected, resolved, store.id]);
 
   // The store has to have resolved a product before it can sell it.
   const skuKey = products
@@ -200,6 +188,51 @@ export default function useStorePurchase(products) {
     })();
   }, [connected, skuKey]);
 
+  // A returning subscriber is not owed the free trial, so ask StoreKit per group
+  // before promising one. A failed check is stored as ineligible.
+  const subscriptions = iap.subscriptions;
+  const groupKey =
+    store.id === 'apple'
+      ? [...new Set((subscriptions ?? []).map((s) => s.subscriptionGroupIdIOS).filter(Boolean))]
+          .sort()
+          .join(',')
+      : '';
+  useEffect(() => {
+    if (!groupKey) return;
+    for (const groupId of groupKey.split(',')) {
+      if (groupId in eligibility) continue;
+      (async () => {
+        let eligible;
+        try {
+          eligible = (await isEligibleForIntroOfferIOS(groupId)) === true;
+        } catch (e) {
+          if (__DEV__) console.log('[billing] intro offer eligibility failed:', e?.message ?? e);
+          eligible = false;
+        }
+        if (mounted.current) setEligibility((prev) => ({ ...prev, [groupId]: eligible }));
+      })();
+    }
+    // Keyed on the groups alone: `eligibility` only grows, and re-running on it
+    // would just skip every group it already holds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupKey]);
+
+  // The real, localized, tax-inclusive price for this user's storefront, which
+  // is the only price the paywall is allowed to show. Keyed by store product id,
+  // the one identifier both sides share. Empty until `fetchProducts` resolves.
+  const termsBySku = useMemo(() => {
+    const map = new Map();
+    for (const sub of subscriptions ?? []) {
+      if (!sub?.id) continue;
+      map.set(sub.id, store.termsOf(sub, eligibility));
+    }
+    return map;
+    // `store` is fixed per platform.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscriptions, eligibility]);
+
+  const termsFor = (product) => termsBySku.get(store.skuOf(product)) ?? null;
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -207,16 +240,17 @@ export default function useStorePurchase(products) {
       // Leave no caller awaiting a sheet that belongs to a gone screen.
       settle(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const purchase = async (product) => {
     if (pending.current || restoringRef.current) return false;
     const sku = store.skuOf(product);
-    // Play needs the resolved product itself - its offer token says which base
-    // plan or trial is being bought - so an unresolved one cannot be sold.
+    // Unresolved means the store has not priced it, so there is nothing the
+    // user could knowingly agree to — and Play could not sell it anyway: its
+    // offer token, which says which base plan or trial is bought, lives on the
+    // resolved product.
     const subscription = (iapRef.current?.subscriptions ?? []).find((s) => s?.id === sku);
-    if (!iapRef.current?.connected || !sku || (store.id === 'google' && !subscription)) {
+    if (!iapRef.current?.connected || !sku || !termsFor(product)) {
       setError(MESSAGES.unavailable);
       return false;
     }
@@ -240,7 +274,8 @@ export default function useStorePurchase(products) {
    *
    * Apple requires this: a reinstall, a new device or a second account leaves
    * the store with nothing to replay, because a *finished* transaction is never
-   * re-delivered. On Play it is the same button for the same reasons. `getAvailablePurchases` asks for the current entitlements
+   * re-delivered. On Play it is the same button for the same reasons.
+   * `getAvailablePurchases` asks for the current entitlements
    * instead of the event stream — active items only, which is its default.
    *
    * Every one of them goes through the same verify-then-finish path as a fresh
@@ -296,5 +331,5 @@ export default function useStorePurchase(products) {
     }
   };
 
-  return { supported: true, available: connected, busy, restoring, error, prices, purchase, restore };
+  return { supported: true, available: connected, busy, restoring, error, purchase, restore, termsFor };
 }

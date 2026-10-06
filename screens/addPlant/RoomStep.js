@@ -5,7 +5,7 @@
 // Chrome-less — AddPlantScreen supplies the nav bar and the Continue footer.
 
 import { ScrollView, StyleSheet } from 'react-native';
-import { Icon, RadioButton } from '../../components';
+import { RadioButton } from '../../components';
 import { space } from '../../theme/foundations';
 import { roomIcon } from '../../store/model';
 import CardRow from './CardRow';

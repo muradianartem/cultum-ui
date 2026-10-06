@@ -6,19 +6,19 @@ import TestRenderer, { act } from 'react-test-renderer';
 const mockCallbacks = { current: null };
 const mockIap = {
   connected: true,
-  // What StoreKit resolved for the requested skus. `displayPrice` is the
-  // localized string the paywall must show instead of the API's USD fallback.
   subscriptions: [],
   fetchProducts: jest.fn(async () => {}),
   requestPurchase: jest.fn(async () => {}),
   finishTransaction: jest.fn(async () => {}),
 };
 const mockGetAvailablePurchases = jest.fn(async () => []);
+const mockEligible = jest.fn();
 jest.mock('expo-iap', () => ({
   ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending', DeferredPayment: 'deferred-payment' },
-  // Both are wrapped rather than referenced: the factory runs while the module
-  // under test is being required, which is before these consts initialize.
+  // Wrapped rather than referenced: the factory runs while the module under
+  // test is being required, which is before these consts initialize.
   getAvailablePurchases: (...args) => mockGetAvailablePurchases(...args),
+  isEligibleForIntroOfferIOS: (...args) => mockEligible(...args),
   useIAP: (options) => {
     mockCallbacks.current = options;
     return mockIap;
@@ -40,6 +40,22 @@ const PURCHASE_MESSAGES = storeFor('ios').messages;
 const YEARLY = { key: 'yearly', appleProductId: 'com.cultum.plus.yearly' };
 const MONTHLY = { key: 'monthly', appleProductId: 'com.cultum.plus.monthly' };
 
+// What StoreKit resolves for those two SKUs (ProductSubscriptionIOS, trimmed).
+const storeSub = (id, displayPrice, unit) => ({
+  id,
+  displayPrice,
+  subscriptionGroupIdIOS: '21500000',
+  subscriptionPeriodNumberIOS: '1',
+  subscriptionPeriodUnitIOS: unit,
+  introductoryPricePaymentModeIOS: 'free-trial',
+  introductoryPriceNumberOfPeriodsIOS: '1',
+  introductoryPriceSubscriptionPeriodIOS: 'week',
+});
+const RESOLVED = [
+  storeSub('com.cultum.plus.yearly', 'CA$54.99', 'year'),
+  storeSub('com.cultum.plus.monthly', 'CA$7.99', 'month'),
+];
+
 const PURCHASE = {
   id: '2000000123',
   transactionId: '2000000123',
@@ -59,7 +75,8 @@ function Harness() {
 beforeEach(async () => {
   jest.clearAllMocks();
   mockIap.connected = true;
-  mockIap.subscriptions = [];
+  mockIap.subscriptions = RESOLVED;
+  mockEligible.mockResolvedValue(true);
   mockGetAvailablePurchases.mockResolvedValue([]);
   jest.spyOn(console, 'log').mockImplementation(() => {});
   await act(async () => {
@@ -201,44 +218,72 @@ test('with no store connection it refuses instead of hanging', async () => {
   expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
 });
 
-// StoreKit's state is read at render, so these remount rather than poke the
-// live tree — which is also how the app sees it: the products resolve, useIAP
-// re-renders, and the new prices are simply there.
+describe('StoreKit terms', () => {
+  const rerender = async () => {
+    await act(async () => {
+      tree.update(<Harness />);
+    });
+  };
+
+  test('are null until StoreKit resolves the SKU', async () => {
+    mockIap.subscriptions = [];
+    await rerender();
+    expect(hook.termsFor(YEARLY)).toBeNull();
+
+    mockIap.subscriptions = RESOLVED;
+    await rerender();
+    expect(hook.termsFor(YEARLY)).toMatchObject({ displayPrice: 'CA$54.99', periodLabel: 'year' });
+  });
+
+  test('carry the trial once the group is known to be eligible', () => {
+    expect(mockEligible).toHaveBeenCalledTimes(1);
+    expect(mockEligible).toHaveBeenCalledWith('21500000');
+    expect(hook.termsFor(MONTHLY)).toEqual({
+      displayPrice: 'CA$7.99',
+      periodLabel: 'month',
+      trial: { days: 7, label: '1 week free' },
+    });
+  });
+
+  test('an ineligible user gets the price and no trial', async () => {
+    act(() => tree.unmount());
+    mockEligible.mockResolvedValue(false);
+    await act(async () => {
+      tree = TestRenderer.create(<Harness />);
+    });
+    expect(hook.termsFor(YEARLY)).toMatchObject({ displayPrice: 'CA$54.99', trial: null });
+  });
+
+  test('a failed eligibility check promises no trial', async () => {
+    act(() => tree.unmount());
+    mockEligible.mockRejectedValue(new Error('storekit'));
+    await act(async () => {
+      tree = TestRenderer.create(<Harness />);
+    });
+    expect(hook.termsFor(YEARLY).trial).toBeNull();
+  });
+
+  test('an unresolved SKU cannot be bought', async () => {
+    mockIap.subscriptions = [RESOLVED[1]];
+    await rerender();
+    let ok;
+    await act(async () => {
+      ok = await hook.purchase(YEARLY);
+    });
+    expect(ok).toBe(false);
+    expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+    expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
+  });
+});
+
+// Store state is read at render, so these remount rather than poke the live
+// tree — which is also how the app sees it.
 const remount = async () => {
   act(() => tree.unmount());
   await act(async () => {
     tree = TestRenderer.create(<Harness />);
   });
 };
-
-describe('localized prices', () => {
-  test('are empty until StoreKit has resolved the products', () => {
-    expect(hook.prices).toEqual({});
-  });
-
-  test('expose displayPrice keyed by product id', async () => {
-    mockIap.subscriptions = [
-      { id: 'com.cultum.plus.yearly', displayPrice: '£34.99', currency: 'GBP' },
-      { id: 'com.cultum.plus.monthly', displayPrice: '£4.99', currency: 'GBP' },
-    ];
-    await remount();
-    // The storefront's own currency, which is the whole point — the API's
-    // fallback_price would have said $39.99 to this user.
-    expect(hook.prices).toEqual({
-      'com.cultum.plus.yearly': '£34.99',
-      'com.cultum.plus.monthly': '£4.99',
-    });
-  });
-
-  test('skip a product StoreKit returned without a price', async () => {
-    mockIap.subscriptions = [
-      { id: 'com.cultum.plus.yearly', displayPrice: '£34.99' },
-      { id: 'com.cultum.plus.monthly' },
-    ];
-    await remount();
-    expect(hook.prices).toEqual({ 'com.cultum.plus.yearly': '£34.99' });
-  });
-});
 
 describe('restore', () => {
   const restore = async () => {
@@ -342,12 +387,12 @@ describe('restore', () => {
 describe('on Android (Google Play)', () => {
   const PLAY = storeFor('android').messages;
   const YEARLY_PLAY = { key: 'yearly', googleProductId: 'cultum_plus_yearly' };
-  const phase = (formattedPrice, priceAmountMicros, recurrenceMode) => ({
+  const phase = (formattedPrice, priceAmountMicros, recurrenceMode, billingPeriod = 'P1Y', billingCycleCount = 0) => ({
     formattedPrice,
     priceAmountMicros,
     recurrenceMode,
-    billingPeriod: 'P1Y',
-    billingCycleCount: 0,
+    billingPeriod,
+    billingCycleCount,
     priceCurrencyCode: 'EUR',
   });
   const SUBSCRIPTION = {
@@ -359,7 +404,7 @@ describe('on Android (Google Play)', () => {
         id: 'free-trial',
         offerTokenAndroid: 'trial-token',
         pricingPhasesAndroid: {
-          pricingPhaseList: [phase('Free', '0', 2), phase('€39.99', '39990000', 1)],
+          pricingPhaseList: [phase('Free', '0', 2, 'P1W', 1), phase('€39.99', '39990000', 1)],
         },
       },
       {
@@ -385,6 +430,8 @@ describe('on Android (Google Play)', () => {
   beforeEach(async () => {
     originalOS = Platform.OS;
     Platform.OS = 'android';
+    // The iOS harness mounted in the outer beforeEach already asked StoreKit.
+    mockEligible.mockClear();
     mockIap.subscriptions = [SUBSCRIPTION];
     act(() => tree.unmount());
     await act(async () => {
@@ -408,8 +455,23 @@ describe('on Android (Google Play)', () => {
     expect(mockIap.fetchProducts).toHaveBeenCalledWith({ skus: ['cultum_plus_yearly'], type: 'subs' });
   });
 
-  test('shows the recurring price, not the trial', () => {
-    expect(hook.prices).toEqual({ cultum_plus_yearly: '€39.99' });
+  test('shows the recurring price and the trial Play offers', () => {
+    expect(hook.termsFor(YEARLY_PLAY)).toEqual({
+      displayPrice: '€39.99',
+      periodLabel: 'year',
+      trial: { days: 7, label: '1 week free' },
+    });
+    // Play's offer list is the eligibility check; StoreKit's is never asked.
+    expect(mockEligible).not.toHaveBeenCalled();
+  });
+
+  test('with only the base plan on offer there is no trial', async () => {
+    mockIap.subscriptions = [{ ...SUBSCRIPTION, subscriptionOffers: [SUBSCRIPTION.subscriptionOffers[1]] }];
+    act(() => tree.unmount());
+    await act(async () => {
+      tree = TestRenderer.create(<PlayHarness />);
+    });
+    expect(hook.termsFor(YEARLY_PLAY)).toEqual({ displayPrice: '€39.99', periodLabel: 'year', trial: null });
   });
 
   test('buys the trial offer, verifies the purchase token, then finishes', async () => {

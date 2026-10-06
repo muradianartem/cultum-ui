@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import NavigationBar from '../NavigationBar';
 import { NavigationBar as BarrelNav } from '../index';
 import { colorTokens, interaction } from '../../theme/colorTokens';
@@ -72,4 +72,19 @@ test('divider is on by default and can be turned off', () => {
   expect(withD.borderBottomColor).toBe(t.border.primary);
   const noD = Object.assign({}, ...[].concat(header(create(<NavigationBar title="x" divider={false} />)).props.style).filter(Boolean));
   expect(noD.borderBottomColor).toBeUndefined();
+});
+
+test('a large bar with actions but no leading puts them on the title row', () => {
+  const onPress = jest.fn();
+  const tree = create(
+    <NavigationBar
+      title="Rooms"
+      size="lg"
+      actions={[{ icon: <Text>+</Text>, onPress, accessibilityLabel: 'Add' }]}
+    />
+  );
+  const titleRow = tree.root.findAllByType(Text).find((n) => n.props.children === 'Rooms').parent;
+  expect(titleRow.findAll((n) => n.props.accessibilityLabel === 'Add').length).toBeGreaterThan(0);
+  act(() => byLabel(tree, 'Add').props.onPress());
+  expect(onPress).toHaveBeenCalled();
 });

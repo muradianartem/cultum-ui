@@ -1,6 +1,10 @@
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
 import {
   cachedPaywall,
+  paywallStatus,
   prefetchPaywall,
+  usePaywallResource,
   __resetPaywallCache,
 } from '../paywallContent';
 
@@ -85,4 +89,98 @@ test('a malformed 200 is treated exactly like a failure', async () => {
   getPaywall.mockResolvedValue(UNUSABLE);
   await prefetchPaywall();
   expect(cachedPaywall()).toBeNull();
+});
+
+describe('status', () => {
+  // A probe that records every value the hook hands out.
+  const mountResource = () => {
+    const seen = [];
+    let latest;
+    function Probe() {
+      latest = usePaywallResource();
+      seen.push(latest.status);
+      return null;
+    }
+    let tree;
+    act(() => {
+      tree = TestRenderer.create(<Probe />);
+    });
+    return { seen, current: () => latest, unmount: () => act(() => tree.unmount()) };
+  };
+  const deferred = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  test('reads loading before the first request and while one is in flight', () => {
+    expect(paywallStatus()).toBe('loading');
+    getPaywall.mockReturnValue(new Promise(() => {}));
+    prefetchPaywall();
+    expect(paywallStatus()).toBe('loading');
+  });
+
+  test('a failure notifies the screen and reads as error', async () => {
+    const d = deferred();
+    getPaywall.mockReturnValue(d.promise);
+    const probe = mountResource();
+    expect(probe.current().status).toBe('loading');
+
+    await act(async () => {
+      d.reject(new Error('offline'));
+    });
+    expect(paywallStatus()).toBe('error');
+    expect(probe.current()).toMatchObject({ content: null, status: 'error' });
+    probe.unmount();
+  });
+
+  test('a malformed payload reads as error', async () => {
+    getPaywall.mockResolvedValue(UNUSABLE);
+    await prefetchPaywall();
+    expect(paywallStatus()).toBe('error');
+  });
+
+  test('retry goes loading, then ready', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    const probe = mountResource();
+    await act(async () => {});
+    expect(probe.current().status).toBe('error');
+
+    const d = deferred();
+    getPaywall.mockReturnValue(d.promise);
+    act(() => probe.current().retry());
+    expect(probe.current().status).toBe('loading');
+
+    await act(async () => {
+      d.resolve(RESPONSE);
+    });
+    expect(probe.current().status).toBe('ready');
+    expect(probe.current().content.title).toBe(RESPONSE.title);
+    probe.unmount();
+  });
+
+  test('concurrent retries make one request', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    const probe = mountResource();
+    await act(async () => {});
+    getPaywall.mockClear();
+
+    const d = deferred();
+    getPaywall.mockReturnValue(d.promise);
+    act(() => {
+      probe.current().retry();
+      probe.current().retry();
+      probe.current().retry();
+    });
+    expect(getPaywall).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      d.resolve(RESPONSE);
+    });
+    expect(probe.current().status).toBe('ready');
+    probe.unmount();
+  });
 });

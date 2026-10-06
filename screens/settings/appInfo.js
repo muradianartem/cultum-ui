@@ -21,4 +21,4 @@ export const LEGAL_LINKS = [
 ];
 
 /** The address on the Contact us card. */
-export const SUPPORT_EMAIL = 'hello@cultum.app';
+export { SUPPORT_EMAIL } from '../../lib/support';

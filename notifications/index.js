@@ -104,6 +104,11 @@ export function pendingOccurrences(state, now = new Date(), limit = MAX_SCHEDULE
 // Serialisation state for rescheduleAll — see the guard inside it.
 let running = false;
 let queued = null;
+// The promise of the rebuild that is running, so cancelAll can wait it out.
+let current = null;
+// Bumped by cancelAll. A rebuild or queued request from an older generation
+// belongs to a session that has ended, and must stop scheduling.
+let generation = 0;
 
 /**
  * Rebuild the whole schedule from the garden as it stands.
@@ -111,32 +116,39 @@ let queued = null;
  * Safe to call on every state change: cancelling and re-adding a few dozen
  * local notifications is cheap, and it makes "what is scheduled" a pure
  * function of the store rather than a second thing to keep correct.
+ *
+ * `now` defaults to the moment the rebuild actually starts — for a request
+ * that had to queue, that is when it is drained, not when it arrived.
  */
-export async function rescheduleAll(state, now = new Date(), options = {}) {
+export async function rescheduleAll(state, now, options = {}) {
   const { notificationsEnabled = true } = options;
+  const gen = generation;
 
   // Two overlapping runs would interleave one's cancelAll into the middle of
   // the other's scheduling loop and leave the OS holding a partial set. Serialise
   // instead, and remember that a request arrived mid-flight so the last state
   // wins rather than being dropped.
   if (running) {
-    queued = { state, now, options };
+    queued = { state, now, options, gen };
     return;
   }
   running = true;
   try {
-    await rebuild(state, now, notificationsEnabled);
+    current = rebuild(state, now ?? new Date(), notificationsEnabled, gen);
+    await current;
   } finally {
     running = false;
+    current = null;
     const next = queued;
     queued = null;
-    if (next) await rescheduleAll(next.state, next.now, next.options);
+    if (next && next.gen === generation) await rescheduleAll(next.state, next.now, next.options);
   }
 }
 
-async function rebuild(state, now, notificationsEnabled) {
+async function rebuild(state, now, notificationsEnabled, gen) {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
+    if (gen !== generation) return;
     // The master switch governs OS delivery only. It deliberately does not
     // touch any reminder's own `enabled` flag: that one is pushed to the
     // server, so writing it here would silently disable the user's reminders
@@ -154,6 +166,8 @@ async function rebuild(state, now, notificationsEnabled) {
           date: new Date(task.dueAt),
         },
       });
+      // Signed out mid-loop: stop adding the previous user's reminders.
+      if (gen !== generation) return;
     }
     if (__DEV__) {
       // What the OS is actually holding, not what we asked for — the two differ
@@ -166,8 +180,22 @@ async function rebuild(state, now, notificationsEnabled) {
   }
 }
 
-/** Drop everything we have pending (sign-out). */
+/**
+ * Drop everything we have pending (sign-out).
+ *
+ * Goes through the same serializer as rescheduleAll: it retires any queued
+ * request, waits for a running rebuild to notice it is stale and stop, and only
+ * then clears the OS queue — so nothing an earlier request scheduled survives
+ * once this resolves.
+ */
 export async function cancelAll() {
+  generation += 1;
+  queued = null;
+  try {
+    await current;
+  } catch {
+    // rebuild() already reports its own failures.
+  }
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {

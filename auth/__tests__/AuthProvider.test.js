@@ -19,7 +19,14 @@ jest.mock('../../api/auth', () => ({
   },
 }));
 
+jest.mock('../../api/account', () => ({
+  getMe: jest.fn(async () => {
+    throw new Error('not stubbed');
+  }),
+}));
+
 const authStorage = require('../../lib/authStorage');
+const { getMe } = require('../../api/account');
 const { authApi } = require('../../api/auth');
 
 // Probe component that pushes the current auth value out to the test.
@@ -282,14 +289,16 @@ describe('proactive refresh', () => {
     expect(authApi.refresh).not.toHaveBeenCalled();
   });
 
-  test('reports null instead of throwing when the rotation fails', async () => {
+  test('rejects with the rotation error rather than sending the request unauthenticated', async () => {
     authStorage.loadTokens.mockResolvedValueOnce(expiring(-1000)); // already expired
-    authApi.refresh.mockRejectedValueOnce(new Error('refresh token reused'));
+    authApi.refresh.mockRejectedValueOnce(
+      Object.assign(new Error('refresh token reused'), { status: 401 })
+    );
 
     const { ref } = await renderAuth();
 
     await act(async () => {
-      await expect(client.getAuthToken()).resolves.toBeNull();
+      await expect(client.getAuthToken()).rejects.toMatchObject({ status: 401 });
     });
     expect(ref.current.status).toBe('signedOut');
   });
@@ -370,5 +379,56 @@ describe('signedInVia', () => {
       await expect(rejected.ref.current.refreshSession()).rejects.toMatchObject({ status: 401 });
     });
     expect(rejected.ref.current.signedInVia).toBeNull();
+  });
+});
+
+describe('GET /users/me at sign-in', () => {
+  const minted = { access_token: 'A', refresh_token: 'R', token_type: 'bearer', expires_in: 3600 };
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    authStorage.loadTokens.mockResolvedValue(null);
+    authApi.loginGoogle.mockResolvedValue(minted);
+  });
+  afterEach(() => console.warn.mockRestore());
+
+  test.each([true, false])('onboarding_shown %s is exposed once signed in', async (shown) => {
+    getMe.mockResolvedValueOnce({ id: 'u', onboarding_shown: shown });
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.completeGoogleLogin('the-id-token');
+    });
+    expect(getMe).toHaveBeenCalledTimes(1);
+    expect(ref.current.status).toBe('signedIn');
+    expect(ref.current.onboardingShown).toBe(shown);
+  });
+
+  test('a failed read still signs in, with no answer', async () => {
+    getMe.mockRejectedValueOnce(new Error('offline'));
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.completeGoogleLogin('the-id-token');
+    });
+    expect(ref.current.status).toBe('signedIn');
+    expect(ref.current.onboardingShown).toBeNull();
+  });
+
+  test('a restored session does not ask', async () => {
+    authStorage.loadTokens.mockResolvedValue(minted);
+    const { ref } = await renderAuth();
+    expect(ref.current.status).toBe('signedIn');
+    expect(getMe).not.toHaveBeenCalled();
+    expect(ref.current.onboardingShown).toBeNull();
+  });
+
+  test('sign-out forgets the answer', async () => {
+    getMe.mockResolvedValueOnce({ id: 'u', onboarding_shown: true });
+    const { ref } = await renderAuth();
+    await act(async () => {
+      await ref.current.completeGoogleLogin('the-id-token');
+    });
+    await act(async () => {
+      await ref.current.signOut();
+    });
+    expect(ref.current.onboardingShown).toBeNull();
   });
 });

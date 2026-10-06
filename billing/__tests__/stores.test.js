@@ -38,6 +38,34 @@ test('an unresolved product has no offer', () => {
   expect(pickGoogleOffer(undefined)).toBeNull();
 });
 
-test('Apple prices are StoreKit displayPrice', () => {
-  expect(storeFor('ios').priceOf({ displayPrice: '£34.99' })).toBe('£34.99');
+test('Apple terms are StoreKit\x27s, with the trial gated on eligibility', () => {
+  const sub = {
+    displayPrice: '£34.99',
+    subscriptionGroupIdIOS: 'g',
+    subscriptionPeriodNumberIOS: '1',
+    subscriptionPeriodUnitIOS: 'year',
+    introductoryPricePaymentModeIOS: 'free-trial',
+    introductoryPriceNumberOfPeriodsIOS: '1',
+    introductoryPriceSubscriptionPeriodIOS: 'week',
+  };
+  expect(storeFor('ios').termsOf(sub, { g: true })).toEqual({
+    displayPrice: '£34.99',
+    periodLabel: 'year',
+    trial: { days: 7, label: '1 week free' },
+  });
+  expect(storeFor('ios').termsOf(sub, {}).trial).toBeNull();
+});
+
+test('Play terms read the period off the recurring phase', () => {
+  const sub = {
+    subscriptionOffers: [
+      {
+        offerTokenAndroid: 't',
+        pricingPhasesAndroid: {
+          pricingPhaseList: [{ formattedPrice: '€5.99', priceAmountMicros: '5990000', recurrenceMode: 1, billingPeriod: 'P3M' }],
+        },
+      },
+    ],
+  };
+  expect(storeFor('android').termsOf(sub)).toEqual({ displayPrice: '€5.99', periodLabel: '3 months', trial: null });
 });

@@ -4,7 +4,7 @@ import { apiFetch } from './client';
  * The user's rooms — a real server entity, not a plant's `location` string.
  *
  * All of these need a bearer token; api/client.js attaches it. Every call is
- * driven by store/sync.js from the outbox, never by a screen directly.
+ * made by store/GardenProvider.js, never by a screen directly.
  *
  * `icon` is a Cultum icon name (components/iconRegistry.js). RoomOut does not
  * carry it yet — the backend is adding it — so it is sent on every write and

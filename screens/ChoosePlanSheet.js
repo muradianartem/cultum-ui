@@ -7,18 +7,15 @@
 // primitive's default) and the plan rows are specific to this screen.
 //
 // The plans come in as `products` — the mapped GET /billing/plans payload the
-// paywall is already holding — so the sheet owns no pricing of its own.
-//
-// `prices` is StoreKit's localized `displayPrice` per Apple product id, handed
-// down from the paywall's store hook. It is empty until the products resolve
-// (and always empty off iOS), which is the only reason `fallbackPrice` is still
-// rendered at all.
+// paywall is already holding — so the sheet owns no pricing of its own. On iOS
+// `termsFor` supplies StoreKit's localized price, which wins over the backend's
+// `fallbackPrice` once StoreKit has resolved the SKU.
 
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, BottomSheet } from '../components';
-import { storeSku } from '../billing/stores';
 import { useTheme } from '../theme/ThemeProvider';
+import { fontFace } from '../theme/fonts';
 import { radius, space, stroke, typography } from '../theme/foundations';
 
 /**
@@ -37,14 +34,7 @@ export function detailFor(product) {
   return product.period === 'year' ? 'Billed yearly, cancel any time' : 'Cancel any time';
 }
 
-export default function ChoosePlanSheet({
-  visible,
-  products,
-  prices = {},
-  onClose,
-  onDone,
-  initialPlan,
-}) {
+export default function ChoosePlanSheet({ visible, products, termsFor, onClose, onDone, initialPlan }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const [selected, setSelected] = useState(initialPlan ?? products[0]?.key);
@@ -60,14 +50,15 @@ export default function ChoosePlanSheet({
       testID="choose-plan-sheet"
     >
       {/* Rendered here rather than via BottomSheet's `title`: the primitive's
-          title is 18px and Figma sets this heading at 22. */}
+          title is Inter, and Figma sets this heading in Literata (Heading
+          Extra Small Emphasized, node 265:161). */}
       <Text style={styles.heading}>Choose a plan</Text>
 
       <View style={styles.plans}>
         {products.map((plan) => {
           const isSelected = plan.key === selected;
           const period = `per ${plan.period}`;
-          const price = prices[storeSku(plan)] ?? plan.fallbackPrice;
+          const price = termsFor?.(plan)?.displayPrice || plan.fallbackPrice;
           return (
             <Pressable
               key={plan.key}
@@ -91,8 +82,9 @@ export default function ChoosePlanSheet({
               </View>
 
               <View style={styles.planPrice}>
-                {/* StoreKit's localized price once the products resolve, and
-                    the API's USD `fallback_price` only until then. */}
+                {/* StoreKit's localized price on iOS. Elsewhere the *fallback*
+                    price — right in a USD storefront and nowhere else, until
+                    Play Billing lands. */}
                 <Text style={styles.planPriceText}>{price}</Text>
                 <Text style={styles.planPeriod}>{period}</Text>
               </View>
@@ -113,9 +105,7 @@ function makeStyles(t) {
     },
     body: { paddingTop: space[8], paddingBottom: space[24], gap: space[16] },
     heading: {
-      fontSize: 22,
-      lineHeight: 29, // Figma 1.3em
-      fontWeight: '700',
+      ...typography.headingExtraSmallEmphasized,
       color: t.text.primary,
       textAlign: 'center',
       paddingHorizontal: space[16],
@@ -139,10 +129,15 @@ function makeStyles(t) {
     planNameText: { ...typography.bodyLargeEmphasized, color: t.text.primary },
     planDetail: { ...typography.bodyMedium, color: t.text.secondary },
     planPrice: { alignItems: 'flex-end', gap: 1 },
-    planPriceText: { fontSize: 17, lineHeight: 24, fontWeight: '700', color: t.text.primary },
+    // Figma's amount is a raw Inter Bold 17/140% (node 299:477), not a named style.
+    planPriceText: {
+      fontFamily: fontFace('Inter', 700),
+      fontSize: 17,
+      lineHeight: 23.8,
+      color: t.text.primary,
+    },
     planPeriod: {
       ...typography.captionEmphasized,
-      fontWeight: '500', // Figma's Caption Emphasized is Inter Medium
       color: t.text.secondary,
     },
   });

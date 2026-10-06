@@ -13,6 +13,8 @@ import {
   Button,
   Dialog,
   Icon,
+  List,
+  ListItem,
   SegmentedControl,
   State,
   TabBar,
@@ -71,8 +73,22 @@ function buildUpcomingGroups(tasks) {
   return order.map((k) => byDay.get(k));
 }
 
+// "3 tasks snoozed ›" (Figma "Snoozed banner", 667:17739) — the way into the
+// Snoozed page. Only rendered while something is actually snoozed.
+function SnoozedBanner({ count, onPress, color }) {
+  return (
+    <List variant="card">
+      <ListItem
+        title={count === 1 ? '1 task snoozed' : `${count} tasks snoozed`}
+        after={<Icon name="chevron-right" size={20} color={color} />}
+        onPress={onPress}
+      />
+    </List>
+  );
+}
+
 // One display group: an optional header + a stack of individual TaskCards.
-function TaskGroup({ group, onComplete, onOpen, onAdjust, onSnooze, styles }) {
+function TaskGroup({ group, onOpen, styles }) {
   return (
     <View style={styles.group}>
       {group.header ? <Text style={styles.groupHeader}>{group.header}</Text> : null}
@@ -81,9 +97,6 @@ function TaskGroup({ group, onComplete, onOpen, onAdjust, onSnooze, styles }) {
           key={task.id}
           task={task}
           onPress={onOpen ? () => onOpen(task) : undefined}
-          onDone={onComplete ? () => onComplete(task) : undefined}
-          onAdjust={onAdjust ? () => onAdjust(task) : undefined}
-          onSnooze={onSnooze ? () => onSnooze(task) : undefined}
         />
       ))}
     </View>
@@ -105,9 +118,6 @@ export default function TodayScreen() {
   // `sheetOpen` is false) so the content doesn't blank mid-animation.
   const [sheetTask, setSheetTask] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Which page the sheet opens on: tapping a card lands on 'detail', the swipe
-  // "Snooze" action opens straight on the 'snooze' step.
-  const [sheetStep, setSheetStep] = useState('detail');
   // The snackbar sits above the bottom block (grouping row + tab bar); measure
   // it rather than hardcode a height, so it tracks the row coming and going.
   const [bottomH, setBottomH] = useState(0);
@@ -115,6 +125,7 @@ export default function TodayScreen() {
 
   const tasks = garden.todaysTasks;
   const upcoming = garden.upcoming;
+  const snoozedCount = garden.snoozed.length;
   const taskCount = tasks.length;
   const hasPlants = garden.plants.length > 0;
 
@@ -123,18 +134,12 @@ export default function TodayScreen() {
 
   const openSheet = (task) => {
     setSheetTask(task);
-    setSheetStep('detail');
-    setSheetOpen(true);
-  };
-  const openSnooze = (task) => {
-    setSheetTask(task);
-    setSheetStep('snooze');
     setSheetOpen(true);
   };
   const closeSheet = () => setSheetOpen(false);
 
-  // A task's "Adjust" (swipe action) and the sheet's "Reminder settings" gear
-  // both jump to that plant's notification settings.
+  // The sheet's "Reminder settings" gear jumps to that plant's notification
+  // settings.
   const openReminders = (task) => navigate('reminders', { plantId: task?.plantId });
   const openPlant = (task) => navigate('product', { plantId: task?.plantId });
 
@@ -169,6 +174,15 @@ export default function TodayScreen() {
     },
     { value: 'upcoming', label: 'Upcoming' },
   ];
+
+  const snoozedBanner =
+    snoozedCount > 0 ? (
+      <SnoozedBanner
+        count={snoozedCount}
+        onPress={() => navigate('snoozed')}
+        color={t.text.primary}
+      />
+    ) : null;
 
   const greeting = [salutation(garden.now), garden.profileName].filter(Boolean).join(', ');
   // A garden with no plants in it needs a way in, not an "all caught up".
@@ -205,17 +219,15 @@ export default function TodayScreen() {
             </View>
           )}
 
+          {segment === 'today' && groups.length > 0 && snoozedBanner}
+
           {segment === 'today' && groups.length > 0 && (
             <View style={styles.groups}>
               {groups.map((group) => (
                 <TaskGroup
                   key={group.key}
                   group={group}
-                  onComplete={(task) =>
-                    notify('Task completed', garden.completeReminder(task.reminderId))}
                   onOpen={openSheet}
-                  onAdjust={openReminders}
-                  onSnooze={openSnooze}
                   styles={styles}
                 />
               ))}
@@ -239,11 +251,12 @@ export default function TodayScreen() {
                     }
                 }
               />
+              {snoozedBanner}
               {upcoming.length > 0 ? (
                 <View style={styles.group}>
                   <Text style={styles.nextUpHeader}>Next up</Text>
-                  {/* Preview only — no onDone, so it's a plain (non-swipeable) card. */}
-                  <TaskCard task={upcoming[0]} />
+                  {/* Preview only — opens the plant, like a card on Upcoming. */}
+                  <TaskCard task={upcoming[0]} onPress={() => openPlant(upcoming[0])} />
                 </View>
               ) : null}
             </View>
@@ -303,7 +316,6 @@ export default function TodayScreen() {
       <TaskSheet
         task={sheetTask}
         visible={sheetOpen}
-        initialStep={sheetStep}
         onClose={closeSheet}
         onMarkDone={() => {
           if (sheetTask) {
@@ -366,7 +378,8 @@ const makeStyles = (t) =>
     groupingRow: { alignItems: 'center', paddingVertical: space[8] },
     // Label for the "Today" segment: text + a count badge, laid out as a row.
     segLabel: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
-    segLabelText: { fontSize: 14, fontWeight: '500', color: t.text.primary },
+    // Segmented Control's item label and badge (Figma 27383:2390).
+    segLabelText: { ...typography.bodyMediumEmphasized, color: t.text.primary },
     // The count badge — a View so padding + full radius render as a real pill
     // (a Text background on iOS hugs the glyphs and ignores padding/radius).
     segCount: {
@@ -377,5 +390,5 @@ const makeStyles = (t) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    segCountText: { ...typography.captionEmphasized, color: t.brand.onPrimary },
+    segCountText: { ...typography.bodySmall, color: t.brand.onPrimary },
   });

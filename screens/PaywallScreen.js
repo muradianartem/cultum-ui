@@ -5,38 +5,49 @@
 //
 // The copy, the trial timeline, the comparison rows and both products come
 // from GET /billing/plans via billing/paywallContent.js. Nothing is bundled, so
-// this screen has no prices of its own to fall back on — and no loading or
-// error state either: <PaywallLauncher> only opens it once that content exists,
-// which is why `content` is all but guaranteed here and the null branch below
-// is a guard rather than a state the user is meant to see.
+// this screen has no prices of its own to fall back on. The end of onboarding,
+// Settings → Upgrade and the room-limit gate all navigate here directly, so
+// until the content lands the screen draws <PaywallPending>: a Close plus a
+// spinner, or an error with Try again.
 //
 // The rating and the reviews are NOT in that payload and stay local constants;
 // there is no endpoint to hunt for.
 //
-// "Start free trial" buys the selected plan through billing/useStorePurchase:
-// StoreKit 2 plus POST /billing/apple/verify on iOS, Play Billing plus
-// POST /billing/google/verify on Android. Web has no store flow, and there the
+// The CTA buys the selected plan through billing/useStorePurchase: StoreKit 2
+// plus POST /billing/apple/verify on iOS, Play Billing plus
+// POST /billing/google/verify on Android. The store owns the price and the
+// trial — the headline, plan rows and CTA read `store.termsFor(product)`, and
+// "Start free trial" (and the trial timeline) appear only when the store offers
+// a free trial this user is eligible for; otherwise the CTA reads "Subscribe".
+// Web has no store flow: it keeps the backend's fallback price, and there the
 // button just closes the screen.
 //
-// Prices are the store's, not the payload's. `GET /billing/plans` carries a
-// `fallback_price` that is only right in a USD storefront; the store's
-// localized price replaces it here and in the plan sheet as soon as the products
-// resolve. "Restore purchases" sits below both CTAs because Apple requires a
-// route back to a subscription this Apple ID already owns — a reinstall leaves
-// the store no unfinished transaction to replay. Play gets the same button.
+// "Restore purchases" sits below both CTAs because Apple requires a route back
+// to a subscription this Apple ID already owns — a reinstall leaves the store
+// no unfinished transaction to replay. Play gets the same button.
 
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Button, ButtonIcon, Icon, TextButton } from '../components';
+import {
+  Button,
+  ButtonIcon,
+  Icon,
+  LoadingIndicator,
+  NavigationBar,
+  State,
+  TextButton,
+} from '../components';
 import { useTheme } from '../theme/ThemeProvider';
+import { fontFace } from '../theme/fonts';
 import { radius, space, stroke, typography } from '../theme/foundations';
 import { useRouter } from '../routing';
-import { usePaywallContent } from '../billing/paywallContent';
+import { useOnboarding } from '../onboarding';
+import { usePaywallResource } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
-import { storeSku } from '../billing/stores';
+import { headline } from '../billing/storeTerms';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
@@ -51,23 +62,20 @@ const PLUS_CORNER = radius[16]; // Figma 14px — nearest step on the radius sca
 
 // Not in GET /billing/plans — the backend has no App Store review data — so
 // these stay transcribed from the Figma frame.
+// FIXME(App Review 1.1.6/3.1.2): the app has no ratings yet, so this is a made-up
+// claim on a purchase screen. Needs an owner decision before submission.
 const SOCIAL_PROOF = { rating: '4.8', count: '6.2K ratings' };
 
 /**
- * The line above the CTA, for the currently selected product.
+ * The line above the CTA from the backend's copy — what platforms without a
+ * store flow show. On iOS the headline comes from StoreKit (billing/storeTerms).
  *
  * Exported because it is the one piece of derived copy on this screen worth
  * testing on its own: it is what makes the price follow the plan sheet, which
  * the hardcoded version never did.
- *
- * `storePrice` is StoreKit's localized `displayPrice` and wins whenever it is
- * known — it is the only price the user will actually be charged, in their own
- * currency and with their own tax in it. `fallbackPrice` is the API's USD
- * placeholder, right for the instant before StoreKit answers and for the
- * platforms that have no store flow at all.
  */
-export function headlineFor(product, storePrice = null) {
-  const price = `${storePrice ?? product.fallbackPrice} a ${product.period}`;
+export function headlineFor(product) {
+  const price = `${product.fallbackPrice} a ${product.period}`;
   return product.trialDays > 0
     ? `${product.trialDays} days free, then ${price}`
     : price;
@@ -86,20 +94,72 @@ const REVIEWS = [
   },
 ];
 
-export default function PaywallScreen() {
-  const content = usePaywallContent();
+/**
+ * @param {object} props
+ * @param {'onboarding'} [props.source]  set only by the end of onboarding. That
+ *   paywall is the last onboarding step, so every way out of it — Close, a
+ *   verified purchase — completes onboarding. Any other paywall (Settings, the
+ *   room-limit gate) is a detour and leaves onboarding alone.
+ */
+export default function PaywallScreen({ source } = {}) {
+  const { content, status, retry } = usePaywallResource();
   // Hooks cannot be skipped, so the "no content" check has to happen above
-  // every other one — hence the split. Reachable only by opening the route
-  // directly (the guard fallback), never through the launcher.
-  if (!content) return null;
-  return <Paywall content={content} />;
+  // every other one — hence the split. Reachable before its content lands from
+  // every entry point: onboarding, Settings → Upgrade and the room gate.
+  if (!content) return <PaywallPending status={status} onRetry={retry} source={source} />;
+  return <Paywall content={content} source={source} />;
 }
 
-function Paywall({ content }) {
+// Same shape as the scan flow's close: pop if there's history, else go home.
+// The onboarding paywall was entered through reset(), so it has no history —
+// and must not, or closing it could remount the finished add-plant wizard.
+function useClose(source) {
+  const { back, canGoBack, reset } = useRouter();
+  const { complete } = useOnboarding();
+  return () => {
+    if (source === 'onboarding') {
+      complete();
+      reset('today');
+      return;
+    }
+    if (canGoBack) back();
+    else reset('today');
+  };
+}
+
+/** The paywall before its content exists: always a way out, never a blank. */
+function PaywallPending({ status, onRetry, source }) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const onClose = useClose(source);
+  return (
+    <View style={[pendingStyles.root, { backgroundColor: t.background.primary, paddingTop: insets.top }]}>
+      <NavigationBar leading="close" onLeadingPress={onClose} divider={false} />
+      <View style={pendingStyles.body}>
+        {status === 'error' ? (
+          <State
+            title="Plans couldn't be loaded"
+            subtitle="Check your connection and try again."
+            primaryAction={{ label: 'Try again', onPress: onRetry }}
+          />
+        ) : (
+          <LoadingIndicator accessibilityLabel="Loading plans" />
+        )}
+      </View>
+    </View>
+  );
+}
+
+const pendingStyles = StyleSheet.create({
+  root: { flex: 1 },
+  body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space[16] },
+});
+
+function Paywall({ content, source }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
-  const { back, canGoBack, reset } = useRouter();
+  const onClose = useClose(source);
 
   const [plansOpen, setPlansOpen] = useState(false);
   const [planKey, setPlanKey] = useState(content.defaultProductKey);
@@ -112,15 +172,15 @@ function Paywall({ content }) {
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
 
-  // Null until the store has resolved the products, and on every platform
-  // without a store flow — `headlineFor` falls back to the API's price there.
-  const storePrice = store.prices[storeSku(product)] ?? null;
+  // The store's terms for the selected plan, or null: not resolved yet, or a
+  // platform with no store at all.
+  const terms = store.supported ? store.termsFor(product) : null;
+  const pricesPending = store.supported && !terms;
+  const offersTrial = !store.supported || Boolean(terms?.trial);
+  const ctaLabel = offersTrial ? 'Start free trial' : 'Subscribe';
   // Either store call has the screen's full attention: both end in the
   // entitlement changing, and neither wants the other started underneath it.
   const busy = store.busy || store.restoring;
-
-  // Same shape as the scan flow's close: pop if there's history, else go home.
-  const onClose = () => (canGoBack ? back() : reset('today'));
 
   // Store sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and
@@ -188,28 +248,30 @@ function Paywall({ content }) {
         <View style={styles.body}>
           <Text style={styles.title}>{content.titleLines}</Text>
 
-          <View style={styles.rail}>
-            <View style={styles.railLine} />
-            {content.timeline.map((step) => {
-              const highlight = step.day === 0;
-              return (
-                <View key={step.day} style={styles.step}>
-                  <View style={[styles.dayChip, highlight && styles.dayChipActive]}>
-                    <Text
-                      numberOfLines={1}
-                      style={[styles.dayText, highlight && styles.dayTextActive]}
-                    >
-                      {step.label}
-                    </Text>
+          {offersTrial ? (
+            <View style={styles.rail}>
+              <View style={styles.railLine} />
+              {content.timeline.map((step) => {
+                const highlight = step.day === 0;
+                return (
+                  <View key={step.day} style={styles.step}>
+                    <View style={[styles.dayChip, highlight && styles.dayChipActive]}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.dayText, highlight && styles.dayTextActive]}
+                      >
+                        {step.label}
+                      </Text>
+                    </View>
+                    <View style={styles.stepText}>
+                      <Text style={styles.stepTitle}>{step.title}</Text>
+                      <Text style={styles.stepBody}>{step.body}</Text>
+                    </View>
                   </View>
-                  <View style={styles.stepText}>
-                    <Text style={styles.stepTitle}>{step.title}</Text>
-                    <Text style={styles.stepBody}>{step.body}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View style={styles.table}>
             <View style={styles.tableRow}>
@@ -278,13 +340,19 @@ function Paywall({ content }) {
       </ScrollView>
 
       <View style={styles.priceBar}>
-        <Text style={styles.priceHeadline}>{headlineFor(product, storePrice)}</Text>
+        {pricesPending ? (
+          <Text style={styles.priceHeadline}>Loading prices…</Text>
+        ) : (
+          <Text style={styles.priceHeadline}>
+            {terms ? headline(terms, product) : headlineFor(product)}
+          </Text>
+        )}
         {store.error ? <Text style={styles.purchaseError}>{store.error}</Text> : null}
         <Button
           size="lg"
-          label="Start free trial"
+          label={ctaLabel}
           loading={store.busy}
-          disabled={store.restoring}
+          disabled={pricesPending || store.restoring}
           onPress={onStartTrial}
         />
         <Button
@@ -311,7 +379,7 @@ function Paywall({ content }) {
       <ChoosePlanSheet
         visible={plansOpen}
         products={content.products}
-        prices={store.prices}
+        termsFor={store.supported ? store.termsFor : undefined}
         initialPlan={planKey}
         onClose={() => setPlansOpen(false)}
         onDone={(next) => {
@@ -341,7 +409,13 @@ function makeStyles(t, insets) {
       paddingBottom: space[24],
       gap: 28,
     },
-    title: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: t.text.primary },
+    // Figma 306:4764: a raw Literata Bold 30/36 — larger than any Heading.
+    title: {
+      fontFamily: fontFace('Literata', 700),
+      fontSize: 30,
+      lineHeight: 36,
+      color: t.text.primary,
+    },
 
     // ---- trial rail ----
     rail: { gap: 18 },
@@ -371,20 +445,21 @@ function makeStyles(t, insets) {
     // ---- free vs plus table ----
     table: {},
     tableRow: { flexDirection: 'row', alignItems: 'stretch' },
+    // Figma 872:21505: raw Inter Medium 11/140%, tracked 0.04em.
     eyebrow: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 11,
-      lineHeight: 15,
-      fontWeight: '500',
-      letterSpacing: 0.44, // Figma 0.04em
+      lineHeight: 15.4,
+      letterSpacing: 0.44,
       color: t.text.placeholder,
     },
     headerLabelCell: { flex: 1, justifyContent: 'flex-end', paddingBottom: 10 },
     headerFreeCell: { width: COL_W, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 10 },
     plusHeaderCell: { paddingVertical: 10, gap: 3 },
     plusEyebrow: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 11,
-      lineHeight: 15,
-      fontWeight: '500',
+      lineHeight: 15.4,
       letterSpacing: 0.44,
       color: t.success.onSecondary,
     },
@@ -396,7 +471,13 @@ function makeStyles(t, insets) {
       borderTopWidth: stroke[1],
       borderTopColor: t.border.primary,
     },
-    featureLabel: { fontSize: 15, lineHeight: 21, color: t.text.primary },
+    // Figma 872:21513: raw Inter 15/140%.
+    featureLabel: {
+      fontFamily: fontFace('Inter', 400),
+      fontSize: 15,
+      lineHeight: 21,
+      color: t.text.primary,
+    },
     freeCell: {
       width: COL_W,
       alignItems: 'center',
@@ -404,13 +485,19 @@ function makeStyles(t, insets) {
       borderTopWidth: stroke[1],
       borderTopColor: t.border.primary,
     },
-    freeText: { fontSize: 12.5, lineHeight: 18, fontWeight: '500', color: t.text.placeholder },
+    // Figma 872:21515: raw Inter Medium 12.5/140%.
+    freeText: {
+      fontFamily: fontFace('Inter', 500),
+      fontSize: 12.5,
+      lineHeight: 17.5,
+      color: t.text.placeholder,
+    },
     // The FREE column's metrics on the PLUS column's ink — both tokens already
     // exist on this screen, so the string case adds none.
     plusText: {
+      fontFamily: fontFace('Inter', 500),
       fontSize: 12.5,
-      lineHeight: 18,
-      fontWeight: '500',
+      lineHeight: 17.5,
       color: t.success.onSecondary,
       textAlign: 'center',
     },
@@ -446,11 +533,9 @@ function makeStyles(t, insets) {
     },
     reviewTitle: { ...typography.bodyLargeEmphasized, color: t.text.primary },
     reviewBody: { ...typography.bodyMedium, color: t.text.secondary },
-    // Figma's Caption Emphasized is Inter Medium; foundations' is bold.
-    reviewName: { ...typography.captionEmphasized, fontWeight: '500', color: t.text.placeholder },
+    reviewName: { ...typography.captionEmphasized, color: t.text.placeholder },
     footnote: {
       ...typography.captionEmphasized,
-      fontWeight: '500',
       color: t.text.placeholder,
       textAlign: 'center',
     },
@@ -463,8 +548,12 @@ function makeStyles(t, insets) {
       paddingBottom: insets.bottom + 10,
       gap: 10,
     },
+    // Figma 306:4787: a raw Inter Bold 14/140% — Body Medium Emphasized is
+    // Medium, not Bold.
     priceHeadline: {
-      ...typography.bodyMediumEmphasized,
+      fontFamily: fontFace('Inter', 700),
+      fontSize: 14,
+      lineHeight: 19.6,
       color: t.text.secondary,
       textAlign: 'center',
     },

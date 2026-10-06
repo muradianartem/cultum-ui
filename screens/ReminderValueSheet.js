@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Calendar, BottomSheet, WheelPicker } from '../components';
-import { fonts } from '../theme/tokens';
+import { wheel } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
@@ -137,6 +138,9 @@ export default function ReminderValueSheet({
   // A date row is titled by what it actually holds — "Last watering" on a
   // built-in reminder, "Start date" on a custom one.
   const title = isCalendar ? reminder?.dateLabel ?? cfg.title : cfg.title;
+  // A last-done date is what the schedule counts from — say so (Figma 362:14988).
+  const subtitle =
+    isCalendar && /^Last /.test(title) ? 'The next reminder is counted from this date.' : null;
 
   return (
     <BottomSheet
@@ -149,7 +153,10 @@ export default function ReminderValueSheet({
       }}
     >
       <View style={styles.wrap}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
         {isCalendar ? (
           <View style={styles.calendarWrap}>
             <Calendar
@@ -197,14 +204,13 @@ export default function ReminderValueSheet({
 
 const makeStyles = (t) => StyleSheet.create({
   wrap: { paddingHorizontal: 16, gap: 16 },
+  header: { gap: 4 },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
+    ...typography.headingExtraSmallEmphasized, // SnoozeContent's title (Figma 1:11113)
     color: t.text.primary,
     textAlign: 'center',
   },
+  subtitle: { ...typography.bodyMedium, color: t.text.secondary, textAlign: 'center' },
   // Figma wraps the #FAFAFA calendar card in a bordered 20px-radius frame.
   calendarWrap: {
     overflow: 'hidden',
@@ -225,8 +231,8 @@ const makeStyles = (t) => StyleSheet.create({
   wheels: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   leftCol: { width: 120 },
   rightCol: { width: 130 },
-  number: { fontFamily: 'Inter', textAlign: 'right', color: t.text.primary },
-  unit: { fontFamily: 'Inter', textAlign: 'left', color: t.text.primary },
-  active: { fontSize: 20, opacity: 1, color: t.text.primary },
-  dim: { fontSize: 18, opacity: 0.45, color: t.text.secondary },
+  number: { textAlign: 'right', color: t.text.primary },
+  unit: { textAlign: 'left', color: t.text.primary },
+  active: { ...wheel.active, color: t.text.primary },
+  dim: { ...wheel.dim, color: t.text.secondary },
 });

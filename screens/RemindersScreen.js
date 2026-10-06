@@ -11,12 +11,11 @@
 // interval days.
 
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Dialog, Icon, List, ListItem, NavigationBar, State, Toggle } from '../components';
+import { Dialog, Icon, List, ListItem, NavigationBar, State } from '../components';
 import { useRouter } from '../routing';
 import { useGarden } from '../store/GardenProvider';
-import { actionMeta } from '../store/model';
 import {
   dateLabelFor,
   durationMs,
@@ -27,105 +26,13 @@ import {
   shortDate,
 } from '../store/format';
 import { nextDueAt } from '../store/schedule';
+import { showError } from '../lib/showError';
 import { useTheme } from '../theme/ThemeProvider';
-import { radius, space, typography } from '../theme/foundations';
+import { space } from '../theme/foundations';
 import { parseShortDate } from './addReminderData';
 import ReminderValueSheet from './ReminderValueSheet';
 import AddReminderSheet from './AddReminderSheet';
-
-// Coloured icon chip — a 40×40 rounded-full tinted square holding a 20px icon.
-// The action's semantic tone resolves against the theme, so it re-tints in
-// light/dark for free.
-function Chip({ action, styles, t }) {
-  const meta = actionMeta(action);
-  const { bg, fg } =
-    meta.tone === 'neutral'
-      ? { bg: t.surface.secondary, fg: t.text.primary }
-      : { bg: t[meta.tone].secondary, fg: t[meta.tone].primary };
-  return (
-    <View style={[styles.chip, { backgroundColor: bg }]}>
-      <Icon name={meta.icon} size={20} color={fg} />
-    </View>
-  );
-}
-
-// One detail row: a pressable "label ↔ value + chevron" line that opens the
-// value editor for `field`.
-function DetailRow({ label, value, onPress, accessibilityLabel, styles, t }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      style={styles.detailRow}
-    >
-      <Text style={styles.detailLabel}>{label}</Text>
-      <View style={styles.detailValue}>
-        <Text style={styles.detailValueText}>{value}</Text>
-        <Icon name="chevron-right" size={20} color={t.text.primary} />
-      </View>
-    </Pressable>
-  );
-}
-
-// One reminder card: a card-style List panel with a (non-pressable) header row
-// — chip, title, "Next reminder" subtitle, enable Toggle — followed by three
-// pressable detail rows (date, frequency, snooze) and a Remove.
-function ReminderCard({ reminder, view, onToggle, onEditField, onRemove, styles, t }) {
-  return (
-    <List variant="card">
-      <ListItem
-        before={<Chip action={reminder.action} styles={styles} t={t} />}
-        title={reminder.title}
-        subtitle={view.nextLabel}
-        after={
-          <Toggle
-            value={reminder.enabled}
-            onValueChange={onToggle}
-            accessibilityLabel={`Enable ${reminder.title}`}
-          />
-        }
-      />
-      <View style={styles.details}>
-        <DetailRow
-          label={view.dateLabel}
-          value={view.dateValue}
-          accessibilityLabel={`${reminder.title} date`}
-          onPress={() => onEditField('date')}
-          styles={styles}
-          t={t}
-        />
-        <DetailRow
-          label="Frequency"
-          value={view.frequency}
-          accessibilityLabel={`${reminder.title} Frequency`}
-          onPress={() => onEditField('frequency')}
-          styles={styles}
-          t={t}
-        />
-        <DetailRow
-          label="Snooze for"
-          value={view.snooze}
-          accessibilityLabel={`${reminder.title} Snooze`}
-          onPress={() => onEditField('snooze')}
-          styles={styles}
-          t={t}
-        />
-        <View style={styles.removeWrap}>
-          <Button
-            variant="secondary"
-            destructive
-            size="sm"
-            label="Remove"
-            accessibilityLabel="Remove"
-            onPress={onRemove}
-            leftIcon={<Icon name="trash" size={16} color={t.error.primary} />}
-          />
-        </View>
-      </View>
-    </List>
-  );
-}
+import ReminderCard from './ReminderCard';
 
 /**
  * The stored reminder as the three detail rows read it.
@@ -184,7 +91,9 @@ export default function RemindersScreen({ plantId, plantName }) {
     if (!editor || !editing) return;
     const { id, field } = editor;
     if (field === 'frequency') {
-      garden.updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) });
+      garden
+        .updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) })
+        .catch((e) => showError(e, 'Couldn’t change the reminder'));
       return;
     }
     if (field === 'snooze') {
@@ -206,16 +115,18 @@ export default function RemindersScreen({ plantId, plantName }) {
 
   const addReminder = (draft) => {
     if (!plant) return;
-    garden.addReminder(plant.id, {
-      action: 'custom',
-      title: draft.title,
-      intervalDays: parseFrequency(draft.frequency),
-      startAt: (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
-    });
+    garden
+      .addReminder(plant.id, {
+        action: 'custom',
+        title: draft.title,
+        intervalDays: parseFrequency(draft.frequency),
+        startAt: draft.startAt ?? (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
+      })
+      .catch((e) => showError(e, 'Couldn’t add the reminder'));
   };
 
   const confirmRemove = () => {
-    garden.deleteReminder(pendingRemove);
+    garden.deleteReminder(pendingRemove).catch((e) => showError(e, 'Couldn’t remove the reminder'));
     setPendingRemove(null);
   };
 
@@ -227,14 +138,15 @@ export default function RemindersScreen({ plantId, plantName }) {
         <NavigationBar
           title="Edit Reminders"
           subtitle={plant?.nickname ?? plantName}
-          leading="back"
+          leading={<Icon name="chevron-left" size={24} color={t.text.primary} />}
           onLeadingPress={back}
+          buttonVariant="secondary"
           divider={false}
           actions={
             plant
               ? [
                 {
-                  icon: <Icon name="add" size={20} color={t.text.primary} />,
+                  icon: <Icon name="add" size={24} color={t.text.primary} />,
                   onPress: openAdd,
                   accessibilityLabel: 'Add reminder',
                 },
@@ -256,13 +168,17 @@ export default function RemindersScreen({ plantId, plantName }) {
           {reminders.map((reminder) => (
             <ReminderCard
               key={reminder.id}
-              reminder={reminder}
+              title={reminder.title}
+              action={reminder.action}
+              enabled={reminder.enabled}
               view={toView(reminder)}
-              onToggle={() => garden.toggleReminder(reminder.id, !reminder.enabled)}
+              onToggle={() =>
+                garden
+                  .toggleReminder(reminder.id, !reminder.enabled)
+                  .catch((e) => showError(e, 'Couldn’t change the reminder'))
+              }
               onEditField={(field) => openEditField(reminder.id, field)}
               onRemove={() => setPendingRemove(reminder.id)}
-              styles={styles}
-              t={t}
             />
           ))}
 
@@ -315,23 +231,5 @@ export default function RemindersScreen({ plantId, plantName }) {
 const makeStyles = (t) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background.primary },
-    chip: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    details: { paddingHorizontal: space[16], paddingBottom: space[12], gap: space[4] },
-    detailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: space[4],
-    },
-    detailLabel: { ...typography.bodyLarge, color: t.text.primary },
-    detailValue: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
-    detailValueText: { ...typography.bodyLarge, color: t.text.secondary },
-    removeWrap: { paddingTop: space[8] },
     emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: space[48] },
   });

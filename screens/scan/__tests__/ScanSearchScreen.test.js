@@ -3,6 +3,7 @@ import { Text, TextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import ScanSearchScreen from '../ScanSearchScreen';
+import { onboardingSession } from '../../../onboarding/testing';
 import { searchPlants, getSpecies } from '../../../api/plants';
 import { MOCK_SEARCH } from '../../../api/__mocks__/scanFixtures';
 
@@ -117,4 +118,40 @@ test('a failed open reports the error and leaves the results list standing', asy
   // The query is still good — only the tap failed, so the results stay.
   expect(t).toContain('Swiss cheese vine');
   expect(api.route).toBe('scan-search');
+});
+
+describe('in onboarding', () => {
+  test('Back pops onto the onboarding entry screen it was opened from', () => {
+    const session = onboardingSession(<ScanSearchScreen />);
+    const tree = create(session.element);
+    act(() => api.reset('onboarding'));
+    session.begin();
+    act(() => api.navigate('scan-search'));
+    act(() => {
+      tree.root
+        .findAll((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Back')
+        .pop()
+        .props.onPress();
+    });
+    expect(api.route).toBe('onboarding');
+  });
+
+  test('"Scan it instead" drops history but keeps the onboarding session', async () => {
+    searchPlants.mockResolvedValueOnce([]);
+    const session = onboardingSession(<ScanSearchScreen />);
+    const tree = create(session.element);
+    session.begin();
+    await type(tree, 'zzzzz');
+    const btn = tree.root.find(
+      (n) =>
+        typeof n.props.onPress === 'function' &&
+        n.props.accessibilityRole === 'button' &&
+        n.props.accessibilityLabel === 'Scan it instead'
+    );
+    act(() => btn.props.onPress());
+    expect(api.route).toBe('scan-camera');
+    expect(api.canGoBack).toBe(false);
+    // The camera's own Close uses this to find its way back to onboarding.
+    expect(session.current.addingPlant).toBe(true);
+  });
 });

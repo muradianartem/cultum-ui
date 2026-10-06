@@ -1,0 +1,1598 @@
+{
+  "$comment": "Reviewed Figma snapshot — the test oracle for theme/__tests__/figmaParity.test.js. Captured by hand from the live file via figma-framelink; never regenerate from theme/ source. Refresh process: docs/figma-import.md#refreshing-the-foundations-snapshot.",
+  "fileKey": "JyrSo87oacbcbALO8JO9At",
+  "fileName": "Cultum.app – Design System",
+  "capturedAt": "2026-09-21",
+  "sources": {
+    "foundationDivider": "12047:31401",
+    "colorPrimitives": "27835:8644",
+    "colorTokens": "27465:14108",
+    "typography": "27627:2008",
+    "icons": "27338:14830",
+    "radius": "27465:22840",
+    "spacing": "27465:22713",
+    "stroke": "27518:5435",
+    "blur": "27627:3800",
+    "opacity": "27518:5511"
+  },
+  "unavailable": "Figma variable IDs and text/effect style IDs are not exposed by the documentation frames; rows are keyed by documentation node instead.",
+  "typography": {
+    "display": {
+      "figmaName": "Display",
+      "family": "Literata",
+      "weight": 700,
+      "fontSize": 40,
+      "lineHeightPercent": 120,
+      "lineHeight": 48.0,
+      "docRowNode": "27627:2022"
+    },
+    "headingLarge": {
+      "figmaName": "Heading Large",
+      "family": "Literata",
+      "weight": 400,
+      "fontSize": 32,
+      "lineHeightPercent": 120,
+      "lineHeight": 38.4,
+      "docRowNode": "27627:3312"
+    },
+    "headingLargeEmphasized": {
+      "figmaName": "Heading Large Emphasized",
+      "family": "Literata",
+      "weight": 700,
+      "fontSize": 32,
+      "lineHeightPercent": 120,
+      "lineHeight": 38.4,
+      "docRowNode": "27627:3441"
+    },
+    "headingMedium": {
+      "figmaName": "Heading Medium",
+      "family": "Literata",
+      "weight": 400,
+      "fontSize": 24,
+      "lineHeightPercent": 120,
+      "lineHeight": 28.8,
+      "docRowNode": "27627:3458"
+    },
+    "headingMediumEmphasized": {
+      "figmaName": "Heading Medium Emphasized",
+      "family": "Literata",
+      "weight": 700,
+      "fontSize": 24,
+      "lineHeightPercent": 120,
+      "lineHeight": 28.8,
+      "docRowNode": "27627:3475"
+    },
+    "headingSmall": {
+      "figmaName": "Heading Small",
+      "family": "Literata",
+      "weight": 400,
+      "fontSize": 20,
+      "lineHeightPercent": 130,
+      "lineHeight": 26.0,
+      "docRowNode": "27627:3509"
+    },
+    "headingSmallEmphasized": {
+      "figmaName": "Heading Small Emphasized",
+      "family": "Literata",
+      "weight": 700,
+      "fontSize": 20,
+      "lineHeightPercent": 130,
+      "lineHeight": 26.0,
+      "docRowNode": "27627:3492"
+    },
+    "headingExtraSmall": {
+      "figmaName": "Heading Extra Small",
+      "family": "Literata",
+      "weight": 400,
+      "fontSize": 18,
+      "lineHeightPercent": 130,
+      "lineHeight": 23.4,
+      "docRowNode": "29416:248"
+    },
+    "headingExtraSmallEmphasized": {
+      "figmaName": "Heading Extra Small Emphasized",
+      "family": "Literata",
+      "weight": 700,
+      "fontSize": 18,
+      "lineHeightPercent": 130,
+      "lineHeight": 23.4,
+      "docRowNode": "29416:231"
+    },
+    "bodyLarge": {
+      "figmaName": "Body Large",
+      "family": "Inter",
+      "weight": 400,
+      "fontSize": 16,
+      "lineHeightPercent": 140,
+      "lineHeight": 22.4,
+      "docRowNode": "27627:3538",
+      "paragraphSpacing": {
+        "value": 8,
+        "source": "applied text style Body/Body Large"
+      }
+    },
+    "bodyLargeEmphasized": {
+      "figmaName": "Body Large Emphasized",
+      "family": "Inter",
+      "weight": 700,
+      "fontSize": 16,
+      "lineHeightPercent": 140,
+      "lineHeight": 22.4,
+      "docRowNode": "27627:3550"
+    },
+    "bodyMedium": {
+      "figmaName": "Body Medium",
+      "family": "Inter",
+      "weight": 400,
+      "fontSize": 14,
+      "lineHeightPercent": 140,
+      "lineHeight": 19.6,
+      "docRowNode": "27627:3562",
+      "paragraphSpacing": {
+        "value": 8,
+        "source": "applied text style Body/Body Medium"
+      }
+    },
+    "bodyMediumEmphasized": {
+      "figmaName": "Body Medium Emphasized",
+      "family": "Inter",
+      "weight": 500,
+      "fontSize": 14,
+      "lineHeightPercent": 140,
+      "lineHeight": 19.6,
+      "docRowNode": "27627:3574"
+    },
+    "bodySmall": {
+      "figmaName": "Body Small",
+      "family": "Inter",
+      "weight": 400,
+      "fontSize": 12,
+      "lineHeightPercent": 140,
+      "lineHeight": 16.8,
+      "docRowNode": "27627:3586",
+      "paragraphSpacing": {
+        "value": 4,
+        "source": "applied text style Body/Body Small"
+      }
+    },
+    "bodySmallEmphasized": {
+      "figmaName": "Body Small Emphasized",
+      "family": "Inter",
+      "weight": 700,
+      "fontSize": 12,
+      "lineHeightPercent": 140,
+      "lineHeight": 16.8,
+      "docRowNode": "27627:3598"
+    },
+    "buttonMedium": {
+      "figmaName": "Button Medium",
+      "family": "Inter",
+      "weight": 500,
+      "fontSize": 16,
+      "lineHeightPercent": 120,
+      "lineHeight": 19.2,
+      "docRowNode": "27627:3652"
+    },
+    "buttonSmall": {
+      "figmaName": "Button Small",
+      "family": "Inter",
+      "weight": 500,
+      "fontSize": 14,
+      "lineHeightPercent": 120,
+      "lineHeight": 16.8,
+      "docRowNode": "27627:3664"
+    },
+    "caption": {
+      "figmaName": "Caption",
+      "family": "Inter",
+      "weight": 400,
+      "fontSize": 12,
+      "lineHeightPercent": 140,
+      "lineHeight": 16.8,
+      "docRowNode": "27627:3766"
+    },
+    "captionEmphasized": {
+      "figmaName": "Caption Emphasized",
+      "family": "Inter",
+      "weight": 500,
+      "fontSize": 12,
+      "lineHeightPercent": 140,
+      "lineHeight": 16.8,
+      "docRowNode": "27627:3778"
+    }
+  },
+  "scales": {
+    "radius": {
+      "0": 0,
+      "4": 4,
+      "8": 8,
+      "12": 12,
+      "16": 16,
+      "24": 24,
+      "32": 32,
+      "full": 9999
+    },
+    "space": {
+      "0": 0,
+      "2": 2,
+      "4": 4,
+      "8": 8,
+      "12": 12,
+      "16": 16,
+      "20": 20,
+      "24": 24,
+      "32": 32,
+      "48": 48
+    },
+    "stroke": {
+      "1": 1,
+      "2": 2,
+      "8": 8
+    },
+    "blur": {
+      "8": 8,
+      "16": 16,
+      "32": 32
+    },
+    "opacityPercent": {
+      "0": 0,
+      "25": 25,
+      "50": 50,
+      "75": 75,
+      "100": 100
+    }
+  },
+  "primitives": {
+    "primary": {
+      "25": "#FAFEF8",
+      "50": "#F5FDF2",
+      "75": "#F0FDEB",
+      "100": "#EBFCE5",
+      "150": "#E1FAD8",
+      "200": "#D7F8CB",
+      "300": "#C2F4B1",
+      "400": "#ABF097",
+      "500": "#93EC7C",
+      "600": "#74B862",
+      "700": "#57864A",
+      "750": "#496F3E",
+      "800": "#3B5833",
+      "850": "#2E4228",
+      "925": "#1B2418",
+      "950": "#151A12",
+      "975": "#0C100A"
+    },
+    "secondary": {
+      "25": "#FCFCFC",
+      "50": "#F9F9F8",
+      "75": "#F5F6F5",
+      "100": "#F2F3F2",
+      "150": "#ECEDEB",
+      "200": "#E5E7E5",
+      "300": "#D9DBD8",
+      "400": "#CCD0CB",
+      "500": "#C0C4BE",
+      "600": "#969995",
+      "700": "#6E716D",
+      "750": "#5B5D5B",
+      "800": "#494A48",
+      "850": "#383937",
+      "925": "#1F1F1F",
+      "950": "#171717",
+      "975": "#0E0E0E"
+    },
+    "primaryNeutral": {
+      "25": "#FAFAFA",
+      "50": "#F6F6F6",
+      "75": "#F1F2F1",
+      "100": "#ECEDEC",
+      "150": "#E3E4E3",
+      "200": "#DADBDA",
+      "300": "#C8CAC8",
+      "400": "#B6B9B6",
+      "500": "#A5A8A5",
+      "600": "#828482",
+      "700": "#606160",
+      "750": "#505150",
+      "800": "#404140",
+      "850": "#313231",
+      "925": "#1C1C1C",
+      "950": "#151515",
+      "975": "#0C0C0C"
+    },
+    "warning": {
+      "25": "#FFF9F6",
+      "50": "#FFF4EE",
+      "75": "#FFEEE5",
+      "100": "#FFE9DC",
+      "150": "#FFDECB",
+      "200": "#FFD3BA",
+      "300": "#FFBD99",
+      "400": "#FAA878",
+      "500": "#F49258",
+      "600": "#BF7347",
+      "700": "#8C5636",
+      "750": "#74482E",
+      "800": "#5C3A26",
+      "850": "#462D1E",
+      "925": "#261A13",
+      "950": "#1C140E",
+      "975": "#120B07"
+    },
+    "information": {
+      "25": "#F7FBFF",
+      "50": "#EFF6FF",
+      "75": "#E7F2FF",
+      "100": "#DFEEFF",
+      "150": "#CFE5FF",
+      "200": "#BEDDFF",
+      "300": "#99CCFF",
+      "400": "#6CBCFF",
+      "500": "#19ACFF",
+      "600": "#2487C6",
+      "700": "#256491",
+      "750": "#235377",
+      "800": "#20425E",
+      "850": "#1C3347",
+      "925": "#131D26",
+      "950": "#10151C",
+      "975": "#080D11"
+    },
+    "error": {
+      "25": "#FFF6F4",
+      "50": "#FFECE9",
+      "75": "#FFE3DE",
+      "100": "#FFD9D4",
+      "150": "#FFC7BF",
+      "200": "#FCB4AA",
+      "300": "#F48E82",
+      "400": "#E9665B",
+      "500": "#DA3737",
+      "600": "#AB302D",
+      "700": "#7F2724",
+      "750": "#69231F",
+      "800": "#541E1A",
+      "850": "#401916",
+      "925": "#24110D",
+      "950": "#1C0D09",
+      "975": "#120604"
+    },
+    "success": {
+      "25": "#F8FDF7",
+      "50": "#F0FCF0",
+      "75": "#E9FAE9",
+      "100": "#E1F9E1",
+      "150": "#D2F5D2",
+      "200": "#C3F2C3",
+      "300": "#A3EAA6",
+      "400": "#80E289",
+      "500": "#55DA6B",
+      "600": "#47AA55",
+      "700": "#387D41",
+      "750": "#306737",
+      "800": "#29522D",
+      "850": "#213E23",
+      "925": "#152216",
+      "950": "#111910",
+      "975": "#090F09"
+    },
+    "neutral": {
+      "25": "#FBFBFC",
+      "50": "#F8F8F9",
+      "75": "#F4F4F5",
+      "100": "#F1F0F2",
+      "150": "#EAE9EC",
+      "200": "#E3E2E5",
+      "300": "#D5D3D9",
+      "400": "#C7C5CC",
+      "500": "#B9B7C0",
+      "600": "#918F96",
+      "700": "#6B6A6E",
+      "750": "#58585B",
+      "800": "#474649",
+      "850": "#363538",
+      "925": "#1E1E1F",
+      "950": "#171617",
+      "975": "#0D0D0E"
+    },
+    "custom1": {
+      "25": "#FBFBFB",
+      "50": "#F7F7F7",
+      "75": "#F3F3F3",
+      "100": "#EFEFEF",
+      "150": "#E7E7E7",
+      "200": "#DFDFDF",
+      "300": "#D0D0D0",
+      "400": "#C0C0C0",
+      "500": "#B1B1B1",
+      "600": "#8B8B8B",
+      "700": "#666666",
+      "750": "#555555",
+      "800": "#444444",
+      "850": "#343434",
+      "925": "#1D1D1D",
+      "950": "#161616",
+      "975": "#0D0D0D"
+    },
+    "custom2": {
+      "25": "#FBFBFB",
+      "50": "#F7F7F7",
+      "75": "#F3F3F3",
+      "100": "#EFEFEF",
+      "150": "#E7E7E7",
+      "200": "#DFDFDF",
+      "300": "#D0D0D0",
+      "400": "#C0C0C0",
+      "500": "#B1B1B1",
+      "600": "#8B8B8B",
+      "700": "#666666",
+      "750": "#555555",
+      "800": "#444444",
+      "850": "#343434",
+      "925": "#1D1D1D",
+      "950": "#161616",
+      "975": "#0D0D0D"
+    },
+    "custom3": {
+      "25": "#FBFBFB",
+      "50": "#F7F7F7",
+      "75": "#F3F3F3",
+      "100": "#EFEFEF",
+      "150": "#E7E7E7",
+      "200": "#DFDFDF",
+      "300": "#D0D0D0",
+      "400": "#C0C0C0",
+      "500": "#B1B1B1",
+      "600": "#8B8B8B",
+      "700": "#666666",
+      "750": "#555555",
+      "800": "#444444",
+      "850": "#343434",
+      "925": "#1D1D1D",
+      "950": "#161616",
+      "975": "#0D0D0D"
+    },
+    "custom4": {
+      "25": "#FBFBFB",
+      "50": "#F7F7F7",
+      "75": "#F3F3F3",
+      "100": "#EFEFEF",
+      "150": "#E7E7E7",
+      "200": "#DFDFDF",
+      "300": "#D0D0D0",
+      "400": "#C0C0C0",
+      "500": "#B1B1B1",
+      "600": "#8B8B8B",
+      "700": "#666666",
+      "750": "#555555",
+      "800": "#444444",
+      "850": "#343434",
+      "925": "#1D1D1D",
+      "950": "#161616",
+      "975": "#0D0D0D"
+    },
+    "custom5": {
+      "25": "#FBFBFB",
+      "50": "#F7F7F7",
+      "75": "#F3F3F3",
+      "100": "#EFEFEF",
+      "150": "#E7E7E7",
+      "200": "#DFDFDF",
+      "300": "#D0D0D0",
+      "400": "#C0C0C0",
+      "500": "#B1B1B1",
+      "600": "#8B8B8B",
+      "700": "#666666",
+      "750": "#555555",
+      "800": "#444444",
+      "850": "#343434",
+      "925": "#1D1D1D",
+      "950": "#161616",
+      "975": "#0D0D0D"
+    }
+  },
+  "semanticOnlySteps": {
+    "primaryNeutral": {
+      "900": {
+        "hex": "#232323",
+        "capturedFrom": "surface-primary-inverse (light) swatch, node 27613:2207"
+      }
+    },
+    "warning": {
+      "900": {
+        "hex": "#302017",
+        "capturedFrom": "on-warning-primary (dark) swatch, node 27613:2801"
+      }
+    },
+    "error": {
+      "900": {
+        "hex": "#2D1410",
+        "capturedFrom": "on-error-secondary (light) swatch, node 27613:2894"
+      }
+    }
+  },
+  "semantic": [
+    {
+      "figmaName": "brand-primary",
+      "section": "Brand",
+      "node": "27465:16547",
+      "appPath": "brand.primary",
+      "light": {
+        "label": "primary-500",
+        "ramp": "primary",
+        "step": "500",
+        "swatch": "#93EC7C"
+      },
+      "dark": {
+        "label": "primary-400",
+        "ramp": "primary",
+        "step": "400",
+        "swatch": "#ABF097"
+      }
+    },
+    {
+      "figmaName": "brand-primary-inverse",
+      "section": "Brand",
+      "node": "27566:15456",
+      "appPath": "brand.primaryInverse",
+      "light": {
+        "label": "primary-150",
+        "ramp": "primary",
+        "step": "150",
+        "swatch": "#E1FAD8"
+      },
+      "dark": {
+        "label": "primary-950",
+        "ramp": "primary",
+        "step": "950",
+        "swatch": "#151A12"
+      }
+    },
+    {
+      "figmaName": "on-brand-primary",
+      "section": "Brand",
+      "node": "27566:16562",
+      "appPath": "brand.onPrimary",
+      "light": {
+        "label": "primary-975",
+        "ramp": "primary",
+        "step": "975",
+        "swatch": "#0C100A"
+      },
+      "dark": {
+        "label": "primary-975",
+        "ramp": "primary",
+        "step": "975",
+        "swatch": "#0C100A"
+      }
+    },
+    {
+      "figmaName": "on-brand-primary-inverse",
+      "section": "Brand",
+      "node": "27566:16578",
+      "appPath": "brand.onPrimaryInverse",
+      "light": {
+        "label": "primary-975",
+        "ramp": "primary",
+        "step": "975",
+        "swatch": "#0C100A"
+      },
+      "dark": {
+        "label": "primary-25",
+        "ramp": "primary",
+        "step": "25",
+        "swatch": "#FAFEF8"
+      }
+    },
+    {
+      "figmaName": "brand-secondary",
+      "section": "Brand",
+      "node": "27566:16594",
+      "appPath": "brand.secondary",
+      "light": {
+        "label": "secondary-300",
+        "ramp": "secondary",
+        "step": "300",
+        "swatch": "#D9DBD8"
+      },
+      "dark": {
+        "label": "secondary-850",
+        "ramp": "secondary",
+        "step": "850",
+        "swatch": "#383937"
+      }
+    },
+    {
+      "figmaName": "brand-secondary-inverse",
+      "section": "Brand",
+      "node": "27613:1988",
+      "appPath": "brand.secondaryInverse",
+      "light": {
+        "label": "secondary-800",
+        "ramp": "secondary",
+        "step": "800",
+        "swatch": "#494A48"
+      },
+      "dark": {
+        "label": "secondary-300",
+        "ramp": "secondary",
+        "step": "300",
+        "swatch": "#D9DBD8"
+      }
+    },
+    {
+      "figmaName": "on-brand-secondary",
+      "section": "Brand",
+      "node": "27613:2004",
+      "appPath": "brand.onSecondary",
+      "light": {
+        "label": "secondary-975",
+        "ramp": "secondary",
+        "step": "975",
+        "swatch": "#0E0E0E"
+      },
+      "dark": {
+        "label": "secondary-25",
+        "ramp": "secondary",
+        "step": "25",
+        "swatch": "#FCFCFC"
+      }
+    },
+    {
+      "figmaName": "on-brand-secondary-inverse",
+      "section": "Brand",
+      "node": "27613:2020",
+      "appPath": "brand.onSecondaryInverse",
+      "light": {
+        "label": "secondary-25",
+        "ramp": "secondary",
+        "step": "25",
+        "swatch": "#FCFCFC"
+      },
+      "dark": {
+        "label": "secondary-975",
+        "ramp": "secondary",
+        "step": "975",
+        "swatch": "#0E0E0E"
+      }
+    },
+    {
+      "figmaName": "background-primary",
+      "section": "Background",
+      "node": "27613:2068",
+      "appPath": "background.primary",
+      "light": {
+        "label": "primary-neutral-25",
+        "ramp": "primaryNeutral",
+        "step": "25",
+        "swatch": "#FAFAFA"
+      },
+      "dark": {
+        "label": "primary-neutral-950",
+        "ramp": "primaryNeutral",
+        "step": "950",
+        "swatch": "#151515"
+      }
+    },
+    {
+      "figmaName": "background-primary-inverse",
+      "section": "Background",
+      "node": "27613:2077",
+      "appPath": "background.primaryInverse",
+      "light": {
+        "label": "primary-neutral-950",
+        "ramp": "primaryNeutral",
+        "step": "950",
+        "swatch": "#151515"
+      },
+      "dark": {
+        "label": "primary-neutral-25",
+        "ramp": "primaryNeutral",
+        "step": "25",
+        "swatch": "#FAFAFA"
+      }
+    },
+    {
+      "figmaName": "background-secondary",
+      "section": "Background",
+      "node": "27613:2086",
+      "appPath": "background.secondary",
+      "light": {
+        "label": "primary-neutral-75",
+        "ramp": "primaryNeutral",
+        "step": "75",
+        "swatch": "#F1F2F1"
+      },
+      "dark": {
+        "label": "primary-neutral-900",
+        "ramp": "primaryNeutral",
+        "step": "900",
+        "swatch": "#232323"
+      }
+    },
+    {
+      "figmaName": "background-secondary-inverse",
+      "section": "Background",
+      "node": "27613:2095",
+      "appPath": "background.secondaryInverse",
+      "light": {
+        "label": "primary-neutral-950",
+        "ramp": "primaryNeutral",
+        "step": "950",
+        "swatch": "#151515"
+      },
+      "dark": {
+        "label": "primary-neutral-100",
+        "ramp": "primaryNeutral",
+        "step": "100",
+        "swatch": "#ECEDEC"
+      }
+    },
+    {
+      "figmaName": "background-brand",
+      "section": "Background",
+      "node": "27613:2104",
+      "appPath": "background.brand",
+      "light": {
+        "label": "primary-100",
+        "ramp": "primary",
+        "step": "100",
+        "swatch": "#F5FDF2"
+      },
+      "dark": {
+        "label": "primary-800",
+        "ramp": "primary",
+        "step": "800",
+        "swatch": "#2E4228"
+      }
+    },
+    {
+      "figmaName": "background-brand-inverse",
+      "section": "Background",
+      "node": "27613:2122",
+      "appPath": "background.brandInverse",
+      "light": {
+        "label": "primary-850",
+        "ramp": "primary",
+        "step": "850",
+        "swatch": "#2E4228"
+      },
+      "dark": {
+        "label": "primary-50",
+        "ramp": "primary",
+        "step": "50",
+        "swatch": "#F5FDF2"
+      }
+    },
+    {
+      "figmaName": "surface-primary",
+      "section": "Surface",
+      "node": "27613:2198",
+      "appPath": "surface.primary",
+      "light": {
+        "label": "primary-neutral-100",
+        "ramp": "primaryNeutral",
+        "step": "100",
+        "swatch": "#ECEDEC"
+      },
+      "dark": {
+        "label": "primary-neutral-900",
+        "ramp": "primaryNeutral",
+        "step": "900",
+        "swatch": "#232323"
+      }
+    },
+    {
+      "figmaName": "surface-primary-inverse",
+      "section": "Surface",
+      "node": "27613:2207",
+      "appPath": "surface.primaryInverse",
+      "light": {
+        "label": "primary-neutral-900",
+        "ramp": "primaryNeutral",
+        "step": "900",
+        "swatch": "#232323"
+      },
+      "dark": {
+        "label": "primary-neutral-100",
+        "ramp": "primaryNeutral",
+        "step": "100",
+        "swatch": "#ECEDEC"
+      }
+    },
+    {
+      "figmaName": "surface-secondary",
+      "section": "Surface",
+      "node": "27613:2216",
+      "appPath": "surface.secondary",
+      "light": {
+        "label": "primary-neutral-200",
+        "ramp": "primaryNeutral",
+        "step": "200",
+        "swatch": "#DADBDA"
+      },
+      "dark": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      }
+    },
+    {
+      "figmaName": "surface-secondary-inverse",
+      "section": "Surface",
+      "node": "27613:2225",
+      "appPath": "surface.secondaryInverse",
+      "light": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      },
+      "dark": {
+        "label": "primary-neutral-200",
+        "ramp": "primaryNeutral",
+        "step": "200",
+        "swatch": "#DADBDA"
+      }
+    },
+    {
+      "figmaName": "surface-tertiary",
+      "section": "Surface",
+      "node": "27613:2234",
+      "appPath": "surface.tertiary",
+      "light": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      },
+      "dark": {
+        "label": "primary-neutral-750",
+        "ramp": "primaryNeutral",
+        "step": "750",
+        "swatch": "#505150"
+      }
+    },
+    {
+      "figmaName": "surface-tertiary-inverse",
+      "section": "Surface",
+      "node": "27613:2243",
+      "appPath": "surface.tertiaryInverse",
+      "light": {
+        "label": "primary-neutral-750",
+        "ramp": "primaryNeutral",
+        "step": "750",
+        "swatch": "#505150"
+      },
+      "dark": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      }
+    },
+    {
+      "figmaName": "border-primary",
+      "section": "Border",
+      "node": "27613:2305",
+      "appPath": "border.primary",
+      "light": {
+        "label": "primary-neutral-400",
+        "ramp": "primaryNeutral",
+        "step": "400",
+        "swatch": "#B6B9B6"
+      },
+      "dark": {
+        "label": "primary-neutral-700",
+        "ramp": "primaryNeutral",
+        "step": "700",
+        "swatch": "#606160"
+      }
+    },
+    {
+      "figmaName": "border-primary-inverse",
+      "section": "Border",
+      "node": "27613:2314",
+      "appPath": "border.primaryInverse",
+      "light": {
+        "label": "primary-neutral-700",
+        "ramp": "primaryNeutral",
+        "step": "700",
+        "swatch": "#606160"
+      },
+      "dark": {
+        "label": "primary-neutral-400",
+        "ramp": "primaryNeutral",
+        "step": "400",
+        "swatch": "#B6B9B6"
+      }
+    },
+    {
+      "figmaName": "border-secondary",
+      "section": "Border",
+      "node": "27613:2323",
+      "appPath": "border.secondary",
+      "light": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      },
+      "dark": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      }
+    },
+    {
+      "figmaName": "border-secondary-inverse",
+      "section": "Border",
+      "node": "27613:2332",
+      "appPath": "border.secondaryInverse",
+      "light": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      },
+      "dark": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      }
+    },
+    {
+      "figmaName": "border-tertiary",
+      "section": "Border",
+      "node": "27613:2341",
+      "appPath": "border.tertiary",
+      "light": {
+        "label": "primary-neutral-150",
+        "ramp": "primaryNeutral",
+        "step": "150",
+        "swatch": "#E3E4E3"
+      },
+      "dark": {
+        "label": "primary-neutral-925",
+        "ramp": "primaryNeutral",
+        "step": "925",
+        "swatch": "#1C1C1C"
+      }
+    },
+    {
+      "figmaName": "border-tertiary-inverse",
+      "section": "Border",
+      "node": "27613:2350",
+      "appPath": "border.tertiaryInverse",
+      "light": {
+        "label": "primary-neutral-925",
+        "ramp": "primaryNeutral",
+        "step": "925",
+        "swatch": "#1C1C1C"
+      },
+      "dark": {
+        "label": "primary-neutral-150",
+        "ramp": "primaryNeutral",
+        "step": "150",
+        "swatch": "#E3E4E3"
+      }
+    },
+    {
+      "figmaName": "text-primary",
+      "section": "Text & Icons",
+      "node": "27613:2412",
+      "appPath": "text.primary",
+      "light": {
+        "label": "primary-neutral-950",
+        "ramp": "primaryNeutral",
+        "step": "950",
+        "swatch": "#151515"
+      },
+      "dark": {
+        "label": "primary-neutral-25",
+        "ramp": "primaryNeutral",
+        "step": "25",
+        "swatch": "#FAFAFA"
+      }
+    },
+    {
+      "figmaName": "text-primary-inverse",
+      "section": "Text & Icons",
+      "node": "27613:2421",
+      "appPath": "text.primaryInverse",
+      "light": {
+        "label": "primary-neutral-25",
+        "ramp": "primaryNeutral",
+        "step": "25",
+        "swatch": "#FAFAFA"
+      },
+      "dark": {
+        "label": "primary-neutral-950",
+        "ramp": "primaryNeutral",
+        "step": "950",
+        "swatch": "#151515"
+      }
+    },
+    {
+      "figmaName": "text-secondary",
+      "section": "Text & Icons",
+      "node": "27613:2430",
+      "appPath": "text.secondary",
+      "light": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      },
+      "dark": {
+        "label": "primary-neutral-200",
+        "ramp": "primaryNeutral",
+        "step": "200",
+        "swatch": "#DADBDA"
+      }
+    },
+    {
+      "figmaName": "text-secondary-inverse",
+      "section": "Text & Icons",
+      "node": "27613:2439",
+      "appPath": "text.secondaryInverse",
+      "light": {
+        "label": "primary-neutral-200",
+        "ramp": "primaryNeutral",
+        "step": "200",
+        "swatch": "#DADBDA"
+      },
+      "dark": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      }
+    },
+    {
+      "figmaName": "text-placeholder",
+      "section": "Text & Icons",
+      "node": "27613:2448",
+      "appPath": "text.placeholder",
+      "light": {
+        "label": "primary-neutral-700",
+        "ramp": "primaryNeutral",
+        "step": "700",
+        "swatch": "#606160"
+      },
+      "dark": {
+        "label": "primary-neutral-400",
+        "ramp": "primaryNeutral",
+        "step": "400",
+        "swatch": "#B6B9B6"
+      }
+    },
+    {
+      "figmaName": "text-placeholder-inverse",
+      "section": "Text & Icons",
+      "node": "27613:2457",
+      "appPath": "text.placeholderInverse",
+      "light": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      },
+      "dark": {
+        "label": "primary-neutral-700",
+        "ramp": "primaryNeutral",
+        "step": "700",
+        "swatch": "#606160"
+      }
+    },
+    {
+      "figmaName": "disabled",
+      "section": "Disabled & Skeleton",
+      "node": "27613:2519",
+      "appPath": "disabled.surface",
+      "light": {
+        "label": "primary-neutral-150",
+        "ramp": "primaryNeutral",
+        "step": "150",
+        "swatch": "#E3E4E3"
+      },
+      "dark": {
+        "label": "primary-neutral-850",
+        "ramp": "primaryNeutral",
+        "step": "850",
+        "swatch": "#313231"
+      }
+    },
+    {
+      "figmaName": "on-disabled",
+      "section": "Disabled & Skeleton",
+      "node": "27613:2528",
+      "appPath": "disabled.on",
+      "light": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      },
+      "dark": {
+        "label": "primary-neutral-500",
+        "ramp": "primaryNeutral",
+        "step": "500",
+        "swatch": "#A5A8A5"
+      }
+    },
+    {
+      "figmaName": "border-disabled",
+      "section": "Disabled & Skeleton",
+      "node": "27613:2537",
+      "appPath": "disabled.border",
+      "light": {
+        "label": "primary-neutral-300",
+        "ramp": "primaryNeutral",
+        "step": "300",
+        "swatch": "#C8CAC8"
+      },
+      "dark": {
+        "label": "primary-neutral-800",
+        "ramp": "primaryNeutral",
+        "step": "800",
+        "swatch": "#404140"
+      }
+    },
+    {
+      "figmaName": "text-disabled",
+      "section": "Disabled & Skeleton",
+      "node": "27613:2546",
+      "appPath": "disabled.text",
+      "light": {
+        "label": "primary-neutral-700",
+        "ramp": "primaryNeutral",
+        "step": "700",
+        "swatch": "#606160"
+      },
+      "dark": {
+        "label": "primary-neutral-500",
+        "ramp": "primaryNeutral",
+        "step": "500",
+        "swatch": "#A5A8A5"
+      }
+    },
+    {
+      "figmaName": "skeleton",
+      "section": "Disabled & Skeleton",
+      "node": "27613:2555",
+      "appPath": "disabled.skeleton",
+      "light": {
+        "label": "primary-neutral-200",
+        "ramp": "primaryNeutral",
+        "step": "200",
+        "swatch": "#DADBDA"
+      },
+      "dark": {
+        "label": "primary-neutral-850",
+        "ramp": "primaryNeutral",
+        "step": "850",
+        "swatch": "#313231"
+      }
+    },
+    {
+      "figmaName": "information-primary",
+      "section": "Feedback / Information",
+      "node": "27613:2626",
+      "appPath": "information.primary",
+      "light": {
+        "label": "information-500",
+        "ramp": "information",
+        "step": "500",
+        "swatch": "#19ACFF"
+      },
+      "dark": {
+        "label": "information-300",
+        "ramp": "information",
+        "step": "300",
+        "swatch": "#99CCFF"
+      }
+    },
+    {
+      "figmaName": "on-information-primary",
+      "section": "Feedback / Information",
+      "node": "27613:2635",
+      "appPath": "information.onPrimary",
+      "light": {
+        "label": "information-975",
+        "ramp": "information",
+        "step": "975",
+        "swatch": "#080D11"
+      },
+      "dark": {
+        "label": "information-975",
+        "ramp": "information",
+        "step": "975",
+        "swatch": "#080D11"
+      }
+    },
+    {
+      "figmaName": "information-secondary",
+      "section": "Feedback / Information",
+      "node": "27613:2644",
+      "appPath": "information.secondary",
+      "light": {
+        "label": "information-150",
+        "ramp": "information",
+        "step": "150",
+        "swatch": "#CFE5FF"
+      },
+      "dark": {
+        "label": "information-750",
+        "ramp": "information",
+        "step": "750",
+        "swatch": "#235377"
+      }
+    },
+    {
+      "figmaName": "on-information-secondary",
+      "section": "Feedback / Information",
+      "node": "27613:2653",
+      "appPath": "information.onSecondary",
+      "light": {
+        "label": "information-975",
+        "ramp": "information",
+        "step": "975",
+        "swatch": "#080D11"
+      },
+      "dark": {
+        "label": "information-25",
+        "ramp": "information",
+        "step": "25",
+        "swatch": "#F7FBFF"
+      }
+    },
+    {
+      "figmaName": "success-primary",
+      "section": "Feedback / Success",
+      "node": "27613:2717",
+      "appPath": "success.primary",
+      "light": {
+        "label": "success-700",
+        "ramp": "success",
+        "step": "700",
+        "swatch": "#387D41"
+      },
+      "dark": {
+        "label": "success-150",
+        "ramp": "success",
+        "step": "150",
+        "swatch": "#D2F5D2"
+      }
+    },
+    {
+      "figmaName": "on-success-primary",
+      "section": "Feedback / Success",
+      "node": "27613:2726",
+      "appPath": "success.onPrimary",
+      "light": {
+        "label": "success-25",
+        "ramp": "success",
+        "step": "25",
+        "swatch": "#F8FDF7"
+      },
+      "dark": {
+        "label": "success-975",
+        "ramp": "success",
+        "step": "975",
+        "swatch": "#090F09"
+      }
+    },
+    {
+      "figmaName": "success-secondary",
+      "section": "Feedback / Success",
+      "node": "27613:2735",
+      "appPath": "success.secondary",
+      "light": {
+        "label": "success-150",
+        "ramp": "success",
+        "step": "150",
+        "swatch": "#D2F5D2"
+      },
+      "dark": {
+        "label": "success-750",
+        "ramp": "success",
+        "step": "750",
+        "swatch": "#306737"
+      }
+    },
+    {
+      "figmaName": "on-success-secondary",
+      "section": "Feedback / Success",
+      "node": "27613:2744",
+      "appPath": "success.onSecondary",
+      "light": {
+        "label": "success-800",
+        "ramp": "success",
+        "step": "800",
+        "swatch": "#29522D"
+      },
+      "dark": {
+        "label": "success-25",
+        "ramp": "success",
+        "step": "25",
+        "swatch": "#F8FDF7"
+      }
+    },
+    {
+      "figmaName": "warning-primary",
+      "section": "Feedback / Warning",
+      "node": "27613:2792",
+      "appPath": "warning.primary",
+      "light": {
+        "label": "warning-500",
+        "ramp": "warning",
+        "step": "500",
+        "swatch": "#F49258"
+      },
+      "dark": {
+        "label": "warning-300",
+        "ramp": "warning",
+        "step": "300",
+        "swatch": "#FFDECB"
+      }
+    },
+    {
+      "figmaName": "on-warning-primary",
+      "section": "Feedback / Warning",
+      "node": "27613:2801",
+      "appPath": "warning.onPrimary",
+      "light": {
+        "label": "warning-925",
+        "ramp": "warning",
+        "step": "925",
+        "swatch": "#261A13"
+      },
+      "dark": {
+        "label": "warning-900",
+        "ramp": "warning",
+        "step": "900",
+        "swatch": "#302017"
+      }
+    },
+    {
+      "figmaName": "warning-secondary",
+      "section": "Feedback / Warning",
+      "node": "27613:2810",
+      "appPath": "warning.secondary",
+      "light": {
+        "label": "warning-150",
+        "ramp": "warning",
+        "step": "150",
+        "swatch": "#FFDECB"
+      },
+      "dark": {
+        "label": "warning-750",
+        "ramp": "warning",
+        "step": "750",
+        "swatch": "#74482E"
+      }
+    },
+    {
+      "figmaName": "on-warning-secondary",
+      "section": "Feedback / Warning",
+      "node": "27613:2819",
+      "appPath": "warning.onSecondary",
+      "light": {
+        "label": "warning-925",
+        "ramp": "warning",
+        "step": "925",
+        "swatch": "#261A13"
+      },
+      "dark": {
+        "label": "warning-25",
+        "ramp": "warning",
+        "step": "25",
+        "swatch": "#FFF9F6"
+      }
+    },
+    {
+      "figmaName": "error-primary",
+      "section": "Feedback / Error",
+      "node": "27613:2867",
+      "appPath": "error.primary",
+      "light": {
+        "label": "error-500",
+        "ramp": "error",
+        "step": "500",
+        "swatch": "#DA3737"
+      },
+      "dark": {
+        "label": "error-150",
+        "ramp": "error",
+        "step": "150",
+        "swatch": "#FFC7BF"
+      }
+    },
+    {
+      "figmaName": "on-error-primary",
+      "section": "Feedback / Error",
+      "node": "27613:2876",
+      "appPath": "error.onPrimary",
+      "light": {
+        "label": "error-25",
+        "ramp": "error",
+        "step": "25",
+        "swatch": "#FFF6F4"
+      },
+      "dark": {
+        "label": "error-975",
+        "ramp": "error",
+        "step": "975",
+        "swatch": "#120604"
+      }
+    },
+    {
+      "figmaName": "error-secondary",
+      "section": "Feedback / Error",
+      "node": "27613:2885",
+      "appPath": "error.secondary",
+      "light": {
+        "label": "error-150",
+        "ramp": "error",
+        "step": "150",
+        "swatch": "#FFC7BF"
+      },
+      "dark": {
+        "label": "error-750",
+        "ramp": "error",
+        "step": "750",
+        "swatch": "#69231F"
+      }
+    },
+    {
+      "figmaName": "on-error-secondary",
+      "section": "Feedback / Error",
+      "node": "27613:2894",
+      "appPath": "error.onSecondary",
+      "light": {
+        "label": "error-900",
+        "ramp": "error",
+        "step": "900",
+        "swatch": "#2D1410"
+      },
+      "dark": {
+        "label": "error-25",
+        "ramp": "error",
+        "step": "25",
+        "swatch": "#FFF6F4"
+      }
+    },
+    {
+      "figmaName": "pressed-inverse",
+      "section": "Interactions",
+      "node": "27613:2942",
+      "appPath": "interaction.pressedInverse",
+      "light": {
+        "label": "basic-white-8%",
+        "basic": "white",
+        "alpha": 0.08,
+        "swatch": "rgba(255,255,255,0.08)"
+      },
+      "dark": {
+        "label": "basic-black-8%",
+        "basic": "black",
+        "alpha": 0.08,
+        "swatch": "rgba(0,0,0,0.08)"
+      }
+    },
+    {
+      "figmaName": "pressed",
+      "section": "Interactions",
+      "node": "27613:2951",
+      "appPath": "interaction.pressed",
+      "light": {
+        "label": "basic-black-8%",
+        "basic": "black",
+        "alpha": 0.08,
+        "swatch": "rgba(0,0,0,0.08)"
+      },
+      "dark": {
+        "label": "basic-white-8%",
+        "basic": "white",
+        "alpha": 0.08,
+        "swatch": "rgba(255,255,255,0.08)"
+      }
+    },
+    {
+      "figmaName": "basic",
+      "section": "Basic & Logo",
+      "node": "27613:3017",
+      "appPath": "basic.base",
+      "light": {
+        "label": "basic-black",
+        "basic": "black",
+        "swatch": "#000000"
+      },
+      "dark": {
+        "label": "basic-white",
+        "basic": "white",
+        "swatch": "#FFFFFF"
+      }
+    },
+    {
+      "figmaName": "logo",
+      "section": "Basic & Logo",
+      "node": "27613:3049",
+      "appPath": "basic.logo",
+      "light": {
+        "label": "primary-975",
+        "ramp": "primary",
+        "step": "975",
+        "swatch": "#0C100A"
+      },
+      "dark": {
+        "label": "primary-25",
+        "ramp": "primary",
+        "step": "25",
+        "swatch": "#FAFEF8"
+      }
+    },
+    {
+      "figmaName": "on-logo",
+      "section": "Basic & Logo",
+      "node": "27613:3026",
+      "appPath": "basic.onLogo",
+      "light": {
+        "label": "primary-25",
+        "ramp": "primary",
+        "step": "25",
+        "swatch": "#FAFEF8"
+      },
+      "dark": {
+        "label": "primary-975",
+        "ramp": "primary",
+        "step": "975",
+        "swatch": "#0C100A"
+      }
+    }
+  ],
+  "docSwatchConflicts": {
+    "$comment": "Documentation rows whose swatch fill disagrees with the primitive named in the label. The label (the token reference) is authoritative for the app; the swatch is recorded so the disagreement stays visible until it is fixed in Figma.",
+    "rows": [
+      {
+        "token": "background-brand",
+        "mode": "light",
+        "label": "primary-100",
+        "labelHex": "#EBFCE5",
+        "swatch": "#F5FDF2"
+      },
+      {
+        "token": "background-brand",
+        "mode": "dark",
+        "label": "primary-800",
+        "labelHex": "#3B5833",
+        "swatch": "#2E4228"
+      },
+      {
+        "token": "warning-primary",
+        "mode": "dark",
+        "label": "warning-300",
+        "labelHex": "#FFBD99",
+        "swatch": "#FFDECB"
+      }
+    ]
+  },
+  "elevation": {
+    "$comment": "Figma effect styles. Low is applied on Dropdown Menu; Medium was read from the applied Elevation/Medium style (four layers). Style node IDs unavailable.",
+    "low": [
+      "0px 0px 2px 0px rgba(16,16,16,0.12)",
+      "0px 2px 4px 0px rgba(16,16,16,0.11)",
+      "0px 4px 8px 0px rgba(16,16,16,0.10)"
+    ],
+    "medium": [
+      "0px 0px 2px 0px rgba(16,16,16,0.12)",
+      "0px 2px 4px 0px rgba(16,16,16,0.11)",
+      "0px 4px 8px 0px rgba(16,16,16,0.10)",
+      "0px 16px 32px 0px rgba(16,16,16,0.09)"
+    ]
+  }
+}

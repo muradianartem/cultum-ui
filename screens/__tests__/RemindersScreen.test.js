@@ -92,10 +92,12 @@ test('one enable toggle per reminder, reflecting what is actually on', () => {
   ]);
 });
 
-test('pressing a toggle flips it, and it stays flipped in the store', () => {
+test('pressing a toggle flips it on the server, and the answer sticks', async () => {
   const r = render();
   expect(switches(r)[2].props.accessibilityState.checked).toBe(false);
   r.press('Enable Check for better pods');
+  await r.settle();
+  expect(r.api.callsTo('updateReminder').map(([, patch]) => patch)).toEqual([{ enabled: true }]);
   expect(switches(r)[2].props.accessibilityState.checked).toBe(true);
 });
 
@@ -119,7 +121,7 @@ test('every reminder can be removed — none of them is special', () => {
   expect(removeButtons(render())).toHaveLength(3);
 });
 
-test('Remove opens a confirm dialog; confirming drops the card', () => {
+test('Remove opens a confirm dialog; confirming drops the card', async () => {
   const r = render();
   expect(visible(r, 'remove-dialog')).toBe(false);
   expect(r.texts()).toContain('Check for better pods');
@@ -131,6 +133,7 @@ test('Remove opens a confirm dialog; confirming drops the card', () => {
   expect(r.texts()).toContain('Check for better pods'); // not gone yet
 
   r.press('Remove reminder');
+  await r.settle();
   expect(visible(r, 'remove-dialog')).toBe(false);
   expect(r.texts()).not.toContain('Check for better pods');
 });
@@ -142,7 +145,7 @@ test('pressing a detail row opens the value sheet', () => {
   expect(visible(r, 'value-sheet')).toBe(true);
 });
 
-test('an edited frequency is stored as an interval, and re-read as one', () => {
+test('an edited frequency is stored as an interval, and re-read as one', async () => {
   const r = render();
   expect(r.texts()).toContain('7 days');
 
@@ -152,6 +155,7 @@ test('an edited frequency is stored as an interval, and re-read as one', () => {
   // FREQUENCY_UNITS — giving "1 day".
   act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(0));
   r.press('Set frequency');
+  await r.settle();
 
   expect(visible(r, 'value-sheet')).toBe(false);
   expect(r.texts()).toContain('1 day');
@@ -163,9 +167,9 @@ test('a snooze pushes the reminder out and the row says until when', () => {
   const r = render();
   r.press('Watering Snooze');
   // On "None" the sheet hides the number column, so the only wheel is the unit
-  // one; picking 'days' (index 2 of [None, hours, days, …]) brings the number
+  // one; picking 'days' (index 1 of [None, days, weeks]) brings the number
   // column back at its default of 1.
-  act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(2));
+  act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(1));
   r.press('Set snooze');
   expect(r.texts()).toContain('Until 6 Sep'); // 5 Sep + 1 day
 });
@@ -183,18 +187,21 @@ test('the nav bar + and the bottom row both open the add-reminder sheet', () => 
   expect(visible(r2, 'add-reminder-sheet')).toBe(true);
 });
 
-const addReminder = (r, title) => {
+const addReminder = async (r, title) => {
   r.press('Add reminder');
   act(() => r.tree.root.findByType(RNTextInput).props.onChangeText(title));
   r.press('Continue');
   r.press('Remind every 2 days');
+  await r.settle();
 };
 
-test('completing the flow appends a real reminder and closes the sheet', () => {
+test('completing the flow appends a real reminder and closes the sheet', async () => {
   const r = render();
   expect(r.texts()).not.toContain('Rotate the pot');
 
-  addReminder(r, 'Rotate the pot');
+  await addReminder(r, 'Rotate the pot');
+  // Created on the server; its title stays on this device.
+  expect(r.api.callsTo('createReminder')).toHaveLength(1);
 
   expect(visible(r, 'add-reminder-sheet')).toBe(false);
   expect(r.texts()).toContain('Rotate the pot');
@@ -205,15 +212,16 @@ test('completing the flow appends a real reminder and closes the sheet', () => {
   expect(removeButtons(r)).toHaveLength(4);
 });
 
-test('a new reminder is immediately editable by the value sheet', () => {
+test('a new reminder is immediately editable by the value sheet', async () => {
   const r = render();
-  addReminder(r, 'Rotate the pot');
+  await addReminder(r, 'Rotate the pot');
 
   // The frequency it was created with seeds the wheel, so confirming without
   // touching anything round-trips the same value.
   r.press('Rotate the pot Frequency');
   expect(visible(r, 'value-sheet')).toBe(true);
   r.press('Set frequency');
+  await r.settle();
   expect(r.texts()).toContain('2 days');
 });
 

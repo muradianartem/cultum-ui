@@ -4,7 +4,7 @@ import {
   dueLabel,
   nextDueAt,
   occurrenceAfter,
-  plantTasks,
+  snoozedTasks,
   todayTasks,
   upcomingTasks,
 } from '../schedule';
@@ -13,9 +13,9 @@ import {
 // already come due rather than sitting an hour in the future.
 const NOW = new Date(2026, 8, 5, 11, 0, 0); // Sat 5 Sep 2026
 
-function garden({ reminders = [], roomId = 'kitchen', archived = false } = {}) {
+function garden({ reminders = [], roomId = 'kitchen' } = {}) {
   const base = emptyState();
-  const plant = { ...makePlant({ speciesKey: 'monstera', nickname: 'Penny', roomId }), archived };
+  const plant = makePlant({ speciesKey: 'monstera', nickname: 'Penny', roomId });
   return {
     ...base,
     rooms: [{ ...makeRoom({ name: 'Kitchen' }), id: 'kitchen' }],
@@ -108,15 +108,6 @@ describe('todayTasks', () => {
     expect(todayTasks(g, NOW)).toEqual([]);
   });
 
-  test('an archived plant drops out of the day entirely', () => {
-    const g = garden({
-      archived: true,
-      reminders: [{ action: 'water', intervalDays: 1, lastDoneAt: new Date(2026, 7, 1).toISOString() }],
-    });
-    expect(todayTasks(g, NOW)).toEqual([]);
-    expect(plantTasks(g, g.plant.id, NOW)).toEqual([]);
-  });
-
   test('a plant with no room still reads sensibly', () => {
     const g = garden({ roomId: null, reminders: [{ action: 'water', intervalDays: 7 }] });
     expect(todayTasks(g, NOW)[0].room).toBe('No room');
@@ -139,5 +130,52 @@ describe('upcomingTasks', () => {
     expect(todayTasks(g, NOW)).toHaveLength(1);
     expect(upcomingTasks(g, NOW, 10).every((t) => new Date(t.dueAt) > NOW)).toBe(true);
     expect(upcomingTasks(g, NOW, 10).map((t) => t.due)).toEqual(['In 7d']);
+  });
+});
+
+// Run under TZ=America/Toronto to exercise it: clocks fall back on 1 Nov 2026.
+describe('nextDueAt across a DST change', () => {
+  test('a local-noon start keeps its calendar day and lands at its time of day', () => {
+    for (const day of [31, 1, 2]) {
+      const month = day === 31 ? 9 : 10;
+      const r = makeReminder({
+        plantId: 'p',
+        timeOfDay: '09:00',
+        startAt: new Date(2026, month, day, 12).toISOString(),
+      });
+      expect(r.lastDoneAt).toBeNull();
+      expect(nextDueAt(r)).toEqual(new Date(2026, month, day, 9, 0));
+    }
+  });
+});
+
+describe('snoozedTasks', () => {
+  const dueToday = { startAt: new Date(2026, 8, 5).toISOString(), intervalDays: 7 };
+
+  test('lists an occurrence a snooze is holding back, due when the snooze ends', () => {
+    const until = new Date(2026, 8, 8, 11, 0).toISOString();
+    const g = garden({ reminders: [{ ...dueToday, snoozedUntil: until }] });
+    const tasks = snoozedTasks(g, NOW);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].dueAt).toBe(until);
+    expect(tasks[0].due).toBe('In 3d');
+    // …and it is off Today while snoozed.
+    expect(todayTasks(g, NOW)).toHaveLength(0);
+  });
+
+  test('ignores expired snoozes, overtaken snoozes and disabled reminders', () => {
+    const g = garden({
+      reminders: [
+        // expired: the snooze ended this morning
+        { ...dueToday, snoozedUntil: new Date(2026, 8, 5, 8, 0).toISOString() },
+        // overtaken: the natural date (in 10 days) is later than the snooze
+        { startAt: new Date(2026, 8, 15).toISOString(), snoozedUntil: new Date(2026, 8, 7).toISOString() },
+        // disabled
+        { ...dueToday, enabled: false, snoozedUntil: new Date(2026, 8, 8).toISOString() },
+        // never snoozed
+        dueToday,
+      ],
+    });
+    expect(snoozedTasks(g, NOW)).toEqual([]);
   });
 });

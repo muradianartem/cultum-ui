@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { calendar } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 import ButtonIcon from './ButtonIcon';
 import Chip from './Chip';
@@ -228,16 +229,12 @@ const styles = StyleSheet.create({
   },
   body: { paddingVertical: 12, paddingHorizontal: 8, gap: 2 },
   monthRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
-  monthLabel: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
+  // Figma "Calendar" (360:29): month Body Large Emphasized, weekdays Body
+  // Small, days Body Medium.
+  monthLabel: { flex: 1, ...typography.bodyLargeEmphasized, textAlign: 'center' },
   week: { flexDirection: 'row', justifyContent: 'space-between' },
   weekday: { width: calendar.daySize, height: 20, alignItems: 'center', justifyContent: 'center' },
-  weekdayText: { fontSize: 12, lineHeight: 17 },
+  weekdayText: { ...typography.bodySmall },
   grid: { paddingTop: 2, gap: 2 },
   day: {
     width: calendar.daySize,
@@ -246,8 +243,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayText: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
-  dayTextEmphasized: { fontWeight: '500' },
+  dayText: { ...typography.bodyMedium },
+  dayTextEmphasized: { ...typography.bodyMediumEmphasized },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',

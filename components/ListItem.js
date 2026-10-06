@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { list } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -118,9 +119,10 @@ const styles = StyleSheet.create({
   padCard: { paddingVertical: 12, paddingHorizontal: 16 },
   before: { justifyContent: 'center' },
   middle: { flex: 1, gap: 2 },
-  title: { fontSize: 16, lineHeight: 22 },
-  value: { fontSize: 14, lineHeight: 20, flexShrink: 0 },
-  subtitle: { fontSize: 14, lineHeight: 20 },
+  // Figma "List – P2": title Body Large; value and subtitle Body Medium.
+  title: { ...typography.bodyLarge },
+  value: { ...typography.bodyMedium, flexShrink: 0 },
+  subtitle: { ...typography.bodyMedium },
   after: { justifyContent: 'center' },
   divider: {
     position: 'absolute',

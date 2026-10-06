@@ -9,13 +9,15 @@
 //     Play also needs the offer token of the base plan or trial being bought
 //   - what to send the backend (`verify`): Apple's signed JWS, Play's opaque
 //     purchase token
-//   - the localized price to show (`priceOf`)
+//   - the price, period and free trial to show (`termsOf`, in the shape of
+//     billing/storeTerms.js)
 //   - the words: "the App Store" / "Apple ID" vs "Google Play" / "Google account"
 //
 // Nothing here imports expo-iap, so it is safe to load on web.
 
 import { Platform } from 'react-native';
 import { verifyApplePurchase, verifyGooglePurchase } from '../api/billing';
+import { storeTerms } from './storeTerms';
 
 const messages = ({ store, account }) => ({
   unavailable: `${store} isn't available right now. Try again in a moment.`,
@@ -50,7 +52,10 @@ const APPLE = {
       signedTransaction: purchase.purchaseToken,
       transactionId: purchase.transactionId ?? purchase.id,
     }),
-  priceOf: (subscription) => subscription?.displayPrice ?? null,
+  // Trial eligibility is per subscription group and has to be asked for
+  // separately (isEligibleForIntroOfferIOS); the hook passes in what it got.
+  termsOf: (subscription, eligibility = {}) =>
+    storeTerms(subscription, { eligible: eligibility[subscription?.subscriptionGroupIdIOS] }),
 };
 
 const phasesOf = (offer) => offer?.pricingPhasesAndroid?.pricingPhaseList ?? [];
@@ -73,6 +78,32 @@ export function pickGoogleOffer(subscription) {
     offers[0] ??
     null
   );
+}
+
+const ISO_UNITS = { D: 'day', W: 'week', M: 'month', Y: 'year' };
+const TRIAL_UNIT_DAYS = { day: 1, week: 7, month: 30 };
+const plural = (count, unit) => `${count} ${unit}${count === 1 ? '' : 's'}`;
+
+/** Play's ISO 8601 period: `P1Y` → { count: 1, unit: 'year' }, else null. */
+function parsePeriod(iso) {
+  const m = /^P(\d+)([DWMY])$/.exec(iso ?? '');
+  const count = m ? Number(m[1]) : 0;
+  return count > 0 ? { count, unit: ISO_UNITS[m[2]] } : null;
+}
+
+/** `P1Y` → 'year', `P3M` → '3 months' — storeTerms' `periodLabel`. */
+function periodLabelOf(iso) {
+  const p = parsePeriod(iso);
+  if (!p) return null;
+  return p.count === 1 ? p.unit : plural(p.count, p.unit);
+}
+
+/** A free phase → storeTerms' `trial`, keeping Play's own unit in the label. */
+function trialOf(phase) {
+  const p = parsePeriod(phase?.billingPeriod);
+  if (!p || !Object.hasOwn(TRIAL_UNIT_DAYS, p.unit)) return null;
+  const count = p.count * Math.max(1, Number(phase.billingCycleCount) || 1);
+  return { days: count * TRIAL_UNIT_DAYS[p.unit], label: `${plural(count, p.unit)} free` };
 }
 
 const GOOGLE = {
@@ -99,13 +130,20 @@ const GOOGLE = {
    * The recurring price, not the product's `displayPrice`: with a trial offer
    * first in line, that can be the trial's "Free", which would be a lie on a
    * price bar that says "then … per year".
+   *
+   * No eligibility argument: Play only returns offers this user can get, so a
+   * free phase on the picked offer already is the eligibility check.
    */
-  priceOf: (subscription) => {
-    const offer = pickGoogleOffer(subscription);
-    const phases = phasesOf(offer);
+  termsOf: (subscription) => {
+    const phases = phasesOf(pickGoogleOffer(subscription));
     // recurrenceMode 1 = INFINITE_RECURRING, the phase that bills forever.
     const recurring = phases.find((p) => p?.recurrenceMode === 1) ?? phases[phases.length - 1];
-    return recurring?.formattedPrice ?? subscription?.displayPrice ?? null;
+    const free = phases.find(isFree);
+    return {
+      displayPrice: recurring?.formattedPrice ?? subscription?.displayPrice ?? '',
+      periodLabel: periodLabelOf(recurring?.billingPeriod),
+      trial: free ? trialOf(free) : null,
+    };
   },
 };
 
@@ -115,8 +153,7 @@ export function storeFor(os = Platform.OS) {
 }
 
 /**
- * The store product id a paywall product sells under on this platform — the
- * key of the purchase hook's `prices`.
+ * The store product id a paywall product sells under on this platform.
  */
 export function storeSku(product, os = Platform.OS) {
   return storeFor(os).skuOf(product);

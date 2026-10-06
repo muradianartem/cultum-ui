@@ -1,4 +1,5 @@
-import { radius, space, stroke, blur, opacity, typography } from '../foundations';
+import { radius, space, stroke, blur, opacity, typography, typographyMeta, paragraphSpacing } from '../foundations';
+import { FONT_FACES, FONT_FAMILIES, fontFace } from '../fonts';
 
 describe('foundation scales (Figma)', () => {
   test('radius scale matches Figma', () => {
@@ -22,37 +23,36 @@ describe('foundation scales (Figma)', () => {
   });
 });
 
-describe('typography scale (Figma)', () => {
-  const NAMES = [
-    'display',
-    'headingLarge', 'headingLargeEmphasized',
-    'headingMedium', 'headingMediumEmphasized',
-    'headingSmall', 'headingSmallEmphasized',
-    'bodyLarge', 'bodyLargeEmphasized',
-    'bodyMedium', 'bodyMediumEmphasized',
-    'bodySmall', 'bodySmallEmphasized',
-    'buttonMedium', 'buttonSmall',
-    'caption', 'captionEmphasized',
-  ];
-
-  test('exposes all 17 Figma text styles', () => {
-    expect(Object.keys(typography).sort()).toEqual([...NAMES].sort());
-  });
-
-  test('every style is a complete RN text style', () => {
-    for (const name of NAMES) {
-      const s = typography[name];
-      expect(s.fontFamily).toBe('Inter');
-      expect(typeof s.fontSize).toBe('number');
-      expect(typeof s.lineHeight).toBe('number');
-      expect(['400', '500', '700']).toContain(s.fontWeight);
+// Values are checked against the reviewed Figma snapshot in figmaParity.test.js;
+// these check the shape the rest of the app relies on.
+describe('typography styles', () => {
+  test('every style is a spreadable RN text style naming a bundled face', () => {
+    for (const [name, s] of Object.entries(typography)) {
+      expect(Object.keys(s).sort()).toEqual(['fontFamily', 'fontSize', 'lineHeight']);
+      expect(FONT_FACES[s.fontFamily]).toBeDefined();
+      expect(s.fontFamily).toBe(FONT_FAMILIES[typographyMeta[name].family][typographyMeta[name].weight]);
     }
   });
 
-  test('anchor styles match Figma (size / weight / 120–140% line height)', () => {
-    expect(typography.display).toMatchObject({ fontSize: 40, fontWeight: '700', lineHeight: 48 });
-    expect(typography.headingSmall).toMatchObject({ fontSize: 20, fontWeight: '400', lineHeight: 26 }); // 130%
-    expect(typography.bodyMedium).toMatchObject({ fontSize: 14, fontWeight: '400', lineHeight: 19.6 }); // 140%
-    expect(typography.buttonMedium).toMatchObject({ fontSize: 16, fontWeight: '500', lineHeight: 19.2 }); // 120%
+  // The weight lives in the face. A fontWeight on top would make Android and the
+  // web synthesise a bolder copy of an already-bold file.
+  test('no style carries a fontWeight', () => {
+    for (const s of Object.values(typography)) expect(s).not.toHaveProperty('fontWeight');
+  });
+
+  test('metadata and runtime styles cover the same names', () => {
+    expect(Object.keys(typography)).toEqual(Object.keys(typographyMeta));
+  });
+
+  test('paragraph spacing is metadata, not part of any style', () => {
+    expect(paragraphSpacing).toEqual({ bodyLarge: 8, bodyMedium: 8, bodySmall: 4 });
+    for (const s of Object.values(typography)) expect(s).not.toHaveProperty('marginBottom');
+  });
+});
+
+describe('fontFace', () => {
+  test('throws for a face that is not bundled rather than falling back', () => {
+    expect(() => fontFace('Literata', 500)).toThrow(/No bundled face/);
+    expect(() => fontFace('Helvetica', 400)).toThrow(/No bundled face/);
   });
 });

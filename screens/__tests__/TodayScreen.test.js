@@ -33,8 +33,8 @@ const garden = () =>
 
 const render = (state = garden()) => renderWithGarden(<TodayScreen />, { state, clock: NOW });
 
-// The swipe actions live inside a specific card, and several cards are on
-// screen — so reach the one whose task is named, then press within it.
+// Several cards are on screen — so reach the one whose task is named, then
+// press within it.
 const card = (r, title) =>
   r.tree.root.findAllByType(TaskCard).find((c) => c.props.task.title === title);
 
@@ -79,6 +79,16 @@ test('groups by task type, and each row shows its plant, room and due badge', ()
   expect(t).toContain('3d ago');
 });
 
+test('each card carries a task-type badge on its photo', () => {
+  const r = render();
+  const badgeIcon = (title) =>
+    card(r, title)
+      .findAll((n) => n.props.accessibilityLabel && n.props.leftIcon)
+      .map((n) => n.props.leftIcon.props.name)[0];
+  expect(badgeIcon('Watering')).toBe('outlined-water');
+  expect(badgeIcon('Fertilizing')).toBe('shovel');
+});
+
 test('a task not due today stays out of the day', () => {
   expect(render().texts()).not.toContain('Trim the aerial roots');
 });
@@ -87,7 +97,8 @@ test('completing a task removes it, and an emptied group disappears', () => {
   const r = render();
   expect(r.texts()).toContain('Watering');
 
-  pressIn(card(r, 'Watering'), 'Mark task done');
+  pressIn(card(r, 'Watering'), 'Watering');
+  r.press('Mark as done');
 
   expect(r.texts()).not.toContain('Watering'); // the row and its group header both go
   expect(r.texts()).toContain('Fertilizing'); // the other group remains
@@ -113,11 +124,12 @@ test('an empty garden offers a way in rather than "all caught up"', () => {
   expect(t).not.toContain('Your plants are on their own schedule.');
 });
 
-test('renders the 5-tab bar with Today active', () => {
+test('renders the 4-tab bar with Today active', () => {
   const { tree, texts, find } = render();
-  ['Discover', 'Scan/Add', 'Rooms', 'Settings'].forEach((label) =>
+  ['Scan/Add', 'Rooms', 'Settings'].forEach((label) =>
     expect(texts()).toContain(label),
   );
+  expect(texts()).not.toContain('Discover'); // hidden until V2
   expect(find('Today').props.accessibilityState.selected).toBe(true);
   expect(tree).toBeTruthy();
 });
@@ -137,19 +149,59 @@ test('a task card opens that plant, not a hard-coded product page', () => {
   expect(r.router.params.plantId).toBe(state.plants[0].id);
 });
 
+test('tapping the "Next up" preview opens that plant', () => {
+  const state = garden();
+  const r = render(state);
+  r.press('Complete All');
+  r.press('Complete 2 tasks');
+  pressIn(card(r, 'Trim the aerial roots'), 'Trim the aerial roots');
+  expect(r.router.route).toBe('product');
+  expect(r.router.params.plantId).toBe(state.plants[1].id); // Figgy
+});
+
 test('snoozing a task moves it out of today without changing its cadence', () => {
   const r = render();
-  pressIn(card(r, 'Watering'), 'Snooze task');
+  pressIn(card(r, 'Watering'), 'Watering');
+  r.press('Snooze for');
   // SnoozeContent opens on "2 days"; its CTA carries the choice.
   r.press('Snooze for 2 days');
 
   expect(r.texts()).not.toContain('Watering');
 });
 
+describe('the snoozed banner', () => {
+  test('is hidden while nothing is snoozed', () => {
+    expect(render().texts().join(' ')).not.toMatch(/snoozed/);
+  });
+
+  test('appears once a task is snoozed, and opens the Snoozed page', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    expect(r.texts()).toContain('1 task snoozed');
+
+    r.press('1 task snoozed');
+    expect(r.router.route).toBe('snoozed');
+  });
+
+  test('still shows on the "All caught up" state', () => {
+    const r = render();
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    pressIn(card(r, 'Fertilizing'), 'Fertilizing');
+    r.press('Snooze for');
+    r.press('Snooze for 2 days');
+    expect(r.texts()).toContain('2 tasks snoozed');
+  });
+});
+
 describe('the snackbar takes the action back', () => {
   test('completing one task', () => {
     const r = render();
-    pressIn(card(r, 'Watering'), 'Mark task done');
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Mark as done');
     expect(r.texts()).toContain('Task completed');
 
     r.press('Undo');
@@ -172,7 +224,8 @@ describe('the snackbar takes the action back', () => {
 
   test('snoozing', () => {
     const r = render();
-    pressIn(card(r, 'Watering'), 'Snooze task');
+    pressIn(card(r, 'Watering'), 'Watering');
+    r.press('Snooze for');
     r.press('Snooze for 2 days');
     expect(r.texts()).toContain('Snoozed for 2 days');
 

@@ -8,8 +8,7 @@ import { useMemo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Icon } from '../../components';
 import { useTheme } from '../../theme/ThemeProvider';
-import { space } from '../../theme/foundations';
-import { fonts } from '../../theme/tokens';
+import { space, typography } from '../../theme/foundations';
 import { HERO } from '../placeholderPhotos';
 
 export default function SuccessStep({ photo, title, subtitle }) {
@@ -61,15 +60,12 @@ const makeStyles = (t) => StyleSheet.create({
   },
   text: { alignSelf: 'stretch', gap: 6 },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 26,
+    ...typography.headingSmall,
     color: t.text.primary,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.bodyMedium,
     color: t.text.secondary,
     textAlign: 'center',
   },

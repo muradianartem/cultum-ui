@@ -1,0 +1,3000 @@
+{
+  "$comment": "Every component on the Figma Icons canvas, plus local extensions. scripts/gen-icon-registry.js reads `kind` to decide how to normalise colours; components/__tests__/Icon.test.js checks this file against assets/icons and the registry. Flags are catalogued but deliberately not bundled until a screen needs one.",
+  "fileKey": "JyrSo87oacbcbALO8JO9At",
+  "canvas": "27338:14830",
+  "capturedAt": "2026-09-21",
+  "counts": {
+    "figmaComponents": 417,
+    "nonFlag": 157,
+    "flags": 260
+  },
+  "aliases": {
+    "flash": "icon/flash_on",
+    "flash-off": "icon/flash_off"
+  },
+  "icons": [
+    {
+      "figmaName": "icons/placeholder",
+      "node": "26701:2678",
+      "localName": "placeholder",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/mail",
+      "node": "26701:2623",
+      "localName": "mail",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/phone",
+      "node": "26701:2626",
+      "localName": "phone",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/settings",
+      "node": "26701:2628",
+      "localName": "settings",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/user",
+      "node": "26701:2630",
+      "localName": "user",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/profile-circle",
+      "node": "26701:2633",
+      "localName": "profile-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chevron-right",
+      "node": "26701:2635",
+      "localName": "chevron-right",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chevron-left",
+      "node": "26701:2637",
+      "localName": "chevron-left",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chevron-up",
+      "node": "26701:2639",
+      "localName": "chevron-up",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chevron-down",
+      "node": "26701:2641",
+      "localName": "chevron-down",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/search",
+      "node": "26701:2643",
+      "localName": "search",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/close",
+      "node": "26701:2646",
+      "localName": "close",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/trash",
+      "node": "26701:2649",
+      "localName": "trash",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/attachment",
+      "node": "26701:2655",
+      "localName": "attachment",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/file",
+      "node": "26701:2657",
+      "localName": "file",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/image",
+      "node": "26701:2660",
+      "localName": "image",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/eye-off",
+      "node": "26701:2664",
+      "localName": "eye-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/eye",
+      "node": "26701:2669",
+      "localName": "eye",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/home",
+      "node": "26701:2672",
+      "localName": "home",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/check",
+      "node": "26701:2674",
+      "localName": "check",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/sidebar-left",
+      "node": "26701:2676",
+      "localName": "sidebar-left",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/info",
+      "node": "26701:2680",
+      "localName": "info",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-expand",
+      "node": "26701:2694",
+      "localName": "arrow-expand",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-shrink",
+      "node": "26701:2696",
+      "localName": "arrow-shrink",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/cloud",
+      "node": "26701:2712",
+      "localName": "cloud",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/command",
+      "node": "26701:2718",
+      "localName": "command",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/finger-print",
+      "node": "26701:2720",
+      "localName": "finger-print",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/hash",
+      "node": "26701:2730",
+      "localName": "hash",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/option",
+      "node": "26701:2735",
+      "localName": "option",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/cloud-off",
+      "node": "26701:2737",
+      "localName": "cloud-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/globe",
+      "node": "26701:2746",
+      "localName": "globe",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/code",
+      "node": "26701:2750",
+      "localName": "code",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/shield-warning",
+      "node": "26701:2752",
+      "localName": "shield-warning",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/shield-check",
+      "node": "26701:2756",
+      "localName": "shield-check",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/power-off",
+      "node": "26701:2766",
+      "localName": "power-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/power",
+      "node": "26701:2771",
+      "localName": "power",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/user-add",
+      "node": "26701:2782",
+      "localName": "user-add",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/window-min",
+      "node": "26701:2787",
+      "localName": "window-min",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chart",
+      "node": "26701:2807",
+      "localName": "chart",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/file-full",
+      "node": "26701:2815",
+      "localName": "file-full",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/cloude",
+      "node": "26701:2821",
+      "localName": "cloude",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/forum",
+      "node": "26701:2823",
+      "localName": "forum",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/file-image",
+      "node": "26701:2825",
+      "localName": "file-image",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/file-code",
+      "node": "26701:2830",
+      "localName": "file-code",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/target",
+      "node": "26701:2848",
+      "localName": "target",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/timer",
+      "node": "26701:2854",
+      "localName": "timer",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/warn",
+      "node": "26701:2858",
+      "localName": "warn",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/folder-open",
+      "node": "26701:2869",
+      "localName": "folder-open",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/stickers",
+      "node": "26701:2875",
+      "localName": "stickers",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/tag",
+      "node": "26701:2880",
+      "localName": "tag",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/sync",
+      "node": "26701:2890",
+      "localName": "sync",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/heart",
+      "node": "26701:2897",
+      "localName": "heart",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/help-circle",
+      "node": "26701:2901",
+      "localName": "help-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/window-max",
+      "node": "26701:2905",
+      "localName": "window-max",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/file-edit",
+      "node": "26701:2926",
+      "localName": "file-edit",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chat-dots",
+      "node": "26701:2930",
+      "localName": "chat-dots",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chat-circle",
+      "node": "26701:2936",
+      "localName": "chat-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/chat",
+      "node": "26701:2942",
+      "localName": "chat",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/link",
+      "node": "26701:2956",
+      "localName": "link",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/unlink",
+      "node": "26701:2960",
+      "localName": "unlink",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/funnel-off",
+      "node": "26701:2962",
+      "localName": "funnel-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/terminal",
+      "node": "26701:2966",
+      "localName": "terminal",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/compass",
+      "node": "26701:2980",
+      "localName": "compass",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/home-check",
+      "node": "26701:2982",
+      "localName": "home-check",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/navigation",
+      "node": "26701:2984",
+      "localName": "navigation",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/bell-ring",
+      "node": "26701:2986",
+      "localName": "bell-ring",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/mail-open",
+      "node": "26701:2988",
+      "localName": "mail-open",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/bell",
+      "node": "26701:2990",
+      "localName": "bell",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/select-multiple",
+      "node": "26701:2996",
+      "localName": "select-multiple",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/checklist",
+      "node": "26701:3008",
+      "localName": "checklist",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/remove-minus-circle",
+      "node": "26701:3010",
+      "localName": "remove-minus-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/add-plus-circle",
+      "node": "26701:3012",
+      "localName": "add-plus-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/close-circle",
+      "node": "26701:3020",
+      "localName": "close-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/add-to-queue",
+      "node": "26701:3022",
+      "localName": "add-to-queue",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/wallet",
+      "node": "26701:3058",
+      "localName": "wallet",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/share",
+      "node": "26701:3076",
+      "localName": "share",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/forward",
+      "node": "26701:3082",
+      "localName": "forward",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/external-link",
+      "node": "26701:3085",
+      "localName": "external-link",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/sort",
+      "node": "26701:3089",
+      "localName": "sort",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/more-horizontal",
+      "node": "26701:3094",
+      "localName": "more-horizontal",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/more-vertical",
+      "node": "26701:3098",
+      "localName": "more-vertical",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/share-ios",
+      "node": "26701:3104",
+      "localName": "share-ios",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/sidebar-right",
+      "node": "26701:3106",
+      "localName": "sidebar-right",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/bookmark",
+      "node": "26701:3108",
+      "localName": "bookmark",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/bookmark-filled",
+      "node": "29437:100",
+      "localName": "bookmark-filled",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/calendar",
+      "node": "26701:3110",
+      "localName": "calendar",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/flag",
+      "node": "26701:3115",
+      "localName": "flag",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/location",
+      "node": "26701:3117",
+      "localName": "location",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/star",
+      "node": "26701:3120",
+      "localName": "star",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/link-horizontal-off",
+      "node": "26701:3122",
+      "localName": "link-horizontal-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/link-horizontal",
+      "node": "26701:3124",
+      "localName": "link-horizontal",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/clock",
+      "node": "26701:3126",
+      "localName": "clock",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/send",
+      "node": "26701:3129",
+      "localName": "send",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/download",
+      "node": "26701:3132",
+      "localName": "download",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/upload",
+      "node": "26701:3136",
+      "localName": "upload",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/edit",
+      "node": "26701:3140",
+      "localName": "edit",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/remove",
+      "node": "26701:3143",
+      "localName": "remove",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/add",
+      "node": "26701:3145",
+      "localName": "add",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/copy",
+      "node": "26701:3148",
+      "localName": "copy",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/ban",
+      "node": "26701:3151",
+      "localName": "ban",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/settings-sliders",
+      "node": "26701:3154",
+      "localName": "settings-sliders",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/edit-pen",
+      "node": "26701:3156",
+      "localName": "edit-pen",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/cookie",
+      "node": "26701:3158",
+      "localName": "cookie",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/error",
+      "node": "26701:3160",
+      "localName": "error",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/lock",
+      "node": "26701:3164",
+      "localName": "lock",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/unlock",
+      "node": "26701:3167",
+      "localName": "unlock",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/check-circle",
+      "node": "26701:3170",
+      "localName": "check-circle",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/check-all",
+      "node": "26701:3173",
+      "localName": "check-all",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/shield",
+      "node": "26701:3175",
+      "localName": "shield",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/folder",
+      "node": "26701:3177",
+      "localName": "folder",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/mic",
+      "node": "26701:3179",
+      "localName": "mic",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/video",
+      "node": "26701:3183",
+      "localName": "video",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/camera",
+      "node": "26701:3186",
+      "localName": "camera",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/archive",
+      "node": "26701:3189",
+      "localName": "archive",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/notifications",
+      "node": "26701:3223",
+      "localName": "notifications",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/notifications-off",
+      "node": "26701:3226",
+      "localName": "notifications-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/mention",
+      "node": "26701:3231",
+      "localName": "mention",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/reply",
+      "node": "26701:3234",
+      "localName": "reply",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/credit-card",
+      "node": "26701:3237",
+      "localName": "credit-card",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/trend-down",
+      "node": "26701:3244",
+      "localName": "trend-down",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/trend-up",
+      "node": "26701:3247",
+      "localName": "trend-up",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/funnel",
+      "node": "26701:3250",
+      "localName": "funnel",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/sun",
+      "node": "26701:3252",
+      "localName": "sun",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/moon",
+      "node": "26701:3262",
+      "localName": "moon",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/wifi-off",
+      "node": "26701:3274",
+      "localName": "wifi-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/wifi",
+      "node": "26701:3276",
+      "localName": "wifi",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/mobile",
+      "node": "26701:3291",
+      "localName": "mobile",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/users",
+      "node": "26701:3330",
+      "localName": "users",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/logout",
+      "node": "26701:3339",
+      "localName": "logout",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-back",
+      "node": "26701:3343",
+      "localName": "arrow-back",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-down",
+      "node": "26701:3346",
+      "localName": "arrow-down",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-right",
+      "node": "26701:3349",
+      "localName": "arrow-right",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/arrow-up",
+      "node": "26701:3352",
+      "localName": "arrow-up",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/scan",
+      "node": "29202:4776",
+      "localName": "outlined-scan",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/sections",
+      "node": "29210:1740",
+      "localName": "outlined-sections",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/paw",
+      "node": "29235:2010",
+      "localName": "outlined-paw",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/water",
+      "node": "29266:6007",
+      "localName": "outlined-water",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/clock",
+      "node": "29266:8205",
+      "localName": "outlined-clock",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/arrow-more",
+      "node": "29299:9039",
+      "localName": "outlined-arrow-more",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/temperature",
+      "node": "29367:706",
+      "localName": "temperature",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/outlined/cut",
+      "node": "29386:214",
+      "localName": "outlined-cut",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/plant",
+      "node": "29387:230",
+      "localName": "plant",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/shovel",
+      "node": "29387:229",
+      "localName": "shovel",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icon/flash_on",
+      "node": "29392:268",
+      "localName": "flash",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/flip-camera",
+      "node": "29392:266",
+      "localName": "flip-camera",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icon/flash_off",
+      "node": "29392:267",
+      "localName": "flash-off",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/living-room",
+      "node": "29435:334",
+      "localName": "living-room",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/kitchen",
+      "node": "29435:332",
+      "localName": "kitchen",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/bedroom",
+      "node": "29435:331",
+      "localName": "bedroom",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/shower",
+      "node": "29435:333",
+      "localName": "shower",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/office",
+      "node": "29435:330",
+      "localName": "office",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/snooze",
+      "node": "29450:2646",
+      "localName": "snooze",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/all-inclusive",
+      "node": "29549:77",
+      "localName": "all-inclusive",
+      "kind": "monochrome",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "flags/abkhazia",
+      "node": "29482:1623",
+      "localName": "flag-abkhazia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/afghanistan",
+      "node": "29482:1640",
+      "localName": "flag-afghanistan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/aland-islands",
+      "node": "29482:1647",
+      "localName": "flag-aland-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/albania",
+      "node": "29482:1655",
+      "localName": "flag-albania",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/algeria",
+      "node": "29482:1658",
+      "localName": "flag-algeria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/american-samoa",
+      "node": "29482:1664",
+      "localName": "flag-american-samoa",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/andorra",
+      "node": "29482:1672",
+      "localName": "flag-andorra",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/angola",
+      "node": "29482:1680",
+      "localName": "flag-angola",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/anguilla",
+      "node": "29482:1687",
+      "localName": "flag-anguilla",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/antigua-and-barbuda",
+      "node": "29482:1702",
+      "localName": "flag-antigua-and-barbuda",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/argentina",
+      "node": "29482:1710",
+      "localName": "flag-argentina",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/armenia",
+      "node": "29482:1716",
+      "localName": "flag-armenia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/aruba",
+      "node": "29482:1720",
+      "localName": "flag-aruba",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/australia",
+      "node": "29482:1728",
+      "localName": "flag-australia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/austria",
+      "node": "29482:1744",
+      "localName": "flag-austria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/azerbaijan",
+      "node": "29482:1749",
+      "localName": "flag-azerbaijan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/azores-islands",
+      "node": "29482:1756",
+      "localName": "flag-azores-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bahamas",
+      "node": "29482:1770",
+      "localName": "flag-bahamas",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bahrain",
+      "node": "29482:1776",
+      "localName": "flag-bahrain",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/balearic-islands",
+      "node": "29482:1779",
+      "localName": "flag-balearic-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bangladesh",
+      "node": "29482:1788",
+      "localName": "flag-bangladesh",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/barbados",
+      "node": "29482:1791",
+      "localName": "flag-barbados",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/basque-country",
+      "node": "29482:1797",
+      "localName": "flag-basque-country",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/belarus",
+      "node": "29482:1810",
+      "localName": "flag-belarus",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/belgium",
+      "node": "29482:1821",
+      "localName": "flag-belgium",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/belize",
+      "node": "29482:1825",
+      "localName": "flag-belize",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/benin",
+      "node": "29482:1835",
+      "localName": "flag-benin",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bermuda",
+      "node": "29482:1839",
+      "localName": "flag-bermuda",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bhutan",
+      "node": "29482:1855",
+      "localName": "flag-bhutan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bolivia",
+      "node": "29482:1860",
+      "localName": "flag-bolivia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bonaire",
+      "node": "29482:1864",
+      "localName": "flag-bonaire",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bosnia-and-herzegovina",
+      "node": "29482:1870",
+      "localName": "flag-bosnia-and-herzegovina",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/botswana",
+      "node": "29482:1876",
+      "localName": "flag-botswana",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/brazil",
+      "node": "29482:1882",
+      "localName": "flag-brazil",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/british-columbia",
+      "node": "29482:1889",
+      "localName": "flag-british-columbia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/british-indian-ocean-territory",
+      "node": "29482:1918",
+      "localName": "flag-british-indian-ocean-territory",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/british-virgin-islands",
+      "node": "29482:1947",
+      "localName": "flag-british-virgin-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/brunei",
+      "node": "29482:1969",
+      "localName": "flag-brunei",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/bulgaria",
+      "node": "29482:1982",
+      "localName": "flag-bulgaria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/burkina-faso",
+      "node": "29482:1986",
+      "localName": "flag-burkina-faso",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/burundi",
+      "node": "29482:1990",
+      "localName": "flag-burundi",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cambodia",
+      "node": "29482:2003",
+      "localName": "flag-cambodia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cameroon",
+      "node": "29482:2009",
+      "localName": "flag-cameroon",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/canada",
+      "node": "29482:2014",
+      "localName": "flag-canada",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/canary-islands",
+      "node": "29482:2020",
+      "localName": "flag-canary-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cape-verde",
+      "node": "29482:2024",
+      "localName": "flag-cape-verde",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cayman-islands",
+      "node": "29482:2041",
+      "localName": "flag-cayman-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/central-african-republic",
+      "node": "29482:2060",
+      "localName": "flag-central-african-republic",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ceuta",
+      "node": "29482:2075",
+      "localName": "flag-ceuta",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/chad",
+      "node": "29482:2098",
+      "localName": "flag-chad",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/chile",
+      "node": "29482:2102",
+      "localName": "flag-chile",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/china",
+      "node": "29482:2107",
+      "localName": "flag-china",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cocos-islands",
+      "node": "29482:2115",
+      "localName": "flag-cocos-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/colombia",
+      "node": "29482:2127",
+      "localName": "flag-colombia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/comoros",
+      "node": "29482:2131",
+      "localName": "flag-comoros",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cook-islands",
+      "node": "29482:2143",
+      "localName": "flag-cook-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/corsica",
+      "node": "29482:2161",
+      "localName": "flag-corsica",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/costa-rica",
+      "node": "29482:2165",
+      "localName": "flag-costa-rica",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/croatia",
+      "node": "29482:2171",
+      "localName": "flag-croatia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cuba",
+      "node": "29482:2196",
+      "localName": "flag-cuba",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/curacao",
+      "node": "29482:2205",
+      "localName": "flag-curacao",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/cyprus",
+      "node": "29482:2213",
+      "localName": "flag-cyprus",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/czech-republic",
+      "node": "29482:2217",
+      "localName": "flag-czech-republic",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/democratic-republic-of-congo",
+      "node": "29482:2221",
+      "localName": "flag-democratic-republic-of-congo",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/denmark",
+      "node": "29482:2228",
+      "localName": "flag-denmark",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/djibouti",
+      "node": "29482:2235",
+      "localName": "flag-djibouti",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/dominica",
+      "node": "29482:2240",
+      "localName": "flag-dominica",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/dominican-republic",
+      "node": "29482:2270",
+      "localName": "flag-dominican-republic",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/east-timor",
+      "node": "29482:2279",
+      "localName": "flag-east-timor",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ecuador",
+      "node": "29482:2284",
+      "localName": "flag-ecuador",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/egypt",
+      "node": "29482:2291",
+      "localName": "flag-egypt",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/el-salvador",
+      "node": "29482:2296",
+      "localName": "flag-el-salvador",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/england",
+      "node": "29482:2304",
+      "localName": "flag-england",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/equatorial-guinea",
+      "node": "29482:2307",
+      "localName": "flag-equatorial-guinea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/eritrea",
+      "node": "29482:2315",
+      "localName": "flag-eritrea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/estonia",
+      "node": "29482:2320",
+      "localName": "flag-estonia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/eswatini",
+      "node": "29482:3414",
+      "localName": "flag-eswatini",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ethiopia",
+      "node": "29482:2324",
+      "localName": "flag-ethiopia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/european-union",
+      "node": "29482:2332",
+      "localName": "flag-european-union",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/falkland-islands",
+      "node": "29482:2343",
+      "localName": "flag-falkland-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/faroe-islands",
+      "node": "29482:2357",
+      "localName": "flag-faroe-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/fiji",
+      "node": "29482:2361",
+      "localName": "flag-fiji",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/finland",
+      "node": "29482:2375",
+      "localName": "flag-finland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/france",
+      "node": "29482:2378",
+      "localName": "flag-france",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/french-polynesia",
+      "node": "29482:2382",
+      "localName": "flag-french-polynesia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/gabon",
+      "node": "29482:2393",
+      "localName": "flag-gabon",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/galapagos-islands",
+      "node": "29482:2397",
+      "localName": "flag-galapagos-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/gambia",
+      "node": "29482:2401",
+      "localName": "flag-gambia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/georgia",
+      "node": "29482:2406",
+      "localName": "flag-georgia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/germany",
+      "node": "29482:2414",
+      "localName": "flag-germany",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ghana",
+      "node": "29482:2418",
+      "localName": "flag-ghana",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/gibraltar",
+      "node": "29482:2423",
+      "localName": "flag-gibraltar",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/greece",
+      "node": "29482:2429",
+      "localName": "flag-greece",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/greenland",
+      "node": "29482:2437",
+      "localName": "flag-greenland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/grenada",
+      "node": "29482:2442",
+      "localName": "flag-grenada",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guam",
+      "node": "29482:2465",
+      "localName": "flag-guam",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guatemala",
+      "node": "29482:2476",
+      "localName": "flag-guatemala",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guernsey",
+      "node": "29482:2483",
+      "localName": "flag-guernsey",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guinea",
+      "node": "29482:2494",
+      "localName": "flag-guinea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guinea-bissau",
+      "node": "29482:2487",
+      "localName": "flag-guinea-bissau",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/guyana",
+      "node": "29482:2498",
+      "localName": "flag-guyana",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/haiti",
+      "node": "29482:2505",
+      "localName": "flag-haiti",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/hawaii",
+      "node": "29482:2514",
+      "localName": "flag-hawaii",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/honduras",
+      "node": "29482:2522",
+      "localName": "flag-honduras",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/hong-kong",
+      "node": "29482:2532",
+      "localName": "flag-hong-kong",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/hungary",
+      "node": "29482:2540",
+      "localName": "flag-hungary",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/iceland",
+      "node": "29482:2544",
+      "localName": "flag-iceland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/india",
+      "node": "29482:2552",
+      "localName": "flag-india",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/indonesia",
+      "node": "29482:2559",
+      "localName": "flag-indonesia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/iran",
+      "node": "29482:2562",
+      "localName": "flag-iran",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/iraq",
+      "node": "29482:2567",
+      "localName": "flag-iraq",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ireland",
+      "node": "29482:2575",
+      "localName": "flag-ireland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/isle-of-man",
+      "node": "29482:2579",
+      "localName": "flag-isle-of-man",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/israel",
+      "node": "29482:2582",
+      "localName": "flag-israel",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/italy",
+      "node": "29482:2588",
+      "localName": "flag-italy",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ivory-coast",
+      "node": "29482:2592",
+      "localName": "flag-ivory-coast",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/jamaica",
+      "node": "29482:2596",
+      "localName": "flag-jamaica",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/japan",
+      "node": "29482:2602",
+      "localName": "flag-japan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/jersey",
+      "node": "29482:2605",
+      "localName": "flag-jersey",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/jordan",
+      "node": "29482:2610",
+      "localName": "flag-jordan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kazakhstan",
+      "node": "29482:2616",
+      "localName": "flag-kazakhstan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kenya",
+      "node": "29482:2621",
+      "localName": "flag-kenya",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kiribati",
+      "node": "29482:2634",
+      "localName": "flag-kiribati",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kosovo",
+      "node": "29482:2645",
+      "localName": "flag-kosovo",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kuwait",
+      "node": "29482:2655",
+      "localName": "flag-kuwait",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/kyrgyzstan",
+      "node": "29482:2660",
+      "localName": "flag-kyrgyzstan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/laos",
+      "node": "29482:2669",
+      "localName": "flag-laos",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/latvia",
+      "node": "29482:2675",
+      "localName": "flag-latvia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/lebanon",
+      "node": "29482:2680",
+      "localName": "flag-lebanon",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/lesotho",
+      "node": "29482:2686",
+      "localName": "flag-lesotho",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/liberia",
+      "node": "29482:2691",
+      "localName": "flag-liberia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/libya",
+      "node": "29482:2708",
+      "localName": "flag-libya",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/liechtenstein",
+      "node": "29482:2715",
+      "localName": "flag-liechtenstein",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/lithuania",
+      "node": "29482:2719",
+      "localName": "flag-lithuania",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/luxembourg",
+      "node": "29482:2723",
+      "localName": "flag-luxembourg",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/macao",
+      "node": "29482:2727",
+      "localName": "flag-macao",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/madagascar",
+      "node": "29482:2739",
+      "localName": "flag-madagascar",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/madeira",
+      "node": "29482:2743",
+      "localName": "flag-madeira",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/malawi",
+      "node": "29482:2750",
+      "localName": "flag-malawi",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/malaysia",
+      "node": "29482:2755",
+      "localName": "flag-malaysia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/maldives",
+      "node": "29482:2766",
+      "localName": "flag-maldives",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mali",
+      "node": "29482:2770",
+      "localName": "flag-mali",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/malta",
+      "node": "29482:2774",
+      "localName": "flag-malta",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/marshall-islands",
+      "node": "29482:2778",
+      "localName": "flag-marshall-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/martinique",
+      "node": "29482:2783",
+      "localName": "flag-martinique",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mauritania",
+      "node": "29482:2795",
+      "localName": "flag-mauritania",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mauritius",
+      "node": "29482:2800",
+      "localName": "flag-mauritius",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/melilla",
+      "node": "29482:2805",
+      "localName": "flag-melilla",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mexico",
+      "node": "29482:2824",
+      "localName": "flag-mexico",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/micronesia",
+      "node": "29482:2831",
+      "localName": "flag-micronesia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/moldova",
+      "node": "29482:2838",
+      "localName": "flag-moldova",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/monaco",
+      "node": "29482:2845",
+      "localName": "flag-monaco",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mongolia",
+      "node": "29482:2848",
+      "localName": "flag-mongolia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/montenegro",
+      "node": "29482:2861",
+      "localName": "flag-montenegro",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/montserrat",
+      "node": "29482:2869",
+      "localName": "flag-montserrat",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/morocco",
+      "node": "29482:2881",
+      "localName": "flag-morocco",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/mozambique",
+      "node": "29482:2884",
+      "localName": "flag-mozambique",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/myanmar",
+      "node": "29482:2893",
+      "localName": "flag-myanmar",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/namibia",
+      "node": "29482:2898",
+      "localName": "flag-namibia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/nato",
+      "node": "29482:2904",
+      "localName": "flag-nato",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/nauru",
+      "node": "29482:2917",
+      "localName": "flag-nauru",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/nepal",
+      "node": "29482:2924",
+      "localName": "flag-nepal",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/netherlands",
+      "node": "29482:2934",
+      "localName": "flag-netherlands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/new-zealand",
+      "node": "29482:2938",
+      "localName": "flag-new-zealand",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/nicaragua",
+      "node": "29482:2951",
+      "localName": "flag-nicaragua",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/niger",
+      "node": "29482:2960",
+      "localName": "flag-niger",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/nigeria",
+      "node": "29482:2966",
+      "localName": "flag-nigeria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/niue",
+      "node": "29482:2971",
+      "localName": "flag-niue",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/norfolk-island",
+      "node": "29482:2988",
+      "localName": "flag-norfolk-island",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/north-korea",
+      "node": "29482:2994",
+      "localName": "flag-north-korea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/north-macedonia",
+      "node": "29482:3131",
+      "localName": "flag-north-macedonia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/northern-cyprus",
+      "node": "29482:3002",
+      "localName": "flag-northern-cyprus",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/northern-mariana-islands",
+      "node": "29482:3009",
+      "localName": "flag-northern-mariana-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/norway",
+      "node": "29482:3015",
+      "localName": "flag-norway",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/oman",
+      "node": "29482:3023",
+      "localName": "flag-oman",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/orkney-islands",
+      "node": "29482:3031",
+      "localName": "flag-orkney-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ossetia",
+      "node": "29482:3039",
+      "localName": "flag-ossetia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/pakistan",
+      "node": "29482:3043",
+      "localName": "flag-pakistan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/palau",
+      "node": "29482:3051",
+      "localName": "flag-palau",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/palestine",
+      "node": "29482:3054",
+      "localName": "flag-palestine",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/panama",
+      "node": "29482:3059",
+      "localName": "flag-panama",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/papua-new-guinea",
+      "node": "29482:3065",
+      "localName": "flag-papua-new-guinea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/paraguay",
+      "node": "29482:3075",
+      "localName": "flag-paraguay",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/peru",
+      "node": "29482:3081",
+      "localName": "flag-peru",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/philippines",
+      "node": "29482:3086",
+      "localName": "flag-philippines",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/pitcairn-islands",
+      "node": "29482:3095",
+      "localName": "flag-pitcairn-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/poland",
+      "node": "29482:3108",
+      "localName": "flag-poland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/portugal",
+      "node": "29482:3111",
+      "localName": "flag-portugal",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/puerto-rico",
+      "node": "29482:3117",
+      "localName": "flag-puerto-rico",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/qatar",
+      "node": "29482:3125",
+      "localName": "flag-qatar",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/rapa-nui",
+      "node": "29482:3128",
+      "localName": "flag-rapa-nui",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/republic-of-the-congo",
+      "node": "29482:3144",
+      "localName": "flag-republic-of-the-congo",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/romania",
+      "node": "29482:3148",
+      "localName": "flag-romania",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/russia",
+      "node": "29482:3152",
+      "localName": "flag-russia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/rwanda",
+      "node": "29482:3156",
+      "localName": "flag-rwanda",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/saba-island",
+      "node": "29482:3161",
+      "localName": "flag-saba-island",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sahrawi-arab-democratic-republic",
+      "node": "29482:3170",
+      "localName": "flag-sahrawi-arab-democratic-republic",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/samoa",
+      "node": "29482:3178",
+      "localName": "flag-samoa",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/san-marino",
+      "node": "29482:3187",
+      "localName": "flag-san-marino",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sao-tome-and-principe",
+      "node": "29482:3195",
+      "localName": "flag-sao-tome-and-principe",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sardinia",
+      "node": "29482:3203",
+      "localName": "flag-sardinia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/saudi-arabia",
+      "node": "29482:3218",
+      "localName": "flag-saudi-arabia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/scotland",
+      "node": "29482:3227",
+      "localName": "flag-scotland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/senegal",
+      "node": "29482:3234",
+      "localName": "flag-senegal",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/serbia",
+      "node": "29482:3240",
+      "localName": "flag-serbia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/seychelles",
+      "node": "29482:3250",
+      "localName": "flag-seychelles",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sierra-leone",
+      "node": "29482:3256",
+      "localName": "flag-sierra-leone",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/singapore",
+      "node": "29482:3260",
+      "localName": "flag-singapore",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sint-eustatius",
+      "node": "29482:3270",
+      "localName": "flag-sint-eustatius",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sint-maarten",
+      "node": "29482:3285",
+      "localName": "flag-sint-maarten",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/slovakia",
+      "node": "29482:3295",
+      "localName": "flag-slovakia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/slovenia",
+      "node": "29482:3303",
+      "localName": "flag-slovenia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/solomon-islands",
+      "node": "29482:3308",
+      "localName": "flag-solomon-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/somalia",
+      "node": "29482:3318",
+      "localName": "flag-somalia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/somaliland",
+      "node": "29482:3321",
+      "localName": "flag-somaliland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/south-africa",
+      "node": "29482:3332",
+      "localName": "flag-south-africa",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/south-korea",
+      "node": "29482:3339",
+      "localName": "flag-south-korea",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/south-sudan",
+      "node": "29482:3361",
+      "localName": "flag-south-sudan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/spain",
+      "node": "29482:3368",
+      "localName": "flag-spain",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sri-lanka",
+      "node": "29482:3373",
+      "localName": "flag-sri-lanka",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/st-barts",
+      "node": "29482:3380",
+      "localName": "flag-st-barts",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/st-lucia",
+      "node": "29482:3389",
+      "localName": "flag-st-lucia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/st-vincent-and-the-grenadines",
+      "node": "29482:3394",
+      "localName": "flag-st-vincent-and-the-grenadines",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sudan",
+      "node": "29482:3402",
+      "localName": "flag-sudan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/suriname",
+      "node": "29482:3407",
+      "localName": "flag-suriname",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/sweden",
+      "node": "29482:3429",
+      "localName": "flag-sweden",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/switzerland",
+      "node": "29482:3436",
+      "localName": "flag-switzerland",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/syria",
+      "node": "29482:3439",
+      "localName": "flag-syria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/taiwan",
+      "node": "29482:3446",
+      "localName": "flag-taiwan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tajikistan",
+      "node": "29482:3452",
+      "localName": "flag-tajikistan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tanzania",
+      "node": "29482:3465",
+      "localName": "flag-tanzania",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/thailand",
+      "node": "29482:3470",
+      "localName": "flag-thailand",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tibet",
+      "node": "29482:3476",
+      "localName": "flag-tibet",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/togo",
+      "node": "29482:3492",
+      "localName": "flag-togo",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tokelau",
+      "node": "29482:3500",
+      "localName": "flag-tokelau",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tonga",
+      "node": "29482:3508",
+      "localName": "flag-tonga",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/transnistria",
+      "node": "29482:3513",
+      "localName": "flag-transnistria",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/trinidad-and-tobago",
+      "node": "29482:3518",
+      "localName": "flag-trinidad-and-tobago",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tunisia",
+      "node": "29482:3524",
+      "localName": "flag-tunisia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/turkey",
+      "node": "29482:3530",
+      "localName": "flag-turkey",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/turkmenistan",
+      "node": "29482:3535",
+      "localName": "flag-turkmenistan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/turks-and-caicos",
+      "node": "29482:3563",
+      "localName": "flag-turks-and-caicos",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/tuvalu",
+      "node": "29482:3577",
+      "localName": "flag-tuvalu",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/uganda",
+      "node": "29482:3599",
+      "localName": "flag-uganda",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/ukraine",
+      "node": "29482:3607",
+      "localName": "flag-ukraine",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/united-arab-emirates",
+      "node": "29482:3610",
+      "localName": "flag-united-arab-emirates",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/united-kingdom",
+      "node": "29482:3615",
+      "localName": "flag-united-kingdom",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/united-nations",
+      "node": "29482:3632",
+      "localName": "flag-united-nations",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/united-states",
+      "node": "29482:3637",
+      "localName": "flag-united-states",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/uruguay",
+      "node": "29482:3645",
+      "localName": "flag-uruguay",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/uzbekistan",
+      "node": "29482:3655",
+      "localName": "flag-uzbekistan",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/vanuatu",
+      "node": "29482:3676",
+      "localName": "flag-vanuatu",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/vatican-city",
+      "node": "29482:3702",
+      "localName": "flag-vatican-city",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/venezuela",
+      "node": "29482:3707",
+      "localName": "flag-venezuela",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/vietnam",
+      "node": "29482:3720",
+      "localName": "flag-vietnam",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/virgin-islands",
+      "node": "29482:3723",
+      "localName": "flag-virgin-islands",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/wales",
+      "node": "29482:3736",
+      "localName": "flag-wales",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/yemen",
+      "node": "29482:3740",
+      "localName": "flag-yemen",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/zambia",
+      "node": "29482:3744",
+      "localName": "flag-zambia",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "flags/zimbabwe",
+      "node": "29482:3750",
+      "localName": "flag-zimbabwe",
+      "kind": "flag",
+      "status": "deferred-unused"
+    },
+    {
+      "figmaName": "icons/apple",
+      "node": "24409:2621",
+      "localName": "apple",
+      "kind": "monochrome",
+      "status": "bundled",
+      "note": "Brand silhouette; Apple guidelines require it to flip black/white, so it tints like a monochrome glyph."
+    },
+    {
+      "figmaName": "icons/google",
+      "node": "24409:2622",
+      "localName": "google",
+      "kind": "brand",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/facebook",
+      "node": "24409:2623",
+      "localName": "facebook",
+      "kind": "brand",
+      "status": "bundled"
+    },
+    {
+      "figmaName": "icons/x",
+      "node": "26701:3485",
+      "localName": "x",
+      "kind": "brand",
+      "status": "bundled"
+    }
+  ],
+  "localExtensions": [
+    {
+      "localName": "cultum-logo",
+      "kind": "brand",
+      "status": "bundled",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "268:7176",
+        "name": "Cultum logo mark (Authorization & Paywall)"
+      },
+      "provenance": "external — from the App Design file, not the design-system Icons canvas (docs/auth-paywall-design.md). Keeps its own colours."
+    },
+    {
+      "localName": "star-filled",
+      "kind": "monochrome",
+      "status": "bundled",
+      "source": {
+        "file": "4jmjNlaM7IRpCOogYRJMks",
+        "node": "299:437",
+        "name": "Rating (STAR shapes 299:430–434); also the PLUS header star 872:21509 in Paywall 250:11"
+      },
+      "provenance": "partial — Figma draws these as STAR primitives with a fill, not as an icon component, so there is no exportable icon node. Geometry not compared; kept as-is."
+    }
+  ],
+  "componentGlyphs": [
+    {
+      "name": "checkbox tick",
+      "node": "11931:39718",
+      "file": "JyrSo87oacbcbALO8JO9At",
+      "consumer": "components/Checkbox.js",
+      "status": "inlined",
+      "note": "Exported vector path, on the 22pt box grid."
+    },
+    {
+      "name": "checkbox dash",
+      "node": "11931:39722",
+      "file": "JyrSo87oacbcbALO8JO9At",
+      "consumer": "components/Checkbox.js",
+      "status": "inlined",
+      "note": "Exported vector path, on the 22pt box grid."
+    }
+  ],
+  "artworkComparison": {
+    "date": "2026-09-21",
+    "method": "Re-exported all 157 non-flag icons with download_figma_images and compared SVG markup after normalising fill colour and clip-path ids.",
+    "identical": 148,
+    "roundingOnly": [
+      "arrow-up",
+      "google",
+      "star",
+      "x"
+    ],
+    "replaced": {
+      "home": "paths drifted up to 0.08px from Figma",
+      "flash": "hand-drawn stand-in, not the Figma artwork",
+      "flash-off": "hand-drawn stand-in, not the Figma artwork",
+      "flip-camera": "hand-drawn stand-in, not the Figma artwork"
+    },
+    "added": [
+      "all-inclusive"
+    ],
+    "note": "All eight differing files and the missing all-inclusive were replaced with the Figma exports, so the bundled set now equals the export."
+  }
+}

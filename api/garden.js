@@ -8,12 +8,11 @@ import { apiFetch } from './client';
  *
  * The backend describes GET /users/me/plants as "the sync endpoint": one call
  * returns every plant with its reminders and full care data embedded, which is
- * why store/sync.js pulls the whole garden rather than diffing per entity.
+ * why store/GardenProvider.js loads the whole garden rather than per entity.
  *
- * Two gaps shape store/sync.js and are worth stating here rather than being
- * rediscovered: a plant has no archived column (so an archive stays on the
- * device), and a reminder carries no title (so a custom reminder's name lives
- * only on the device). Rooms have their own resource — see api/rooms.js.
+ * A reminder carries no title, so a custom reminder's name lives only on the
+ * device (store/fromServer.js lists every such field). Rooms have their own
+ * resource — see api/rooms.js.
  */
 
 /** GET /users/me/plants → UserPlantOut[] */

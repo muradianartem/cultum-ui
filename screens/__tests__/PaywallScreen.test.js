@@ -17,6 +17,9 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../routing', () => ({
   useRouter: () => ({ back: mockBack, reset: mockReset, canGoBack: mockCanGoBack }),
 }));
+// Onboarding's only stake here is being told it is over.
+const mockComplete = jest.fn();
+jest.mock('../../onboarding', () => ({ useOnboarding: () => ({ complete: mockComplete }) }));
 
 // Only the request is stubbed: the mapper, the module cache and the hook all
 // run for real, because "bundled snapshot first, remote content when it lands"
@@ -29,17 +32,22 @@ const { getPaywall } = require('../../api/billing');
 
 // The store flow has its own tests (billing/__tests__/useStorePurchase.test.js);
 // here it is only what the screen asks of it and what it hands back.
+// `termsFor` stands in for StoreKit: by default both SKUs resolve at the
+// backend's own prices with an eligible free trial, so the headline reads the
+// same as the fallback copy unless a test changes the terms.
+const ELIGIBLE_TERMS = {
+  'com.cultum.plus.yearly': { displayPrice: '$39.99', periodLabel: 'year', trial: { days: 7, label: '7 days free' } },
+  'com.cultum.plus.monthly': { displayPrice: '$5.99', periodLabel: 'month', trial: { days: 3, label: '3 days free' } },
+};
 const mockStore = {
   supported: true,
   available: true,
   busy: false,
   restoring: false,
   error: null,
-  // StoreKit's localized prices, keyed by Apple product id. Empty here unless a
-  // test says otherwise, which is the pre-resolution state.
-  prices: {},
   purchase: jest.fn(),
   restore: jest.fn(),
+  termsFor: jest.fn(),
 };
 jest.mock('../../billing/useStorePurchase', () => ({ __esModule: true, default: () => mockStore }));
 
@@ -103,10 +111,10 @@ const rows = (tree) =>
 // BottomSheet kicks off an Animated.timing on mount, so creation has to be
 // wrapped in act() or the renderer tears down mid-update.
 const mounted = [];
-const render = () => {
+const render = (props = {}) => {
   let tree;
   act(() => {
-    tree = TestRenderer.create(<PaywallScreen />);
+    tree = TestRenderer.create(<PaywallScreen {...props} />);
   });
   mounted.push(tree);
   return tree;
@@ -125,7 +133,7 @@ const press = (tree, label) =>
     .props.onPress();
 
 // Content is fetched, not bundled — so unless a test says otherwise, the
-// backend has not answered and there is nothing to draw.
+// backend has not answered and the screen is still loading.
 beforeEach(() => {
   __resetPaywallCache();
   getPaywall.mockReturnValue(new Promise(() => {}));
@@ -135,10 +143,10 @@ beforeEach(() => {
     busy: false,
     restoring: false,
     error: null,
-    prices: {},
   });
   mockStore.purchase.mockResolvedValue(true);
   mockStore.restore.mockResolvedValue(true);
+  mockStore.termsFor.mockImplementation((p) => ELIGIBLE_TERMS[p?.appleProductId] ?? null);
 });
 
 afterEach(() => {
@@ -151,32 +159,66 @@ afterEach(() => {
   mockCanGoBack = true;
 });
 
-// Resolve the fetch before the first render, the way <PaywallLauncher> does:
-// it only opens this route once the content exists.
-const renderWith = async (payload) => {
+// Resolve the fetch before the first render, so the screen opens on content.
+const renderWith = async (payload, props = {}) => {
   getPaywall.mockResolvedValue(payload);
   let tree;
   await act(async () => {
-    tree = TestRenderer.create(<PaywallScreen />);
+    tree = TestRenderer.create(<PaywallScreen {...props} />);
   });
   mounted.push(tree);
   return tree;
 };
 
-test('draws nothing at all until the backend has priced the thing', () => {
-  const tree = render();
-  expect(texts(tree)).toHaveLength(0);
-  expect(rows(tree)).toHaveLength(0);
-});
+const spinner = (tree) =>
+  tree.root.findAll((n) => typeof n.type === 'string' && n.props.accessibilityLabel === 'Loading plans');
 
-test('a failed fetch leaves it blank rather than guessing at a price', async () => {
-  getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
-  let tree;
-  await act(async () => {
-    tree = TestRenderer.create(<PaywallScreen />);
+describe('before the plans have loaded', () => {
+  test('shows a spinner and a Close that pops the router — never a price', () => {
+    const tree = render();
+    expect(spinner(tree).length).toBeGreaterThan(0);
+    expect(rows(tree)).toHaveLength(0);
+    expect(texts(tree)).not.toContain('Start free trial');
+
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
   });
-  mounted.push(tree);
-  expect(texts(tree)).toHaveLength(0);
+
+  test('with no history, Close goes home', () => {
+    mockCanGoBack = false;
+    const tree = render();
+    act(() => press(tree, 'Close'));
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('a failed fetch offers Try again, which loads the plans', async () => {
+    getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen />);
+    });
+    mounted.push(tree);
+    expect(texts(tree)).toContain("Plans couldn't be loaded");
+    expect(texts(tree)).toContain('Try again');
+    expect(rows(tree)).toHaveLength(0);
+
+    getPaywall.mockResolvedValue(LIVE_RESPONSE);
+    await act(async () => press(tree, 'Try again'));
+    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
+    expect(rows(tree)).toHaveLength(7);
+  });
+
+  test('Close works from the error state too', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen />);
+    });
+    mounted.push(tree);
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
+  });
 });
 
 describe('with the live payload', () => {
@@ -237,7 +279,9 @@ describe('with the live payload', () => {
   test('the whole screen follows the payload, not the file', async () => {
     // Nothing here is hardcoded anywhere in the app, so a different backend
     // response is a different screen — including a product with no trial,
-    // which drops the free-days clause from the price line.
+    // which drops the free-days clause from the price line. (The backend's
+    // price copy is what a platform without StoreKit shows.)
+    mockStore.supported = false;
     const tree = await renderWith({
       ...LIVE_RESPONSE,
       title: 'Cultum Pro, on the house',
@@ -316,44 +360,6 @@ describe('Start free trial', () => {
     await startTrial(tree);
     expect(mockStore.purchase).not.toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
-  });
-});
-
-describe('the price StoreKit resolved', () => {
-  test('replaces the API fallback in the headline', async () => {
-    // A British storefront. The payload still says $39.99 — which is exactly
-    // why the screen must not print it.
-    mockStore.prices = { 'com.cultum.plus.yearly': '£34.99' };
-    const tree = await renderWith(LIVE_RESPONSE);
-    expect(texts(tree)).toContain('7 days free, then £34.99 a year');
-    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
-  });
-
-  test('replaces it in the plan sheet too', async () => {
-    mockStore.prices = {
-      'com.cultum.plus.yearly': '£34.99',
-      'com.cultum.plus.monthly': '£4.99',
-    };
-    const tree = await renderWith(LIVE_RESPONSE);
-    act(() => press(tree, 'See all plans'));
-    expect(texts(tree)).toContain('£34.99');
-    expect(texts(tree)).toContain('£4.99');
-    expect(texts(tree)).not.toContain('$39.99');
-  });
-
-  test('falls back per product, not all or nothing', async () => {
-    // Only one of the two resolved — a product still propagating through App
-    // Store Connect. The other keeps the fallback rather than rendering blank.
-    mockStore.prices = { 'com.cultum.plus.yearly': '£34.99' };
-    const tree = await renderWith(LIVE_RESPONSE);
-    act(() => press(tree, 'See all plans'));
-    expect(texts(tree)).toContain('£34.99');
-    expect(texts(tree)).toContain('$5.99');
-  });
-
-  test('is the API fallback until the store answers', async () => {
-    const tree = await renderWith(LIVE_RESPONSE);
-    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
   });
 });
 
@@ -455,5 +461,118 @@ describe('the Choose a plan sheet', () => {
     // Monthly's trial is 3 days, not the yearly plan's 7 — the headline that
     // was hardcoded could never say so.
     expect(texts(tree)).toContain('3 days free, then $5.99 a month');
+  });
+});
+
+describe('StoreKit terms (iOS)', () => {
+  const cta = (tree) =>
+    tree.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        typeof n.props.onPress === 'function' &&
+        ['Start free trial', 'Subscribe'].includes(n.props.accessibilityLabel)
+    );
+
+  test('the headline and plan rows use the StoreKit price, not the fallback', async () => {
+    mockStore.termsFor.mockImplementation((p) =>
+      p.key === 'yearly'
+        ? { displayPrice: 'CA$54.99', periodLabel: 'year', trial: { days: 7, label: '1 week free' } }
+        : { displayPrice: 'CA$7.99', periodLabel: 'month', trial: null }
+    );
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('1 week free, then CA$54.99 a year');
+    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
+
+    act(() => press(tree, 'See all plans'));
+    expect(texts(tree)).toContain('CA$54.99');
+    expect(texts(tree)).toContain('CA$7.99');
+    expect(texts(tree)).not.toContain('$39.99');
+    expect(texts(tree)).not.toContain('$5.99');
+  });
+
+  test('an ineligible user sees "Subscribe" and no trial timeline', async () => {
+    mockStore.termsFor.mockImplementation((p) => ({ ...ELIGIBLE_TERMS[p.appleProductId], trial: null }));
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('$39.99 a year');
+    expect(texts(tree)).toContain('Subscribe');
+    expect(texts(tree)).not.toContain('Start free trial');
+    for (const day of ['Today', 'Day 5', 'Day 7']) expect(texts(tree)).not.toContain(day);
+
+    await act(async () => press(tree, 'Subscribe'));
+    expect(mockStore.purchase).toHaveBeenCalledWith(expect.objectContaining({ key: 'yearly' }));
+  });
+
+  test('before StoreKit prices the plan the CTA waits, with no price or trial shown', async () => {
+    mockStore.termsFor.mockReturnValue(null);
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain('Loading prices…');
+    expect(texts(tree)).not.toContain('7 days free, then $39.99 a year');
+    expect(texts(tree)).not.toContain('Full access');
+    expect(cta(tree).props.accessibilityState.disabled).toBe(true);
+  });
+
+  test('without a store flow the backend copy stays', async () => {
+    mockStore.supported = false;
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(mockStore.termsFor).not.toHaveBeenCalled();
+    expect(texts(tree)).toContain('7 days free, then $39.99 a year');
+    expect(texts(tree)).toContain('Start free trial');
+    expect(texts(tree)).toContain('Full access');
+  });
+});
+
+// The paywall at the end of onboarding is its last step: every way out of it
+// finishes onboarding and lands on Today. Any other paywall is a detour.
+describe('at the end of onboarding', () => {
+  const ONBOARDING = { source: 'onboarding' };
+
+  test('Close while loading completes onboarding and goes to Today', () => {
+    const tree = render(ONBOARDING);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalledTimes(1);
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('Close from the error state completes onboarding too', async () => {
+    getPaywall.mockRejectedValue(new Error('offline'));
+    let tree;
+    await act(async () => {
+      tree = TestRenderer.create(<PaywallScreen {...ONBOARDING} />);
+    });
+    mounted.push(tree);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+  });
+
+  test('Close on the loaded paywall completes onboarding, even if history exists', async () => {
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    act(() => press(tree, 'Close'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('a confirmed purchase completes onboarding', async () => {
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    await act(async () => press(tree, 'Start free trial'));
+    expect(mockComplete).toHaveBeenCalled();
+    expect(mockReset).toHaveBeenCalledWith('today');
+  });
+
+  test('a cancelled or failed purchase leaves onboarding where it is', async () => {
+    mockStore.purchase.mockResolvedValue(false);
+    const tree = await renderWith(LIVE_RESPONSE, ONBOARDING);
+    await act(async () => press(tree, 'Start free trial'));
+    expect(mockComplete).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
+  });
+
+  test('an ordinary paywall never completes onboarding', async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => press(tree, 'Close'));
+    expect(mockBack).toHaveBeenCalled();
+    expect(mockComplete).not.toHaveBeenCalled();
   });
 });

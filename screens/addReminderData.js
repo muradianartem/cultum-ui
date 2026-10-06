@@ -92,11 +92,17 @@ export const startDateSuggestions = (today = new Date()) => [
  *
  * `numberIndex`/`unitIndex` index FREQUENCY_NUMBERS / FREQUENCY_UNITS; `date`
  * is the chosen start date.
+ *
+ * `dateValue` ("10 Sep") is for display and has no year; `startAt` is the same
+ * day as an ISO string at 12:00 local, which is what the store should read.
+ * Noon keeps the calendar day stable across DST and small timezone moves, and
+ * the reminder's time of day replaces the hour anyway.
  */
 export function makeReminderDraft({ label, numberIndex, unitIndex, date }) {
   return {
     title: label.trim(),
     dateValue: shortDate(date),
+    startAt: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12).toISOString(),
     frequency: frequencyValue(numberIndex, unitIndex),
   };
 }

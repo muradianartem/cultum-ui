@@ -7,6 +7,7 @@ import {
   NavigationBar,
   RoomCard,
   SearchBar,
+  SegmentedControl,
   State,
   TabBar,
 } from '../../components';
@@ -14,6 +15,7 @@ import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
 import { useGarden } from '../../store/GardenProvider';
+import { showError } from '../../lib/showError';
 import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
 import AddRoomSheet from '../addPlant/AddRoomSheet';
@@ -21,17 +23,20 @@ import PlantGrid from './PlantGrid';
 import { useRoomGate } from './useRoomGate';
 
 /**
- * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8, "Rooms / Search"
- * 377:9, "Rooms / Search · No results" 516:108).
+ * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8, "Rooms / First
+ * plant" 734:14782, "Rooms / Search" 377:9, "Rooms / Search · No results"
+ * 516:108).
  *
- * Idle is "Create new room" over a stack of room cards — every room the server
- * knows, empty ones included. Typing filters across both kinds of thing the
- * screen knows about: room names and plant names (nickname or species). The
+ * Idle is a stack of room cards. Rooms with plants lead; empty ones are tucked
+ * behind a "Show empty rooms" link at the foot of the list (pinned low when the
+ * list is short), unless every room is empty — then there is nothing to hide
+ * them behind, so they all show. New rooms come from the + in the top bar.
+ *
+ * Typing filters across room names and plant names (nickname or species). The
  * filtering is local and synchronous — unlike the scan flow's manual search,
  * which debounces because it hits the API — so results land on every keystroke.
- *
- * Section headers only appear when the query matched both rooms and plants; a
- * single-kind result set renders bare, which is the Figma search frame.
+ * A Rooms / Plants switch picks which set shows; it opens on whichever has
+ * results, and holds the user's pick until the query changes.
  */
 export default function RoomsScreen() {
   const insets = useSafeAreaInsets();
@@ -41,10 +46,17 @@ export default function RoomsScreen() {
 
   const garden = useGarden();
   const gate = useRoomGate();
-  const [query, setQuery] = useState('');
+  const [query, setQueryRaw] = useState('');
+  const [tab, setTab] = useState(null); // null = pick whichever has results
+  const [showEmpty, setShowEmpty] = useState(false);
   const [creating, setCreating] = useState(false);
   const openCreate = () => gate(() => setCreating(true));
   const searching = query.trim().length > 0;
+
+  const setQuery = (next) => {
+    setQueryRaw(next);
+    setTab(null);
+  };
 
   const rooms = useMemo(
     () => roomCards(garden.state, garden.now),
@@ -55,14 +67,20 @@ export default function RoomsScreen() {
     [garden.state, query, garden.now],
   );
 
-  const bothKinds = results.rooms.length > 0 && results.plants.length > 0;
+  const filledRooms = rooms.filter((room) => room.plantCount > 0);
+  // Only offer the toggle when it would actually split the list.
+  const canHideEmpty = filledRooms.length > 0 && filledRooms.length < rooms.length;
+  const visibleRooms = canHideEmpty && !showEmpty ? filledRooms : rooms;
+
   const noResults = searching && results.rooms.length === 0 && results.plants.length === 0;
+  const activeTab =
+    tab ?? (results.rooms.length === 0 && results.plants.length > 0 ? 'plants' : 'rooms');
 
   // TabBar wants icon nodes; resolve each tab's icon name to an <Icon>.
-  const tabBarTabs = TABS.map((tab) => ({
-    value: tab.value,
-    label: tab.label,
-    icon: <Icon name={tab.icon} size={24} color={t.text.primary} />,
+  const tabBarTabs = TABS.map((item) => ({
+    value: item.value,
+    label: item.label,
+    icon: <Icon name={item.icon} size={24} color={t.text.primary} />,
   }));
 
   // By id, not by value: a room passed as a param would be a snapshot, and
@@ -70,10 +88,48 @@ export default function RoomsScreen() {
   const openRoom = (room) => navigate('room', { roomId: room.id });
   const openPlant = (plant) => navigate('product', { plantId: plant.id });
 
+  const renderRoom = (room) => (
+    <RoomCard
+      key={room.id}
+      name={room.name}
+      meta={room.meta}
+      icon={<Icon name={room.icon} size={24} color={t.text.primary} />}
+      photos={room.photos}
+      onPress={() => openRoom(room)}
+    />
+  );
+
+  const renderResults = () => {
+    if (activeTab === 'plants') {
+      return results.plants.length > 0 ? (
+        <PlantGrid plants={results.plants} onPress={openPlant} />
+      ) : (
+        <Text style={styles.tabEmpty}>{`No plants match “${query.trim()}”`}</Text>
+      );
+    }
+    return results.rooms.length > 0 ? (
+      <View style={styles.cards}>{results.rooms.map(renderRoom)}</View>
+    ) : (
+      <Text style={styles.tabEmpty}>{`No rooms match “${query.trim()}”`}</Text>
+    );
+  };
+
   return (
     <View style={styles.screen}>
       <View style={{ paddingTop: insets.top }}>
-        <NavigationBar title="Rooms" size="lg" divider={false} />
+        <NavigationBar
+          title="Rooms"
+          size="lg"
+          divider={false}
+          buttonVariant="secondary"
+          actions={[
+            {
+              icon: <Icon name="add" size={24} color={t.text.primary} />,
+              onPress: openCreate,
+              accessibilityLabel: 'Create new room',
+            },
+          ]}
+        />
       </View>
 
       <View style={styles.body}>
@@ -86,6 +142,18 @@ export default function RoomsScreen() {
           clearIcon={<Icon name="close" size={20} color={t.text.primary} />}
           onClear={() => setQuery('')}
         />
+
+        {searching && !noResults ? (
+          <SegmentedControl
+            segments={[
+              { label: 'Rooms', value: 'rooms' },
+              { label: 'Plants', value: 'plants' },
+            ]}
+            value={activeTab}
+            onChange={setTab}
+            style={styles.switcher}
+          />
+        ) : null}
 
         {noResults ? (
           <View style={styles.emptyWrap}>
@@ -105,49 +173,19 @@ export default function RoomsScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {searching ? (
-              <>
-                {results.rooms.length > 0 ? (
-                  <View style={styles.section}>
-                    {bothKinds ? <Text style={styles.sectionHeader}>Rooms</Text> : null}
-                    <View style={styles.list}>
-                      {results.rooms.map((room) => (
-                        <RoomCard
-                          key={room.id}
-                          name={room.name}
-                          meta={room.meta}
-                          photos={room.photos}
-                          onPress={() => openRoom(room)}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-
-                {results.plants.length > 0 ? (
-                  <View style={styles.section}>
-                    {bothKinds ? <Text style={styles.sectionHeader}>Plants</Text> : null}
-                    <PlantGrid plants={results.plants} onPress={openPlant} />
-                  </View>
-                ) : null}
-              </>
+              renderResults()
             ) : rooms.length > 0 ? (
               <>
-                <Button
-                  label="Create new room"
-                  variant="outline"
-                  size="lg"
-                  leftIcon={<Icon name="add" size={20} color={t.text.primary} />}
-                  onPress={openCreate}
-                />
-                {rooms.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    name={room.name}
-                    meta={room.meta}
-                    photos={room.photos}
-                    onPress={() => openRoom(room)}
+                <View style={styles.cards}>{visibleRooms.map(renderRoom)}</View>
+                {canHideEmpty ? (
+                  <Button
+                    label={showEmpty ? 'Hide empty rooms' : 'Show empty rooms'}
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => setShowEmpty((v) => !v)}
+                    style={styles.toggle}
                   />
-                ))}
+                ) : null}
               </>
             ) : (
               // Nothing yet: the server has no rooms for this user (or the
@@ -173,7 +211,14 @@ export default function RoomsScreen() {
       <AddRoomSheet
         visible={creating}
         onClose={() => setCreating(false)}
-        onConfirm={(name) => garden.addRoom(name)}
+        onConfirm={(name) =>
+          garden
+            .addRoom(name)
+            // A new room is empty; reveal the empty ones so it doesn't vanish
+            // behind the toggle the moment it lands.
+            .then(() => setShowEmpty(true))
+            .catch((e) => showError(e, 'Couldn’t create the room'))
+        }
         title="Create new room"
         label="Room name"
         placeholder="What's the room name?"
@@ -187,7 +232,7 @@ export default function RoomsScreen() {
           value="rooms"
           onChange={(value) => {
             // Today is the router's root — reset so Rooms doesn't pile up in
-            // the back stack. Discover is inert (as on TodayScreen).
+            // the back stack.
             if (value === 'today') reset('today');
             if (value === 'scan') navigate('scan-camera');
             if (value === 'settings') navigate('settings');
@@ -208,10 +253,24 @@ const makeStyles = (t) =>
       gap: space[16],
     },
     scroll: { flex: 1 },
-    list: { gap: space[20], paddingBottom: space[16] },
-    results: { gap: space[16], paddingBottom: space[16] },
-    section: { gap: space[12] },
-    sectionHeader: { ...typography.headingSmallEmphasized, color: t.text.primary },
+    // Grow to the viewport so a short list pins the empty-rooms toggle low
+    // (Figma 734:14782); a long one just runs it after the last card.
+    list: {
+      flexGrow: 1,
+      justifyContent: 'space-between',
+      gap: space[20],
+      paddingBottom: space[16],
+    },
+    results: { paddingBottom: space[16] },
+    cards: { gap: space[20] },
+    switcher: { alignSelf: 'stretch' },
+    toggle: { alignSelf: 'center' },
+    tabEmpty: {
+      ...typography.bodyMedium,
+      color: t.text.secondary,
+      textAlign: 'center',
+      paddingTop: space[24],
+    },
     emptyWrap: {
       flex: 1,
       alignItems: 'center',

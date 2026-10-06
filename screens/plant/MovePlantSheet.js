@@ -30,11 +30,15 @@ export default function MovePlantSheet({ visible, rooms = [], roomId, onClose, o
     }
   }, [visible, roomId]);
 
-  const createRoom = () => {
+  // `onAddRoom` resolves with the server's id for the new room, or null when
+  // it could not be created (the caller has already said why) — in which case
+  // the field stays open with what was typed.
+  const createRoom = async () => {
     const name = newRoom.trim();
     if (!name) return;
-    const id = onAddRoom?.(name);
-    if (id) setSelected(id);
+    const id = await onAddRoom?.(name);
+    if (!id) return;
+    setSelected(id);
     setCreating(false);
     setNewRoom('');
   };

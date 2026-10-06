@@ -1,7 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, space, typography } from '../theme/foundations';
-import { fonts } from '../theme/tokens';
 
 /**
  * PlantCard — one plant tile, imported from Figma "Plant Card" (node 376:80).
@@ -14,8 +13,7 @@ import { fonts } from '../theme/tokens';
  * is meant to sit in a `flex: 1` cell of the two-column grid the room screens
  * lay out (screens/rooms/PlantGrid.js).
  *
- * The name is the serif display face at 18pt (Figma "Heading/Heading Extra
- * Small" is Literata, which theme/foundations' Inter scale doesn't carry).
+ * The name is Figma "Heading/Heading Extra Small" (Literata 18/23.4).
  */
 export default function PlantCard({ name, meta, photo, onPress, style, ...rest }) {
   const t = useTheme();
@@ -55,6 +53,6 @@ const styles = StyleSheet.create({
   // lays the <img> out at its intrinsic size and ignores resizeMode.
   photo: { alignSelf: 'stretch', width: '100%', height: 120, borderRadius: radius[16] },
   meta: { gap: 6 },
-  name: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23 },
+  name: { ...typography.headingExtraSmall },
   metaText: { ...typography.bodyMedium },
 });

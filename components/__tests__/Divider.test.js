@@ -1,5 +1,5 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import Divider from '../Divider';
 import { Divider as BarrelDivider } from '../index';
 import { divider } from '../../theme/tokens';

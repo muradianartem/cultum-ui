@@ -50,8 +50,8 @@ jest.mock('../api/auth', () => ({
 }));
 
 // The paywall's copy is fetched, never bundled, and jest-expo has no fetch.
-// Unanswered by default: the launcher then has nothing to open, which is what
-// every test below except the last one wants.
+// Unanswered by default; the onboarding tests answer it to prove that priced
+// content alone no longer opens a paywall over anything.
 jest.mock('../api/billing', () => ({
   ...jest.requireActual('../api/billing'),
   getPaywall: jest.fn(() => new Promise(() => {})),
@@ -77,11 +77,16 @@ const PAYWALL_RESPONSE = {
   footnote: 'Cancel any time.',
 };
 
-// Whether the paywall opens at all is its own decision (billing/entry.js has
-// the truth table); here it is a dial, so each test can state which app it is
-// booting.
-jest.mock('../billing/entry', () => ({ paywallEntryRoute: jest.fn(() => null) }));
-const { paywallEntryRoute } = require('../billing/entry');
+// The garden is loaded from the server before any screen shows; answer with
+// an empty one.
+jest.mock('../api/garden', () => ({
+  ...jest.requireActual('../api/garden'),
+  getGarden: jest.fn(async () => []),
+}));
+jest.mock('../api/rooms', () => ({
+  ...jest.requireActual('../api/rooms'),
+  listRooms: jest.fn(async () => []),
+}));
 
 // The AuthGate keys off persisted tokens — control the branch per test.
 jest.mock('../lib/authStorage', () => ({
@@ -112,8 +117,23 @@ afterEach(() => {
     while (mounted.length) mounted.pop().unmount();
   });
   jest.clearAllMocks();
+  // clearAllMocks keeps implementations; undo a test's never-answering load.
+  require('../api/garden').getGarden.mockImplementation(async () => []);
   __resetPaywallCache();
+  // Onboarding progress is on (in-memory) disk and outlives a tree.
+  require('expo-file-system').__files.clear();
 });
+
+const ONBOARDING_FILE = 'file:///documents/cultum-onboarding.json';
+const savedOnboarding = () => {
+  const raw = require('expo-file-system').__files.get(ONBOARDING_FILE);
+  return raw ? JSON.parse(raw) : null;
+};
+const writeOnboarding = (record) =>
+  require('expo-file-system').__files.set(
+    ONBOARDING_FILE,
+    JSON.stringify({ version: 1, step: 0, savedPlantId: null, ...record }),
+  );
 
 test('with no stored tokens, App shows the Login screen', async () => {
   loadTokens.mockResolvedValue(null);
@@ -154,25 +174,70 @@ test('with stored tokens, App boots to Today and wires the Scan/Add tab to the c
   expect(texts(tree)).toContain('Camera Access');
 });
 
-test('the paywall opens over Today once the backend has priced it', async () => {
+// A restored session with no onboarding record is an installation from before
+// onboarding existed: its user has already seen the app.
+test('restored tokens and no onboarding record: Today, and onboarding is recorded as done', async () => {
   loadTokens.mockResolvedValue(STORED_TOKENS);
-  paywallEntryRoute.mockReturnValue('paywall');
+  const tree = await renderApp();
+
+  expect(texts(tree)).toContain('Today\u2019s tasks');
+  expect(texts(tree)).not.toContain('Scan a plant');
+  expect(savedOnboarding()).toMatchObject({ stage: 'complete' });
+});
+
+test('an unfinished onboarding resumes on its step, not on Today', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  writeOnboarding({ stage: 'intro', step: 1 });
+  const tree = await renderApp();
+
+  expect(texts(tree)).toContain('Add your plant');
+  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+});
+
+// While the garden's first load is in flight, Today's skeleton stands in for
+// it — but only when Today is where the router will open.
+test('a garden still loading shows the Today skeleton', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  require('../api/garden').getGarden.mockImplementation(() => new Promise(() => {}));
+  const tree = await renderApp();
+
+  const loader = tree.root.find(
+    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'progressbar'
+  );
+  expect(loader.props.accessibilityLabel).toBe('Loading your garden');
+  expect(texts(tree)).toContain('Upcoming');
+  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+});
+
+test('a garden still loading under an unfinished onboarding keeps the plain spinner', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  writeOnboarding({ stage: 'intro', step: 1 });
+  require('../api/garden').getGarden.mockImplementation(() => new Promise(() => {}));
+  const tree = await renderApp();
+
+  const loader = tree.root.find(
+    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'progressbar'
+  );
+  expect(loader.props.accessibilityLabel).toBe('Loading');
+  expect(texts(tree)).not.toContain('Upcoming');
+});
+
+// The launch paywall is gone: onboarding ends on the paywall itself, and billing
+// content arriving mid-onboarding must not push one on top of it.
+test('priced billing content cannot interrupt onboarding', async () => {
+  loadTokens.mockResolvedValue(STORED_TOKENS);
+  writeOnboarding({ stage: 'intro', step: 0 });
   getPaywall.mockResolvedValue(PAYWALL_RESPONSE);
   const tree = await renderApp();
 
-  expect(texts(tree)).toContain('Cultum Plus,\nfree for 7 days');
-  expect(texts(tree)).not.toContain('Today\u2019s tasks');
-  // It was asked about the session it actually got, not about nothing.
-  expect(paywallEntryRoute).toHaveBeenCalledWith({ signedInVia: 'restore' });
+  expect(texts(tree)).toContain('Scan a plant');
+  expect(texts(tree)).not.toContain('Cultum Plus,\nfree for 7 days');
 });
 
-// The whole reason the launcher waits instead of <Router initial>: with nothing
-// bundled, a paywall that cannot be priced has nothing to say, and blocking the
-// app behind a failed request would be worse than not selling.
-test('a paywall that cannot be priced never opens, and Today is not blocked', async () => {
+test('priced billing content does not open a paywall over Today either', async () => {
   loadTokens.mockResolvedValue(STORED_TOKENS);
-  paywallEntryRoute.mockReturnValue('paywall');
-  getPaywall.mockRejectedValue(Object.assign(new Error('offline'), { code: 'offline' }));
+  writeOnboarding({ stage: 'complete' });
+  getPaywall.mockResolvedValue(PAYWALL_RESPONSE);
   const tree = await renderApp();
 
   expect(texts(tree)).toContain('Today\u2019s tasks');

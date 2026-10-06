@@ -35,23 +35,26 @@ deliberately left out.
   `typography.captionEmphasized` is bold — the weight is pinned back to `'500'`
   at the three call sites.
 - **IAP is iOS-only.** "Start free trial" runs through
-  [billing/useStorePurchase.ios.js](../billing/useStorePurchase.ios.js), built on
+  [billing/useStorePurchase.native.js](../billing/useStorePurchase.native.js), built on
   `expo-iap`. The steps are: StoreKit 2 purchase of the selected plan's
   `apple_product_id`, then `POST /billing/apple/verify` with the JWS
   (`purchase.purchaseToken`), then the returned `EntitlementOut` applied through
   `EntitlementProvider#apply`, then `finishTransaction`. The transaction is
   finished only after verify succeeds, so a failed verify replays on the next
   store connection. The paywall closes only on a confirmed purchase. A cancel is
-  silent, and any other failure is shown above the CTA. Other platforms resolve
+  silent, and any other failure is shown above the CTA. Android runs the same
+  flow through Play Billing and `POST /billing/google/verify` (the purchase
+  token); what differs per store lives in
+  [billing/stores.js](../billing/stores.js). Web resolves
   `billing/useStorePurchase.js`, which has no store flow, so the button just
   closes the screen there.
-  **Prices come from StoreKit, not from the payload.** The hook exposes `prices`
-  — `displayPrice` per Apple product id, from the `fetchProducts` call it
-  already made — and both the price headline and the plan sheet prefer it.
-  `fallback_price` is USD and is now only what renders in the moment before the
-  products resolve, and on the platforms with no store flow at all. The fallback
-  is per product, not all-or-nothing: one unresolved id does not drag the other
-  back to dollars.
+  **Prices come from the store, not from the payload.** The hook exposes
+  `termsFor(product)` — price, period and free trial in the shape of
+  [billing/storeTerms.js](../billing/storeTerms.js) — and the headline, plan
+  sheet and CTA all read it. A trial is only promised when the user can get it:
+  on iOS via `isEligibleForIntroOfferIOS` per subscription group, on Play
+  because Play only returns offers the user is eligible for. `fallback_price`
+  is USD and only renders where there is no store flow at all.
   **"Restore purchases"** sits under both CTAs (hidden where `supported` is
   false). It calls `getAvailablePurchases()` — active entitlements only, which is
   its default — and pushes every result through the same verify-then-finish path
@@ -64,8 +67,7 @@ deliberately left out.
   called out separately in both paths. It is the one verify failure that a retry
   can never fix, so it must not borrow the "it will be confirmed automatically"
   copy: the user is holding a live subscription and has to choose an account.
-  Still open: the Play flow (`/billing/google/verify`). `expo-iap` is native, so
-  all of this needs a rebuild and not an OTA update.
+  `expo-iap` is native, so all of this needs a rebuild and not an OTA update.
 - **Figma's copy now comes from the backend.** `PRICING`, `TRIAL_STEPS`,
   `FEATURES`, `FOOTNOTE` and `ChoosePlanSheet`'s `PLANS` are gone — see
   "Content" below. `SOCIAL_PROOF` and `REVIEWS` stayed: the API has no App Store
@@ -126,8 +128,8 @@ Both new SVGs are registered as brand glyphs in
 |---|---|
 | title, trial timeline, feature table, footnote, products | `GET /billing/plans` via [api/billing.js](../api/billing.js) → [billing/paywallContent.js](../billing/paywallContent.js) |
 | rating, reviews | local constants in the screen — no endpoint |
-| **the price itself** | StoreKit `displayPrice` via `useStorePurchase#prices`, falling back per product to the payload's `fallback_price` |
-| price headline | `headlineFor(product, storePrice)`, derived, so it follows the plan sheet |
+| **the price and trial** | the store, via `useStorePurchase#termsFor`; the payload's `fallback_price` only where there is no store |
+| price headline | `headline(terms, product)` from the store's terms, else `headlineFor(product)` |
 | plan sub-label | `detailFor(product)`, derived from `period` |
 
 `mapPaywall` validates rather than trusts: a payload it cannot render is

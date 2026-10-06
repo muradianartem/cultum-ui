@@ -16,6 +16,7 @@ import { useRouter } from '../../routing';
 import { useGarden } from '../../store/GardenProvider';
 import { roomSubtitle } from '../../store/format';
 import { plantCard, roomDetailSubtitle } from '../../store/views';
+import { showError } from '../../lib/showError';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
 import PlantGrid from './PlantGrid';
@@ -55,28 +56,38 @@ export default function RoomScreen({ roomId }) {
   const requestDelete = () => handoff(closeSheet, () => setConfirming(true));
   const moveFirst = () => handoff(() => setConfirming(false), () => setSheet('move'));
 
+  // Each of these waits for the server. The sheet closes straight away; the
+  // screen is left only once the room is actually gone.
   const rename = (name) => {
-    garden.renameRoom(roomId, name);
     closeSheet();
+    garden.renameRoom(roomId, name).catch((e) => showError(e, 'Couldn’t rename the room'));
+  };
+
+  const deleting = async (work) => {
+    try {
+      await work();
+      leave();
+    } catch (e) {
+      showError(e, 'Couldn’t delete the room');
+    }
   };
 
   const deleteEmpty = () => {
     setConfirming(false);
-    garden.deleteRoom(roomId);
-    leave();
+    deleting(() => garden.deleteRoom(roomId));
   };
 
   const moveAndDelete = (toRoomId) => {
     closeSheet();
-    garden.deleteRoomMovingPlants(roomId, toRoomId);
-    leave();
+    deleting(() => garden.deleteRoomMovingPlants(roomId, toRoomId));
   };
 
   const createAndMove = (name) => {
     closeSheet();
-    const newRoomId = garden.addRoom(name);
-    garden.deleteRoomMovingPlants(roomId, newRoomId);
-    leave();
+    deleting(async () => {
+      const newRoomId = await garden.addRoom(name);
+      await garden.deleteRoomMovingPlants(roomId, newRoomId);
+    });
   };
 
   return (

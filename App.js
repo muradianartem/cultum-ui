@@ -4,19 +4,22 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, Route, requireSubscription } from './routing';
 import { ThemeProvider, useTheme, useThemeMode } from './theme/ThemeProvider';
+import FontGate from './theme/FontGate';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
-import { GardenProvider } from './store/GardenProvider';
+import { GardenProvider, useGarden } from './store/GardenProvider';
+import { errorMessage } from './lib/showError';
 import { clearState } from './store/persist';
 import { clearPhotos } from './store/media';
 import { clearEntitlement } from './lib/entitlementCache';
 import { PrefsProvider, usePrefs } from './prefs';
 import { EntitlementProvider } from './billing/EntitlementProvider';
 import { cancelAll, configureNotifications } from './notifications';
-import PaywallLauncher from './billing/PaywallLauncher';
 import NotificationRouter from './notifications/NotificationRouter';
 import LoginScreen from './screens/LoginScreen';
-import { LoadingIndicator, SnackbarProvider } from './components';
+import { Icon, LoadingIndicator, SnackbarProvider, State } from './components';
 import TodayScreen from './screens/TodayScreen';
+import SnoozedScreen from './screens/SnoozedScreen';
+import TodaySkeleton from './screens/TodaySkeleton';
 import ProductPage from './screens/ProductPage';
 import RemindersScreen from './screens/RemindersScreen';
 import AddPlantScreen from './screens/addPlant/AddPlantScreen';
@@ -32,6 +35,8 @@ import PaywallScreen from './screens/PaywallScreen';
 import ScanCameraScreen from './screens/scan/ScanCameraScreen';
 import ScanMatchesScreen from './screens/scan/ScanMatchesScreen';
 import ScanSearchScreen from './screens/scan/ScanSearchScreen';
+import OnboardingScreen from './screens/onboarding/OnboardingScreen';
+import { OnboardingNavigator, OnboardingProvider, useOnboarding } from './onboarding';
 // V2: full-screen photo viewer (Figma "Product Page / View Image"). Kept out of
 // the V1 flow — re-enable this import and its route below when V2 ships.
 // import ImageViewer from './screens/ImageViewer';
@@ -44,8 +49,11 @@ configureNotifications();
 // Chooses login vs. the app router based on async auth status. Gating happens
 // here at the root (not via routing/guards, which are pure sync functions with
 // no context access), so the Router only ever mounts once authenticated.
-function AuthGate() {
-  const { status, signedInVia } = useAuth();
+//
+// Exported for test/support/integration.js, which mounts the real gate — its
+// sign-out cleanup included — under a test shell.
+export function AuthGate() {
+  const { status, signedInVia, onboardingShown } = useAuth();
   const t = useTheme();
 
   // Signing out has to take the garden with it: the document on disk, the
@@ -91,41 +99,91 @@ function AuthGate() {
         {/* Inside the garden so an open undo can still reach it — signing out
             takes both with it. */}
         <SnackbarProvider>
-          <Router initial="today">
-            {/* Not a route: it has to outlive whichever screen is on top, because
-                a tapped reminder can arrive at any moment. */}
-            <NotificationRouter />
-            {/* Also not a route: it opens the paywall once the backend has said
-                what Plus costs. See billing/PaywallLauncher.js. */}
-            <PaywallLauncher signedInVia={signedInVia} />
-            <Route name="today" component={TodayScreen} />
-            <Route name="product" component={ProductPage} />
-            <Route name="add-plant" component={AddPlantScreen} />
-            <Route name="reminders" component={RemindersScreen} />
-            <Route name="rooms" component={RoomsScreen} />
-            <Route name="room" component={RoomScreen} />
-            <Route name="settings" component={SettingsScreen} />
-            <Route name="settings-notifications" component={NotificationsScreen} />
-            <Route name="settings-feedback" component={SendFeedbackScreen} />
-            <Route name="settings-contact" component={ContactUsScreen} />
-            <Route name="settings-about" component={AboutScreen} />
-            <Route name="scan-camera" component={ScanCameraScreen} />
-            <Route name="scan-matches" component={ScanMatchesScreen} />
-            <Route name="scan-search" component={ScanSearchScreen} />
-            {/* Entered by <PaywallLauncher> above (see billing/entry.js), from
-                the upgrade card in Settings, and as the subscription guard's
-                fallback. */}
-            <Route name="paywall" component={PaywallScreen} />
-            <Route
-              name="premium-gallery"
-              guard={requireSubscription}
-              component={PremiumGallery}
-              fallback={<PaywallScreen />}
-            />
-          </Router>
+          {/* The account's onboarding_shown (read at sign-in) decides; the
+              record on this device resumes an unfinished run. It picks the
+              router's first route, so it has to sit above it — and above
+              the garden gate, which picks its loader by that route. */}
+          <OnboardingProvider signedInVia={signedInVia} serverShown={onboardingShown}>
+            <GardenGate>
+              <AppRoutes />
+            </GardenGate>
+          </OnboardingProvider>
         </SnackbarProvider>
       </GardenProvider>
     </EntitlementProvider>
+  );
+}
+
+// Nothing renders from the garden until the server has answered for it: a
+// loader while GET /users/me/rooms + /users/me/plants is in flight, and a Retry
+// if the first attempt failed. There is no offline copy to show instead.
+// The loader is Today's skeleton when Today is where the router will open;
+// an unfinished onboarding keeps the plain spinner rather than flash Today.
+function GardenGate({ children }) {
+  const garden = useGarden();
+  const { initialRoute } = useOnboarding();
+  const t = useTheme();
+  if (garden.status === 'ready') return children;
+  if (garden.status !== 'error' && initialRoute === 'today') return <TodaySkeleton />;
+  return (
+    <View style={[styles.loading, { backgroundColor: t.background.primary }]}>
+      {garden.status === 'error' ? (
+        <State
+          icon={<Icon name="cloude" size={24} color={t.text.primary} />}
+          iconVariant="secondary"
+          title="Couldn’t load your garden"
+          subtitle={errorMessage(garden.error)}
+          primaryAction={{ label: 'Try again', onPress: garden.retry }}
+        />
+      ) : (
+        <LoadingIndicator />
+      )}
+    </View>
+  );
+}
+
+// The authenticated routes. A component of its own because <Router initial>
+// comes from the onboarding record, which is only readable below its provider.
+// `initialRoute` is fixed at the provider's mount, so this never remounts the
+// router under the user.
+function AppRoutes() {
+  const { initialRoute } = useOnboarding();
+  return (
+    <Router initial={initialRoute}>
+      {/* Not a route: it has to outlive whichever screen is on top, because
+          a tapped reminder can arrive at any moment. */}
+      <NotificationRouter />
+      {/* Also not a route: it settles an onboarding checkpoint a previous
+          launch left behind. */}
+      <OnboardingNavigator />
+      <Route name="onboarding" component={OnboardingScreen} />
+      <Route name="today" component={TodayScreen} />
+      <Route name="snoozed" component={SnoozedScreen} />
+      <Route name="product" component={ProductPage} />
+      <Route name="add-plant" component={AddPlantScreen} />
+      <Route name="reminders" component={RemindersScreen} />
+      <Route name="rooms" component={RoomsScreen} />
+      <Route name="room" component={RoomScreen} />
+      <Route name="settings" component={SettingsScreen} />
+      <Route name="settings-notifications" component={NotificationsScreen} />
+      <Route name="settings-feedback" component={SendFeedbackScreen} />
+      <Route name="settings-contact" component={ContactUsScreen} />
+      <Route name="settings-about" component={AboutScreen} />
+      <Route name="scan-camera" component={ScanCameraScreen} />
+      <Route name="scan-matches" component={ScanMatchesScreen} />
+      <Route name="scan-search" component={ScanSearchScreen} />
+      {/* Entered at the end of onboarding (with source: 'onboarding'), from
+          the upgrade card in Settings, the room-limit gate, and as the
+          subscription guard's fallback. There is no launch paywall any more:
+          it would land on top of onboarding. */}
+      <Route name="paywall" component={PaywallScreen} />
+      <Route
+        name="premium-gallery"
+        guard={requireSubscription}
+        component={PremiumGallery}
+        fallback={<PaywallScreen />}
+      />
+    </Router>
   );
 }
 
@@ -152,9 +210,13 @@ function AppShell() {
       onModeChange={setAppearance}
     >
       <ThemedStatusBar />
-      <AuthProvider>
-        <AuthGate />
-      </AuthProvider>
+      {/* Every text style names a loaded face (theme/fonts.js), so nothing that
+          draws text mounts before they are registered. */}
+      <FontGate>
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      </FontGate>
     </ThemeProvider>
   );
 }
@@ -178,5 +240,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
   },
 });

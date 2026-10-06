@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { menu, shadow } from '../theme/tokens';
+import { elevation, menu } from '../theme/tokens';
+import { typography } from '../theme/foundations';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -68,7 +69,7 @@ export default function DropdownMenu({ items, children, style, ...rest }) {
       style={[
         styles.surface,
         { backgroundColor: t.background.primary, borderColor: t.border.secondary },
-        shadow.low,
+        elevation.low,
         style,
       ]}
       {...rest}
@@ -102,9 +103,9 @@ const styles = StyleSheet.create({
   },
   leading: { width: 24, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 2 },
-  // Figma "_Dropdown Menu Item": title Body Large 16, subtitle Body Medium 14.
-  title: { fontSize: 16, lineHeight: 22 },
-  subtitle: { fontSize: 14, lineHeight: 20 },
+  // Figma "_Dropdown Menu Item": title Body Large, subtitle Body Medium.
+  title: { ...typography.bodyLarge },
+  subtitle: { ...typography.bodyMedium },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.5 },
 });

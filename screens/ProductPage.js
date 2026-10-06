@@ -4,51 +4,52 @@
 // Before it is yours it is a catalog entry: hero, description, Highlights, How
 // to care, FAQ, and a CTA to add it. Once it is yours the same page gains the
 // things only an owned plant has — today's tasks for it, an About/Journal
-// switch, and the Actions list (Edit Reminders / Rename / Move / Archive /
-// Delete) that used to be a three-item overflow menu.
+// switch, and the Actions list (Edit Reminders / Rename / Move / Delete) that
+// used to be a three-item overflow menu.
 //
 // Which life it is in is decided by the store, not by a route param: an owned
 // plant is addressed by `plantId` and every field is read live, so a rename
 // made here is on the Rooms screen before the navigation animation finishes.
 // A catalog preview arrives as `plant` (a PlantVM from api/mapPlant.js).
 
-import { useMemo, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Animated, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
   Badge,
   Button,
+  ButtonIcon,
   Dialog,
+  DropdownMenu,
   Icon,
   ICON_NAMES,
   List,
   ListItem,
+  Overlay,
   SegmentedControl,
+  TextButton,
   useUndoSnackbar,
 } from '../components';
 import { useRouter } from '../routing';
 import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
 import { nextReminderLabel } from '../store/format';
+import { showError } from '../lib/showError';
+import { truncateText } from '../lib/truncateText';
 import { speciesDetailToVM, cardToVM } from '../api/mapPlant';
-import { useTheme } from '../theme/ThemeProvider';
-import { radius, space, stroke, typography } from '../theme/foundations';
+import { useTheme, useThemeMode } from '../theme/ThemeProvider';
+import { opacity, radius, space, typography } from '../theme/foundations';
+import { button, hero, list, navbar } from '../theme/tokens';
+import { withAlpha } from '../theme/alpha';
 import RenamePlantSheet from './plant/RenamePlantSheet';
 import MovePlantSheet from './plant/MovePlantSheet';
 
-// Hero chrome sits over a photograph, so these treatments are theme-independent
-// (they must read the same in light and dark). Everything else is themed.
-const HERO_FALLBACK = '#0E120B';
-const HERO_SCRIM = 'rgba(21,23,20,0.28)';
-const HERO_GRADIENT_TOP = 'rgba(21,23,20,0)';
-const HERO_GRADIENT_BOTTOM = '#151714';
-const GLASS = 'rgba(250,250,250,0.18)';
-const GLASS_PRESSED = 'rgba(250,250,250,0.34)';
-const GLASS_BORDER = 'rgba(250,250,250,0.6)';
-const OVER_PHOTO_TEXT = '#FFFFFF';
-const OVER_PHOTO_SUBTLE = '#DADBDA';
+const BAR_FADE = space[48];
+// Each side of the bar is as wide as the owned bar's two buttons, so the title
+// stays centred whether the right side holds none or two.
+const BAR_SIDE = button.iconSizes.md * 2 + space[8];
 
 const HERO_PLACEHOLDER = require('../assets/plant/hero.png');
 
@@ -59,17 +60,17 @@ function Glyph({ name, size = 24, color, textStyle }) {
   return <Text style={[{ fontSize: size, color }, textStyle]}>{name}</Text>;
 }
 
-// Circular translucent nav button floating over the hero image.
-function NavButton({ icon, label, onPress, styles }) {
+// Figma "_Navigation Bar Button" Type=Secondary: a grey 40pt circle, the same
+// over the photo and on the solid bar.
+function NavButton({ icon, label, onPress, t }) {
   return (
-    <Pressable
+    <ButtonIcon
+      variant="secondary"
+      size="md"
+      icon={<Icon name={icon} size={24} color={t.brand.onSecondary} />}
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.navBtn, pressed && styles.navBtnPressed]}
-    >
-      <Icon name={icon} size={20} color={OVER_PHOTO_TEXT} />
-    </Pressable>
+    />
   );
 }
 
@@ -83,6 +84,29 @@ function FactCard({ icon, label, value, styles, t }) {
         <Text style={styles.factLabel} numberOfLines={1}>{label}</Text>
         <Text style={styles.factValue} numberOfLines={2}>{value}</Text>
       </View>
+    </View>
+  );
+}
+
+// The species description. Catalog copy can run to a long raw block that
+// pushes the rest of the page down, so past ~150 characters it collapses
+// behind View more / View less.
+function AboutText({ about, styles }) {
+  const [expanded, setExpanded] = useState(false);
+  const { text, full, truncated } = truncateText(about);
+  return (
+    <View style={styles.about}>
+      <Text style={styles.bodyText}>{expanded ? full : text}</Text>
+      {truncated ? (
+        <TextButton
+          label={expanded ? 'View less' : 'View more'}
+          size="sm"
+          inline
+          onPress={() => setExpanded((e) => !e)}
+          accessibilityState={{ expanded }}
+          style={styles.aboutToggle}
+        />
+      ) : null}
     </View>
   );
 }
@@ -162,12 +186,50 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const [openFaq, setOpenFaq] = useState(0);
   const [renaming, setRenaming] = useState(false);
   const [moving, setMoving] = useState(false);
-  const [confirm, setConfirm] = useState(null); // 'archive' | 'delete'
+  const [confirm, setConfirm] = useState(null); // 'delete'
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { effective } = useThemeMode();
+
+  // Scroll drives two fades: the hero dissolves as it leaves, and just before
+  // it's gone the nav bar fills in behind its buttons and takes the title.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  // Where the hero's title block starts, measured, so the bar can be solid
+  // before that text slides up under it.
+  const [heroTextTop, setHeroTextTop] = useState(null);
+  const barBottom = insets.top + navbar.height;
+  const collapse = Math.max(hero.height - barBottom, navbar.height);
+  const barEnd = Math.max((heroTextTop ?? collapse) - barBottom, navbar.height);
+  // The hero dissolves across its whole scroll; the bar fills in over its own
+  // height, finishing as the hero text reaches it. Both are opacity (what the
+  // native driver animates cleanly) and are built once per layout — a fresh
+  // interpolation every render re-attaches the native animation mid-scroll.
+  const { heroOpacity, barOpacity } = useMemo(
+    () => ({
+      heroOpacity: scrollY.interpolate({
+        inputRange: [0, collapse],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+      }),
+      barOpacity: scrollY.interpolate({
+        inputRange: [collapse - BAR_FADE, collapse],
+        outputRange: [0, 1],
+        extrapolate: 'clamp',
+      }),
+    }),
+    [scrollY, collapse, barEnd],
+  );
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: true,
+      }),
+    [scrollY],
+  );
 
   const record = plantId ? garden.getPlant(plantId) : null;
 
-  // An owned plant renders from the SpeciesDetail cached on it, so its page is
-  // complete with the radio off. A preview renders from the VM it arrived with.
+  // An owned plant renders from the SpeciesDetail the server embeds in it
+  // (UserPlantOut.care). A preview renders from the VM it arrived with.
   const vm = useMemo(() => {
     if (record) {
       return record.care
@@ -192,24 +254,34 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const openReminders = () =>
     navigate('reminders', isOwned ? { plantId: record.id } : { plantName: vm.commonName });
 
-  const removePlant = () => {
+  // Leaves only once the server has deleted it; a refusal keeps the page up.
+  const removePlant = async () => {
     const target = record?.id;
     setConfirm(null);
     if (!target) return;
-    garden.deletePlant(target);
-    back();
+    try {
+      await garden.deletePlant(target);
+      back();
+    } catch (e) {
+      showError(e, 'Couldn’t delete your plant');
+    }
   };
 
-  const archivePlant = () => {
-    const target = record?.id;
-    setConfirm(null);
-    if (!target) return;
-    garden.archivePlant(target);
-    back();
-  };
+  const renamePlant = (name) =>
+    garden.renamePlant(record.id, name).catch((e) => showError(e, 'Couldn’t rename your plant'));
 
-  // Figma's five Actions rows. Each is a real mutation now — the two that used
-  // to close the menu and do nothing (Rename, Move) open a sheet.
+  const movePlant = (roomId) =>
+    garden.movePlant(record.id, roomId).catch((e) => showError(e, 'Couldn’t move your plant'));
+
+  /** The new room's id, or null when it wasn't created (the user is told). */
+  const addRoom = (name) =>
+    garden.addRoom(name).catch((e) => {
+      showError(e, 'Couldn’t add the room');
+      return null;
+    });
+
+  // Figma's Actions rows. Each is a real mutation — Rename and Move open a
+  // sheet. (Archive is gone: the server has nowhere to keep it.)
   const actions = [
     {
       icon: 'settings',
@@ -230,12 +302,6 @@ export default function ProductPage({ plantId, plant, owned = false }) {
       onPress: () => setMoving(true),
     },
     {
-      icon: 'archive',
-      title: 'Archive',
-      subtitle: 'You can restore it anytime',
-      onPress: () => setConfirm('archive'),
-    },
-    {
       icon: 'trash',
       title: 'Delete',
       subtitle: 'Permanently delete it and its data',
@@ -244,66 +310,82 @@ export default function ProductPage({ plantId, plant, owned = false }) {
     },
   ];
 
-  const description = (
-    <Text style={styles.bodyText}>
-      {segment === 'journal' && isOwned
-        ? 'No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.'
-        : vm.about}
-    </Text>
-  );
+  // The ellipsis menu: the Actions list minus Edit Reminders, which already has
+  // its own settings button beside it.
+  const overflowItems = actions
+    .filter((a) => a.onPress !== openReminders)
+    .map((a) => ({
+      key: a.title,
+      title: a.title,
+      icon: (
+        <Icon name={a.icon} size={20} color={a.destructive ? t.error.primary : t.text.primary} />
+      ),
+      onPress: () => {
+        setMenuOpen(false);
+        a.onPress();
+      },
+    }));
+
+  const title = isOwned ? record.nickname : vm.commonName;
+
+  const description =
+    segment === 'journal' && isOwned ? (
+      <Text style={styles.bodyText}>
+        No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.
+      </Text>
+    ) : (
+      <AboutText key={vm.speciesKey} about={vm.about} styles={styles} />
+    );
 
   return (
     <View style={styles.screen}>
-      {/* The hero photo runs under the status bar in both themes. */}
-      <StatusBar style="light" />
-      <ScrollView
+      <StatusBar style={effective === 'dark' ? 'light' : 'dark'} />
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: space[24] }}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <ImageBackground source={heroSource} style={styles.hero} resizeMode="cover">
-          <View style={styles.heroScrim} pointerEvents="none" />
-          <LinearGradient
-            colors={[HERO_GRADIENT_TOP, HERO_GRADIENT_BOTTOM]}
-            style={styles.heroGradient}
-            pointerEvents="none"
-          />
-
-          <View style={[styles.navRow, { top: insets.top + space[8] }]}>
-            <NavButton icon="chevron-left" label="Back" onPress={back} styles={styles} />
-            {isOwned ? (
-              <NavButton
-                icon="settings"
-                label="Edit reminders"
-                onPress={openReminders}
-                styles={styles}
-              />
-            ) : null}
-          </View>
-
-          <View style={styles.heroText}>
-            <View style={styles.chips}>
-              {vm.chips.map((c) => (
-                <Badge
-                  key={c.label}
-                  label={c.label}
-                  intent={c.intent}
-                  variant="secondary"
-                  leftIcon={<Icon name={c.icon} size={16} color={t.text.primary} />}
-                />
-              ))}
+        <Animated.View style={{ opacity: heroOpacity }}>
+          <ImageBackground source={heroSource} style={styles.hero} resizeMode="cover">
+            <LinearGradient
+              colors={[
+                withAlpha(t.background.primary, opacity[0]),
+                withAlpha(t.background.primary, opacity[50]),
+                withAlpha(t.background.primary, opacity[100]),
+              ]}
+              locations={hero.fadeStops}
+              style={styles.heroGradient}
+              pointerEvents="none"
+            />
+            <View
+              style={styles.heroText}
+              onLayout={(e) => setHeroTextTop(e.nativeEvent.layout.y)}
+            >
+              <View style={styles.chips}>
+                {vm.chips.map((c) => (
+                  <Badge
+                    key={c.label}
+                    label={c.label}
+                    intent={c.intent}
+                    variant="secondary"
+                    leftIcon={<Icon name={c.icon} size={16} color={t.text.primary} />}
+                  />
+                ))}
+              </View>
+              {/* Once it's yours it goes by the name you gave it, and the species
+                  drops to the line below, next to where it lives. */}
+              <Text style={styles.heroTitle}>{title}</Text>
+              <Text style={styles.heroSubtitle}>
+                {isOwned
+                  ? [vm.latinName || vm.commonName, room?.name].filter(Boolean).join(' · ')
+                  : vm.latinName}
+              </Text>
             </View>
-            {/* Once it's yours it goes by the name you gave it, and the species
-                drops to the line below, next to where it lives. */}
-            <Text style={styles.heroTitle}>{isOwned ? record.nickname : vm.commonName}</Text>
-            <Text style={styles.heroSubtitle}>
-              {isOwned
-                ? [vm.latinName || vm.commonName, room?.name].filter(Boolean).join(' · ')
-                : vm.latinName}
-            </Text>
-          </View>
-        </ImageBackground>
+          </ImageBackground>
+        </Animated.View>
 
         {/* ── Content ──────────────────────────────────────────── */}
         <View style={styles.content}>
@@ -456,7 +538,44 @@ export default function ProductPage({ plantId, plant, owned = false }) {
             </Section>
           ) : null}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+      <View style={[styles.bar, { paddingTop: insets.top }]} pointerEvents="box-none">
+        <Animated.View style={[styles.barFill, { opacity: barOpacity }]} pointerEvents="none">
+          <LinearGradient
+            colors={[
+              withAlpha(t.background.primary, opacity[100]),
+              withAlpha(t.background.primary, opacity[75]),
+            ]}
+            style={styles.barEdge}
+          />
+        </Animated.View>
+        <View style={styles.barRow} pointerEvents="box-none">
+          <View style={styles.barSide}>
+            <NavButton icon="chevron-left" label="Back" onPress={back} t={t} />
+          </View>
+          <Animated.Text
+            style={[styles.barTitle, { opacity: barOpacity }]}
+            numberOfLines={1}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {title}
+          </Animated.Text>
+          <View style={[styles.barSide, styles.barActions]}>
+            {isOwned ? (
+              <>
+                <NavButton icon="settings" label="Edit reminders" onPress={openReminders} t={t} />
+                <NavButton
+                  icon="more-horizontal"
+                  label="More options"
+                  onPress={() => setMenuOpen((o) => !o)}
+                  t={t}
+                />
+              </>
+            ) : null}
+          </View>
+        </View>
+      </View>
 
       {/* ── Sticky CTA (only before the plant is added) ────────── */}
       {!isOwned ? (
@@ -470,11 +589,19 @@ export default function ProductPage({ plantId, plant, owned = false }) {
         </View>
       ) : null}
 
+      {menuOpen ? (
+        <Overlay onPress={() => setMenuOpen(false)} color="transparent" opacity={1}>
+          <View style={[styles.menuAnchor, { top: insets.top + navbar.height }]}>
+            <DropdownMenu items={overflowItems} />
+          </View>
+        </Overlay>
+      ) : null}
+
       <RenamePlantSheet
         visible={renaming}
         name={record?.nickname ?? ''}
         onClose={() => setRenaming(false)}
-        onSave={(name) => garden.renamePlant(record.id, name)}
+        onSave={renamePlant}
       />
 
       <MovePlantSheet
@@ -482,18 +609,8 @@ export default function ProductPage({ plantId, plant, owned = false }) {
         rooms={garden.rooms}
         roomId={record?.roomId}
         onClose={() => setMoving(false)}
-        onMove={(roomId) => garden.movePlant(record.id, roomId)}
-        onAddRoom={(name) => garden.addRoom(name)}
-      />
-
-      <Dialog
-        testID="archive-dialog"
-        visible={confirm === 'archive'}
-        onClose={() => setConfirm(null)}
-        title="Archive this plant?"
-        description="It stops producing tasks and reminders. You can restore it anytime."
-        primaryAction={{ label: 'Archive', onPress: archivePlant }}
-        secondaryAction={{ label: 'Cancel', onPress: () => setConfirm(null) }}
+        onMove={movePlant}
+        onAddRoom={addRoom}
       />
 
       <Dialog
@@ -514,38 +631,48 @@ const makeStyles = (t) =>
     screen: { flex: 1, backgroundColor: t.background.primary },
     scroll: { flex: 1 },
 
-    // ── Hero ── (photo treatments are theme-independent)
+    // ── Hero ──
     hero: {
-      height: 336,
+      height: hero.height,
       paddingHorizontal: space[16],
-      paddingBottom: 25,
+      paddingBottom: space[16],
       justifyContent: 'flex-end',
-      backgroundColor: HERO_FALLBACK,
+      backgroundColor: t.surface.primary,
     },
-    heroScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: HERO_SCRIM },
-    heroGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 117 },
-    navRow: {
-      position: 'absolute',
-      left: space[16],
-      right: space[16],
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    navBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: GLASS,
-      borderWidth: stroke[1],
-      borderColor: GLASS_BORDER,
-    },
-    navBtnPressed: { backgroundColor: GLASS_PRESSED },
+    heroGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: hero.fadeHeight },
     heroText: { gap: space[4] },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
-    heroTitle: { ...typography.headingLarge, color: OVER_PHOTO_TEXT },
-    heroSubtitle: { ...typography.bodyLarge, color: OVER_PHOTO_SUBTLE },
+    heroTitle: { ...typography.headingLarge, color: t.text.primary },
+    heroSubtitle: { ...typography.bodyLarge, color: t.text.secondary },
+
+    // ── Navigation bar ── (Figma "Navigation Bar", Size=Small)
+    bar: { position: 'absolute', top: 0, left: 0, right: 0 },
+    barFill: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: t.background.primary,
+      borderBottomLeftRadius: radius[24],
+      borderBottomRightRadius: radius[24],
+    },
+    // Content softens into the bar rather than cutting off at its edge.
+    barEdge: { position: 'absolute', top: -80, left: 0, right: 0, height: 140, },
+    barRow: {
+      height: navbar.height,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: space[16],
+      gap: space[8],
+    },
+    barTitle: {
+      flex: 1,
+      ...typography.headingExtraSmall,
+      color: t.text.primary,
+      textAlign: 'center',
+    },
+    // Both sides are as wide as the owned bar's two buttons, so the title
+    // stays centred with one button on the left and none or two on the right.
+    barSide: { minWidth: BAR_SIDE, flexDirection: 'row' },
+    barActions: { justifyContent: 'flex-end', gap: space[8] },
+    menuAnchor: { position: 'absolute', right: space[16] },
 
     // ── Content ──
     content: { padding: space[16], paddingTop: space[24], gap: space[24] },
@@ -553,13 +680,15 @@ const makeStyles = (t) =>
     heading: { ...typography.headingSmallEmphasized, color: t.text.primary },
     headingLarge: { ...typography.headingMediumEmphasized, color: t.text.primary },
     bodyText: { ...typography.bodyMedium, color: t.text.secondary },
+    about: { gap: space[4] },
+    aboutToggle: { paddingLeft: 0, paddingVertical: space[4] },
     segment: { alignSelf: 'stretch' },
 
     // ── Today's tasks ──
     taskList: { gap: space[12] },
     taskTile: {
-      width: 40,
-      height: 40,
+      width: list.beforeBadgeSize,
+      height: list.beforeBadgeSize,
       borderRadius: radius.full,
       alignItems: 'center',
       justifyContent: 'center',
@@ -567,8 +696,8 @@ const makeStyles = (t) =>
     taskGlyph: { fontSize: 20 },
     taskAfter: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
     doneIcon: {
-      width: 40,
-      height: 40,
+      width: list.beforeBadgeSize,
+      height: list.beforeBadgeSize,
       borderRadius: radius.full,
       backgroundColor: t.brand.primary,
       alignItems: 'center',
@@ -597,8 +726,8 @@ const makeStyles = (t) =>
 
     // ── Actions ──
     actionIcon: {
-      width: 40,
-      height: 40,
+      width: list.beforeBadgeSize,
+      height: list.beforeBadgeSize,
       borderRadius: radius.full,
       backgroundColor: t.surface.secondary,
       alignItems: 'center',

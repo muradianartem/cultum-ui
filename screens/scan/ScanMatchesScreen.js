@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Icon, NavigationBar, State } from '../../components';
 import { useRouter } from '../../routing';
+import { useLeaveAcquisition } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, space, typography } from '../../theme/foundations';
 import { candidateToCard, matchesCaption } from '../../api/mapPlant';
@@ -36,7 +37,8 @@ import { copyFor } from './errorCopy';
  */
 export default function ScanMatchesScreen({ photoUri, scan }) {
   const insets = useSafeAreaInsets();
-  const { navigate, back, reset } = useRouter();
+  const { navigate, back } = useRouter();
+  const leave = useLeaveAcquisition();
   const t = useTheme();
   const styles = makeStyles(t);
 
@@ -84,7 +86,7 @@ export default function ScanMatchesScreen({ photoUri, scan }) {
         <NavigationBar
           title="Matching"
           leading="close"
-          onLeadingPress={() => reset('today')}
+          onLeadingPress={leave}
           buttonVariant="secondary"
           divider={false}
         />

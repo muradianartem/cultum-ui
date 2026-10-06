@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import ScanCameraScreen from '../ScanCameraScreen';
+import { onboardingSession } from '../../../onboarding/testing';
 import { createScan } from '../../../api/scans';
 import { MOCK_SCAN } from '../../../api/__mocks__/scanFixtures';
 
@@ -122,6 +123,53 @@ test('with permission granted, firing the shutter scans and opens Matches', asyn
   expect(api.params.scan).toBe(MOCK_SCAN);
 });
 
+// Figma "Scan / Loading": while the scan runs, the user sees their own photo.
+describe('Searching', () => {
+  const scanHangs = async () => {
+    mockPermissionState = { granted: true, canAskAgain: true };
+    let settle;
+    createScan.mockImplementationOnce(
+      () => new Promise((resolve, reject) => (settle = { resolve, reject }))
+    );
+    const tree = create(<ScanCameraScreen />);
+    // Not awaited: the scan stays in flight.
+    const node = tree.root.find(
+      (n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Shutter'
+    );
+    await act(async () => {
+      node.props.onPress();
+    });
+    return { tree, settle: () => settle };
+  };
+
+  test('shows the captured photo and the searching copy', async () => {
+    const { tree } = await scanHangs();
+    expect(texts(tree)).toContain('Searching for your plant…');
+    const photos = tree.root.findAll(
+      (n) => n.props.source && n.props.source.uri === 'file://captured.jpg'
+    );
+    expect(photos.length).toBeGreaterThan(0);
+    // The scan never settles; unmount so its "slow" timer can't fire after
+    // the run has finished.
+    act(() => tree.unmount());
+  });
+
+  test('closing mid-scan leaves, and a late answer does not pull the user into Matches', async () => {
+    const { tree, settle } = await scanHangs();
+    const close = tree.root
+      .findAll((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Close')
+      .pop();
+    act(() => close.props.onPress());
+    expect(api.route).toBe('today');
+
+    await act(async () => {
+      settle().resolve(MOCK_SCAN);
+    });
+    expect(api.route).toBe('today');
+    act(() => tree.unmount());
+  });
+});
+
 test('uploads the original when preparation fails, rather than dropping the photo', async () => {
   mockPermissionState = { granted: true, canAskAgain: true };
   prepareScanImage.mockResolvedValueOnce(null);
@@ -202,5 +250,40 @@ describe('failure copy', () => {
 
     expect(texts(tree)).toContain('Couldn’t take the photo.');
     expect(createScan).not.toHaveBeenCalled();
+  });
+});
+
+// Close leaves the scan flow. Where to depends on who started it.
+describe('Close', () => {
+  const close = (tree) =>
+    act(() => {
+      tree.root
+        .findAll((n) => typeof n.props.onPress === 'function' && n.props.accessibilityLabel === 'Close')
+        .pop()
+        .props.onPress();
+    });
+
+  test.each([
+    ['live camera', true],
+    ['permission rationale', false],
+  ])('from the %s, an ordinary scan closes to Today with no history', (_, granted) => {
+    mockPermissionState = { granted, canAskAgain: true };
+    const tree = create(<ScanCameraScreen />);
+    close(tree);
+    expect(api.route).toBe('today');
+    expect(api.canGoBack).toBe(false);
+  });
+
+  test.each([
+    ['live camera', true],
+    ['permission rationale', false],
+  ])('from the %s, an onboarding scan closes to "Add your first plant"', (_, granted) => {
+    mockPermissionState = { granted, canAskAgain: true };
+    const session = onboardingSession(<ScanCameraScreen />);
+    const tree = create(session.element);
+    session.begin();
+    close(tree);
+    expect(api.route).toBe('onboarding');
+    expect(session.current).toMatchObject({ addingPlant: false, stage: 'intro', step: 3 });
   });
 });

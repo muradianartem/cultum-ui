@@ -13,30 +13,20 @@ import path from 'path';
 
 const ROOT = path.resolve(__dirname, '../..');
 
-const BACKDROP = 'rgba(14,18,11,0.4)';
-
 const ALLOWED = {
   'theme/tokens.js': [
     'rgba(16,16,16,0.12)', 'rgba(16,16,16,0.11)', 'rgba(16,16,16,0.10)',
-    'rgb(25, 27, 21)', '#7CD52B',
+    'rgba(16,16,16,0.09)', 'rgb(25, 27, 21)',
   ],
-  'components/BottomSheet.js': [BACKDROP],
   'components/Snackbar.js': ['#383937', '#FCFCFC'],
   'components/Avatar.js': ['rgba(21,21,21,0.4)', '#FAFAFA'],
-  'screens/AddReminderSheet.js': [BACKDROP],
-  'screens/TaskSheet.js': [BACKDROP],
-  'screens/ProductPage.js': [
-    '#0E120B', 'rgba(21,23,20,0.28)', 'rgba(21,23,20,0)', '#151714',
-    'rgba(250,250,250,0.18)', 'rgba(250,250,250,0.34)', 'rgba(250,250,250,0.6)',
-    '#FFFFFF', '#DADBDA',
-  ],
   'screens/LoginScreen.js': [
     'rgba(13,15,10,0.5)', 'rgba(13,15,10,0.32)', 'rgba(13,15,10,0.9)', 'rgba(13,15,10,1)',
   ],
   'screens/PaywallScreen.js': ['rgba(13,15,10,0.45)', 'rgba(13,15,10,0.05)'],
   'screens/scan/ScanCameraScreen.js': [
     '#0E120B', '#151515', '#606160', '#FAFAFA', '#FFFFFF',
-    'rgba(0,0,0,0.55)', 'rgba(0,0,0,0)', 'rgba(14,18,11,0.6)',
+    'rgba(0,0,0,0.55)', 'rgba(0,0,0,0)',
   ],
   'screens/scan/Viewfinder.js': ['rgba(0, 0, 0, 0.3)', '#FAFAFA'],
 };

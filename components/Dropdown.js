@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { textInput } from '../theme/tokens';
+import { typography } from '../theme/foundations';
+import Icon from './Icon';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
@@ -71,7 +73,7 @@ export default function Dropdown({
         <Text numberOfLines={1} style={[styles.value, ink]}>
           {value || placeholder}
         </Text>
-        <Text style={[styles.chevron, ink]}>▾</Text>
+        <Icon name="outlined-arrow-more" size={24} color={ink.color} />
       </Pressable>
 
       {helperText ? (
@@ -86,8 +88,11 @@ export default function Dropdown({
 const styles = StyleSheet.create({
   wrap: { gap: 8, alignSelf: 'stretch' },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
-  optional: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
+  // Figma "Dropdown – P2": label, "Optional" and helper are Inter Medium
+  // 12/140% (the Caption Emphasized values, unnamed in Figma); the value is
+  // Body Medium; the trailing icon is icons/outlined/arrow-more.
+  label: { ...typography.captionEmphasized },
+  optional: { ...typography.captionEmphasized },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -98,7 +103,6 @@ const styles = StyleSheet.create({
     borderRadius: textInput.radius,
   },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  value: { flex: 1, fontSize: 14 },
-  chevron: { fontSize: 14 },
-  helper: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
+  value: { flex: 1, ...typography.bodyMedium },
+  helper: { ...typography.captionEmphasized },
 });
