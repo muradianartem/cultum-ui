@@ -1,7 +1,15 @@
+import { StyleSheet } from 'react-native';
 import { act } from 'react-test-renderer';
+import { State } from '../../components';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
 import TaskCard from '../TaskCard';
 import TodayScreen from '../TodayScreen';
+
+// Unknown plan by default, as under the real provider before it hydrates.
+let mockEntitlement = { ready: false, isPlus: false };
+jest.mock('../../billing/EntitlementProvider', () => ({
+  useEntitlement: () => mockEntitlement,
+}));
 
 // Mid-afternoon, so "Good afternoon" is deterministic and a 09:00 reminder due
 // today has already come due.
@@ -45,7 +53,10 @@ const pressIn = (node, label) =>
       .props.onPress(),
   );
 
-afterEach(cleanupTrees);
+afterEach(() => {
+  cleanupTrees();
+  mockEntitlement = { ready: false, isPlus: false };
+});
 
 test('greets by time of day, and by name once there is one', () => {
   expect(render().texts()).toContain('Good afternoon');
@@ -115,6 +126,20 @@ test('completing everything shows "All caught up" and previews what is next', ()
   expect(t).toContain('Your plants are on their own schedule.');
   expect(t).toContain('Next up');
   expect(t).toContain('Trim the aerial roots'); // the soonest upcoming task
+  expect(t).not.toContain('Today’s tasks'); // nothing left to complete
+  expect(t).not.toContain('Complete All');
+});
+
+test('"All caught up" fills the free space so Next up sits at the bottom', () => {
+  const r = render();
+  r.press('Complete All');
+  r.press('Complete 2 tasks');
+
+  const state = r.tree.root.findByType(State);
+  expect(StyleSheet.flatten(state.props.style)).toMatchObject({
+    flex: 1,
+    justifyContent: 'center',
+  });
 });
 
 test('an empty garden offers a way in rather than "all caught up"', () => {
@@ -122,6 +147,8 @@ test('an empty garden offers a way in rather than "all caught up"', () => {
   expect(t).toContain('No plants yet');
   expect(t).toContain('Add a plant');
   expect(t).not.toContain('Your plants are on their own schedule.');
+  expect(t).not.toContain('Today’s tasks');
+  expect(t).not.toContain('Complete All');
 });
 
 test('renders the 4-tab bar with Today active', () => {
@@ -231,5 +258,23 @@ describe('the snackbar takes the action back', () => {
 
     r.press('Undo');
     expect(r.texts()).toContain('Watering');
+  });
+});
+
+describe('the upgrade banner', () => {
+  test('a free account is offered Plus, and the banner opens the paywall', () => {
+    mockEntitlement = { ready: true, isPlus: false };
+    const r = render();
+    expect(r.texts()).toContain('Try Cultum Plus free');
+    r.press('Try Cultum Plus free');
+    expect(r.router.route).toBe('paywall');
+    expect(r.router.params).toEqual({ source: 'today_banner' });
+  });
+
+  test('is never shown to Plus, or before the plan is known', () => {
+    mockEntitlement = { ready: true, isPlus: true };
+    expect(render().texts()).not.toContain('Try Cultum Plus free');
+    mockEntitlement = { ready: false, isPlus: false };
+    expect(render().texts()).not.toContain('Try Cultum Plus free');
   });
 });

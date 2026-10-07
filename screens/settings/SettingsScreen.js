@@ -8,7 +8,7 @@
 // ever one is visible at a time.
 
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as StoreReview from 'expo-store-review';
 import {
@@ -18,8 +18,10 @@ import {
   Icon,
   ListItem,
   NavigationBar,
+  PlusBadge,
   StateIcon,
   TabBar,
+  useSnackbarOffset,
 } from '../../components';
 import { useRouter } from '../../routing';
 import { useAuth } from '../../auth/AuthProvider';
@@ -27,7 +29,7 @@ import { useEntitlement } from '../../billing/EntitlementProvider';
 import { usePrefs } from '../../prefs';
 import { deleteAccount } from '../../api/account';
 import { useTheme } from '../../theme/ThemeProvider';
-import { space } from '../../theme/foundations';
+import { space, typography } from '../../theme/foundations';
 import { TABS } from '../navConfig';
 import { Section } from './SettingsShell';
 import EditProfileSheet from './EditProfileSheet';
@@ -56,6 +58,10 @@ export default function SettingsScreen() {
   // them. Shown before the sign-out that unmounts this whole tree.
   const [deleteNotice, setDeleteNotice] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  // The snackbar sits above the tab bar; measure the bottom block rather than
+  // hardcode a height, so it tracks the safe-area inset.
+  const [bottomH, setBottomH] = useState(0);
+  useSnackbarOffset(bottomH);
 
   const chevron = <Icon name="chevron-right" size={20} color={t.text.primary} />;
   const badge = (name) => (
@@ -126,14 +132,31 @@ export default function SettingsScreen() {
             // <Card> draws the 48px badge itself, so this is the glyph alone.
             icon={<Icon name="power" size={24} color={t.text.primary} />}
             title="Upgrade to Cultum Plus"
-            subtitle="Unlimited plants, smarter reminders and rooms."
-            primaryAction={{ label: 'Upgrade', onPress: () => navigate('paywall') }}
+            subtitle="Unlimited scans, plants and custom reminders."
+            // Figma 387:1728: the one action fills the card's width.
+            primaryAction={{
+              label: 'Upgrade',
+              fullWidth: true,
+              onPress: () => navigate('paywall', { source: 'settings' }),
+            }}
           />
         ) : null}
 
         <Section>
           <ListItem
-            title={profileName ?? 'Your profile'}
+            title={
+              // Figma "Settings [Upgraded]": a Plus member's name carries the tag.
+              isPlus ? (
+                <View style={styles.nameRow}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {profileName ?? 'Your profile'}
+                  </Text>
+                  <PlusBadge icon={false} />
+                </View>
+              ) : (
+                profileName ?? 'Your profile'
+              )
+            }
             // No placeholder when the email is unknown — a session established
             // before it was recorded, or an Apple sign-in that refused the
             // scope. "Unknown" would read as an error the user cannot fix.
@@ -148,7 +171,6 @@ export default function SettingsScreen() {
         <Section label="Preferences">
           <ListItem
             title="Notifications"
-            subtitle="Where the nudge lands"
             before={badge('bell')}
             value="App"
             after={chevron}
@@ -157,7 +179,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="Appearance"
-            subtitle="Light, dark, or whatever the phone is doing"
             before={badge('sun')}
             value={APPEARANCE_LABEL[appearance]}
             after={chevron}
@@ -189,7 +210,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="About Cultum"
-            subtitle="Version, privacy, terms and licences"
             before={badge('info')}
             value={APP_VERSION}
             after={chevron}
@@ -207,7 +227,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="Delete account"
-            destructive
             before={badge('trash')}
             after={chevron}
             onPress={() => {
@@ -218,7 +237,10 @@ export default function SettingsScreen() {
         </Section>
       </ScrollView>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom }]}
+        onLayout={(e) => setBottomH(e.nativeEvent.layout.height)}
+      >
         <TabBar
           tabs={tabBarTabs}
           value="settings"
@@ -289,6 +311,8 @@ const makeStyles = (t) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.background.primary },
     scroll: { flex: 1 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
+    name: { ...typography.bodyLarge, color: t.text.primary, flexShrink: 1 },
     content: {
       paddingTop: space[12],
       paddingHorizontal: space[16],

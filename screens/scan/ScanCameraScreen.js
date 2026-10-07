@@ -13,8 +13,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { ButtonIcon, Icon, State } from '../../components';
+import { Badge, ButtonIcon, Icon, State } from '../../components';
 import { useRouter } from '../../routing';
+import { useEntitlement } from '../../billing/EntitlementProvider';
+import { isPaywallError, scanQuota } from '../../billing/limits';
+import { useUpgrade } from '../../billing/useUpgrade';
 import { useLeaveAcquisition } from '../../onboarding';
 import { useTheme, useThemeMode } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
@@ -23,6 +26,7 @@ import { warmUp } from '../../api/health';
 import { prepareScanImage } from '../../lib/prepareImage';
 import Viewfinder from './Viewfinder';
 import { copyFor } from './errorCopy';
+import ScanLimitSheet from './ScanLimitSheet';
 
 // Camera chrome sits over a live preview, so these are fixed rather than themed:
 // the Figma frame's controls are the dark pill regardless of light/dark mode.
@@ -100,6 +104,10 @@ export default function ScanCameraScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { navigate } = useRouter();
+  const entitlement = useEntitlement();
+  const openPaywall = useUpgrade();
+  // Free accounts only: null on Plus or while the plan is unknown.
+  const quota = scanQuota(entitlement);
   // Close goes to Today — or, mid-onboarding, back to "Add your first plant".
   const leave = useLeaveAcquisition();
   const t = useTheme();
@@ -115,6 +123,12 @@ export default function ScanCameraScreen() {
   const [showDetail, setShowDetail] = useState(false);
   const [slow, setSlow] = useState(false);
   const [photoUri, setPhotoUri] = useState(null);
+  // "Today's free scans are used" — up on arrival with none left, so nobody
+  // frames a shot only to be told after.
+  const [limitOpen, setLimitOpen] = useState(() => quota?.left === 0);
+  // What a 402 said — fresher than the cached usage, and there even when the
+  // cache didn't know this account was free.
+  const [refusal, setRefusal] = useState(null);
   const cameraRef = useRef(null);
   // Set when the user closes mid-scan, so a late answer doesn't pull them
   // back into Matches after they've left.
@@ -155,12 +169,23 @@ export default function ScanCameraScreen() {
       // upload slow enough to drop, and the picker's HEIC isn't accepted at all.
       const prepared = await prepareScanImage(uri, dimensions);
       const scan = await createScan(prepared ?? uri);
+      // One fewer free scan: refetch so the counter is right on the way back.
+      if (quota) entitlement.refresh();
       if (abandonedRef.current) return;
       setPhase('ready');
       // Show the original, not the downscaled copy that went to the server.
       navigate('scan-matches', { photoUri: uri, scan });
     } catch (e) {
       if (abandonedRef.current) return;
+      // Out of free scans (the cached count was stale): the limit sheet, not
+      // an error — nothing went wrong.
+      if (isPaywallError(e, 'scan_limit')) {
+        setPhase('ready');
+        setRefusal(e.paywall ?? {});
+        setLimitOpen(true);
+        entitlement.refresh();
+        return;
+      }
       fail(e?.code ?? 'http', e?.detail ?? e?.message);
     }
   }
@@ -171,8 +196,15 @@ export default function ScanCameraScreen() {
     leave();
   }
 
+  // Out of free scans: say so up front rather than spend an upload on a 402.
+  const outOfScans = () => {
+    if (quota?.left !== 0) return false;
+    setLimitOpen(true);
+    return true;
+  };
+
   async function onCapture() {
-    if (busy || !cameraRef.current) return;
+    if (busy || !cameraRef.current || outOfScans()) return;
     let photo;
     try {
       photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
@@ -184,7 +216,7 @@ export default function ScanCameraScreen() {
   }
 
   async function onUpload() {
-    if (busy) return;
+    if (busy || outOfScans()) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -307,7 +339,17 @@ export default function ScanCameraScreen() {
 
       {/* Capture block */}
       <View style={[styles.captureBlock, { paddingBottom: insets.bottom + space[12] }]}>
-        <Text style={styles.captureCaption}>Frame the plant, a leaf, or its label</Text>
+        {/* Figma "Scan / Camera [Free: 3 of 5 scans left]": on a free plan the
+            counter takes the caption's place. */}
+        {quota ? (
+          <Badge
+            label={`${quota.left} of ${quota.limit} free scans left today`}
+            size="lg"
+            style={styles.scanCounter}
+          />
+        ) : (
+          <Text style={styles.captureCaption}>Frame the plant, a leaf, or its label</Text>
+        )}
         <View style={styles.shutterRow}>
           <SideControl icon="image" label="Upload" onPress={onUpload} styles={styles} />
 
@@ -391,6 +433,20 @@ export default function ScanCameraScreen() {
           ) : null}
         </View>
       ) : null}
+
+      {quota || refusal ? (
+        <ScanLimitSheet
+          visible={limitOpen}
+          limit={refusal?.limit ?? quota?.limit}
+          resetsAt={refusal?.resetsAt ?? quota?.resetsAt}
+          trialUsed={!!entitlement.subscription?.trial_ends_at}
+          onUpgrade={() => {
+            setLimitOpen(false);
+            openPaywall('scan_limit');
+          }}
+          onClose={() => setLimitOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -443,6 +499,7 @@ const makeStyles = (t) =>
       alignItems: 'stretch',
     },
     captureCaption: { ...typography.bodyLarge, color: OVER_TEXT, textAlign: 'center' },
+    scanCounter: { alignSelf: 'center' },
     shutterRow: {
       flexDirection: 'row',
       alignItems: 'center',

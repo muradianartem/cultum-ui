@@ -32,6 +32,13 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 jest.mock('../../../api/scans', () => ({ createScan: jest.fn() }));
+
+// Unknown plan unless a test says otherwise — no counter, no sheet.
+const mockRefresh = jest.fn();
+let mockEntitlement = { ready: false, isPlus: false };
+jest.mock('../../../billing/EntitlementProvider', () => ({
+  useEntitlement: () => ({ ...mockEntitlement, refresh: mockRefresh }),
+}));
 jest.mock('../../../api/health', () => ({ warmUp: jest.fn(async () => true) }));
 jest.mock('../../../lib/prepareImage', () => ({ prepareScanImage: jest.fn() }));
 
@@ -75,6 +82,7 @@ const texts = (tree) =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockEntitlement = { ready: false, isPlus: false };
   mockTakePicture = jest.fn(async () => ({
     uri: 'file://captured.jpg',
     width: 4032,
@@ -285,5 +293,88 @@ describe('Close', () => {
     close(tree);
     expect(api.route).toBe('onboarding');
     expect(session.current).toMatchObject({ addingPlant: false, stage: 'intro', step: 3 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Figma "Scan / Camera [Free: 3 of 5 scans left]" + "Scan / Daily limit reached"
+describe('free plan scan limit', () => {
+  const free = (scansToday, extra = {}) => {
+    mockPermissionState = { granted: true, canAskAgain: true };
+    mockEntitlement = {
+      ready: true,
+      isPlus: false,
+      limits: { scans_per_day: 3 },
+      usage: { scans_today: scansToday, ...extra },
+      subscription: null,
+    };
+  };
+
+  test('counts down the free scans in place of the caption', () => {
+    free(1);
+    const t = texts(create(<ScanCameraScreen />));
+    expect(t).toContain('2 of 3 free scans left today');
+    expect(t).not.toContain('Frame the plant, a leaf, or its label');
+  });
+
+  test('Plus sees the caption, not a counter', () => {
+    mockPermissionState = { granted: true, canAskAgain: true };
+    mockEntitlement = { ready: true, isPlus: true, limits: { scans_per_day: 30 }, usage: {} };
+    const t = texts(create(<ScanCameraScreen />));
+    expect(t).toContain('Frame the plant, a leaf, or its label');
+    expect(t.join(' ')).not.toMatch(/free scans/);
+  });
+
+  test('a successful scan refreshes the count', async () => {
+    free(0);
+    createScan.mockResolvedValueOnce(MOCK_SCAN);
+    await press(create(<ScanCameraScreen />), 'Shutter');
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  test('with none left, the sheet is up and the shutter never uploads', async () => {
+    free(3);
+    const tree = create(<ScanCameraScreen />);
+    expect(texts(tree)).toContain('Today’s 3 free scans are used');
+    await press(tree, 'Skip for now');
+    expect(texts(tree)).not.toContain('Today’s 3 free scans are used');
+
+    await press(tree, 'Shutter');
+    expect(mockTakePicture).not.toHaveBeenCalled();
+    expect(createScan).not.toHaveBeenCalled();
+    expect(texts(tree)).toContain('Today’s 3 free scans are used');
+  });
+
+  test('the trial button opens the paywall', async () => {
+    free(3);
+    const tree = create(<ScanCameraScreen />);
+    await press(tree, 'Start 7-day free trial');
+    expect(api.route).toBe('paywall');
+    expect(api.params).toEqual({ source: 'scan_limit' });
+  });
+
+  test('a 402 from the server opens the sheet, not the error screen', async () => {
+    free(1);
+    createScan.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with 402'), {
+        status: 402,
+        code: 'paywall',
+        paywall: { reason: 'scan_limit', limit: 3, resetsAt: null },
+      })
+    );
+    const tree = create(<ScanCameraScreen />);
+    await press(tree, 'Shutter');
+    const t = texts(tree);
+    expect(t).toContain('Today’s 3 free scans are used');
+    expect(t).not.toContain('Try again');
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  test('someone who has had the trial is offered a plain upgrade', () => {
+    free(3);
+    mockEntitlement.subscription = { trial_ends_at: '2026-09-01T00:00:00Z' };
+    const t = texts(create(<ScanCameraScreen />));
+    expect(t).toContain('Upgrade to Plus');
+    expect(t).not.toContain('Start 7-day free trial');
   });
 });

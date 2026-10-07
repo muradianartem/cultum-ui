@@ -13,6 +13,11 @@ import AddPlantScreen from '../AddPlantScreen';
 import { OnboardingProvider, useOnboarding } from '../../../onboarding';
 import { FRESH } from '../../../onboarding/storage';
 
+let mockEntitlement = { ready: false, isPlus: false };
+jest.mock('../../../billing/EntitlementProvider', () => ({
+  useEntitlement: () => mockEntitlement,
+}));
+
 // Fixed "today" so every date label is deterministic: Thursday 10 Sep 2026.
 const TODAY = new Date(2026, 8, 10);
 
@@ -56,7 +61,10 @@ function create(props = {}) {
   return harness;
 }
 
-afterEach(cleanupTrees);
+afterEach(() => {
+  cleanupTrees();
+  mockEntitlement = { ready: false, isPlus: false };
+});
 
 const texts = (r) => r.texts();
 const press = (r, label) => r.press(label);
@@ -539,5 +547,43 @@ describe('in onboarding', () => {
     press(tree, 'Done');
     expect(tree.router.route).toBe('today');
     expect(ob.savedPlantId).toBeNull();
+  });
+});
+
+describe('on the free plan', () => {
+  const FREE = { ready: true, isPlus: false, limits: { plants: 1, custom_reminders: false }, usage: {} };
+
+  test('a plant over the limit opens the paywall rather than an error', async () => {
+    mockEntitlement = FREE;
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    tree.api.fail(
+      'addPlant',
+      Object.assign(new Error('Request failed with 402'), {
+        status: 402,
+        code: 'paywall',
+        paywall: { reason: 'plant_limit', limit: 1 },
+      }),
+    );
+
+    press(tree, 'Continue');
+    await tree.settle();
+    expect(alert).not.toHaveBeenCalled();
+    expect(tree.router.route).toBe('paywall');
+    expect(tree.router.params).toEqual({ source: 'plant_limit' });
+  });
+
+  test('custom reminders carry the Plus badge and explain themselves, keeping the draft', async () => {
+    mockEntitlement = FREE;
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const tree = create();
+    await walkTo(tree, 'reminders');
+    expect(texts(tree)).toContain('Plus');
+
+    press(tree, 'Add custom reminder');
+    expect(alert).toHaveBeenCalledWith('Custom reminders come with Plus', expect.any(String));
+    expect(tree.router.route).toBe('add-plant');
+    expect(sheetVisible(tree, 'add-reminder-sheet')).toBe(false);
   });
 });

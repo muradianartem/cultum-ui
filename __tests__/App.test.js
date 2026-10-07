@@ -139,7 +139,7 @@ test('with no stored tokens, App shows the Login screen', async () => {
   loadTokens.mockResolvedValue(null);
   const tree = await renderApp();
   expect(texts(tree)).toContain('Continue with Google');
-  expect(texts(tree)).not.toContain('Today’s tasks');
+  expect(texts(tree)).not.toContain('Grouping: By Task');
 });
 
 const STORED_TOKENS = {
@@ -159,7 +159,7 @@ test('with stored tokens, App boots to Today and wires the Scan/Add tab to the c
   const tree = await renderApp();
   // A fresh install has no plants, so Today opens on its empty state — what
   // matters here is that the router mounted at all.
-  expect(texts(tree)).toContain('Today’s tasks');
+  expect(texts(tree)).toContain('Grouping: By Task');
   expect(texts(tree)).toContain('No plants yet');
 
   const scanTab = tree.root.find(
@@ -180,7 +180,7 @@ test('restored tokens and no onboarding record: Today, and onboarding is recorde
   loadTokens.mockResolvedValue(STORED_TOKENS);
   const tree = await renderApp();
 
-  expect(texts(tree)).toContain('Today\u2019s tasks');
+  expect(texts(tree)).toContain('Grouping: By Task');
   expect(texts(tree)).not.toContain('Scan a plant');
   expect(savedOnboarding()).toMatchObject({ stage: 'complete' });
 });
@@ -191,7 +191,7 @@ test('an unfinished onboarding resumes on its step, not on Today', async () => {
   const tree = await renderApp();
 
   expect(texts(tree)).toContain('Add your plant');
-  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+  expect(texts(tree)).not.toContain('Grouping: By Task');
 });
 
 // While the garden's first load is in flight, Today's skeleton stands in for
@@ -206,7 +206,7 @@ test('a garden still loading shows the Today skeleton', async () => {
   );
   expect(loader.props.accessibilityLabel).toBe('Loading your garden');
   expect(texts(tree)).toContain('Upcoming');
-  expect(texts(tree)).not.toContain('Today\u2019s tasks');
+  expect(texts(tree)).not.toContain('Grouping: By Task');
 });
 
 test('a garden still loading under an unfinished onboarding keeps the plain spinner', async () => {
@@ -240,6 +240,6 @@ test('priced billing content does not open a paywall over Today either', async (
   getPaywall.mockResolvedValue(PAYWALL_RESPONSE);
   const tree = await renderApp();
 
-  expect(texts(tree)).toContain('Today\u2019s tasks');
+  expect(texts(tree)).toContain('Grouping: By Task');
   expect(texts(tree)).not.toContain('Cultum Plus,\nfree for 7 days');
 });

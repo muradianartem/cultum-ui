@@ -1,4 +1,4 @@
-import { CHIPS, DEFAULT_ABOUT } from './fallbacks';
+import { DEFAULT_ABOUT } from './fallbacks';
 import { API_BASE_URL } from './client';
 
 // The catalog serves its own images as root-relative /media/... paths, which RN's
@@ -13,8 +13,8 @@ export function mediaUrl(path) {
   return /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
 }
 
-// difficulty/toxicity arrive lowercase ('moderate', 'toxic'); the chips render
-// them as labels.
+// difficulty/toxicity arrive lowercase ('moderate', 'toxic'); Highlights and
+// the FAQ render them as labels.
 function titleCase(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -74,18 +74,6 @@ function temperatureValue(d) {
   const only = min ?? max;
   if (only != null) return `${only}℃ / ${cToF(only)}℉`;
   return null;
-}
-
-// Difficulty reads as a positive trait, toxicity as a warning. With neither
-// present, keep the static chips so the page never renders a bare header.
-function chips(d) {
-  const out = [];
-  if (d.difficulty) {
-    out.push({ label: titleCase(d.difficulty), intent: 'positive', icon: 'stickers' });
-  }
-  const toxic = d.toxicity ?? (d.toxic_to?.length ? 'toxic' : null);
-  if (toxic) out.push({ label: titleCase(toxic), intent: 'negative', icon: 'outlined-paw' });
-  return out.length ? out : CHIPS;
 }
 
 
@@ -252,7 +240,6 @@ export function speciesDetailToVM(d) {
     heroUri: mediaUrl(d.image_url),
     highlights: highlights(d),
     careActions: careActions(d),
-    chips: chips(d),
     faq: faq(d),
     speciesKey: d.species_key,
     // The raw detail rides along so a newly added plant has its care at once,
@@ -273,7 +260,6 @@ export function cardToVM(card) {
     heroUri: card.thumbUri ?? null,
     highlights: highlights({}),
     careActions: careActions({}),
-    chips: CHIPS,
     faq: [],
     speciesKey: card.speciesKey ?? null,
     detail: null,

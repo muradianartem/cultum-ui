@@ -8,7 +8,7 @@ import {
   faq,
   highlights,
 } from '../mapPlant';
-import { DEFAULT_ABOUT, CHIPS } from '../fallbacks';
+import { DEFAULT_ABOUT } from '../fallbacks';
 import { MOCK_DETAIL } from '../__mocks__/scanFixtures';
 
 // The watering cadence and the six Highlights tiles are where the raw
@@ -124,21 +124,6 @@ describe('speciesDetailToVM', () => {
     expect(fact({ temp_min_c: 10 }, 'temperature')).toBe('10℃ / 50℉');
   });
 
-  test('derives chips from difficulty and toxicity, keeping the static pair when neither exists', () => {
-    const vm = speciesDetailToVM(MOCK_DETAIL);
-    expect(vm.chips).toEqual([
-      { label: 'Easy', intent: 'positive', icon: 'stickers' },
-      { label: 'Toxic', intent: 'negative', icon: 'outlined-paw' },
-    ]);
-
-    // toxic_to alone is enough to warrant the warning chip
-    expect(speciesDetailToVM({ toxic_to: ['cats'] }).chips).toEqual([
-      { label: 'Toxic', intent: 'negative', icon: 'outlined-paw' },
-    ]);
-
-    expect(speciesDetailToVM({ common_name: 'Mystery' }).chips).toBe(CHIPS);
-  });
-
   test('defaults empty latinName and DEFAULT_ABOUT when detail is sparse', () => {
     const vm = speciesDetailToVM({ common_name: 'Mystery plant' });
     expect(vm.latinName).toBe('');
@@ -162,7 +147,6 @@ describe('cardToVM', () => {
     expect(vm.about).toBe(DEFAULT_ABOUT);
     expect(vm.highlights).toHaveLength(6);
     expect(vm.careActions).toHaveLength(3);
-    expect(vm.chips).toBeDefined();
     expect(vm.faq).toEqual([]); // nothing to answer from without detail
     expect(vm.speciesKey).toBe('dracaena-trifasciata');
   });
@@ -233,10 +217,6 @@ test('maps the live catalog payload into every care fact and chip', () => {
     '16–29℃ / 61–84℉',
     'Likes humidity',
     '—',
-  ]);
-  expect(vm.chips).toEqual([
-    { label: 'Moderate', intent: 'positive', icon: 'stickers' },
-    { label: 'Toxic', intent: 'negative', icon: 'outlined-paw' },
   ]);
   expect(vm.commonName).toBe('Swiss Cheese Plant');
 });

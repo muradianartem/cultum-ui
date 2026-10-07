@@ -258,6 +258,30 @@ describe('failure classification', () => {
     });
   });
 
+  test('a 402 carries which free-plan limit was hit', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 402,
+      text: async () =>
+        JSON.stringify({
+          detail: { code: 'scan_limit', limit: 3, resets_at: '2026-10-08T09:00:00Z', plan: 'free' },
+        }),
+    });
+    await expect(apiFetch('/scans')).rejects.toMatchObject({
+      code: 'paywall',
+      status: 402,
+      paywall: { reason: 'scan_limit', limit: 3, resetsAt: '2026-10-08T09:00:00Z' },
+    });
+  });
+
+  test('a 402 without a readable body is still a paywall', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 402, text: async () => 'Payment Required' });
+    await expect(apiFetch('/garden/plants')).rejects.toMatchObject({
+      code: 'paywall',
+      paywall: { reason: null, limit: null, resetsAt: null },
+    });
+  });
+
   test('an unreadable error body does not become a different error', async () => {
     fetch.mockResolvedValueOnce({
       ok: false,

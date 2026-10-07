@@ -93,17 +93,37 @@ function traceToken(token) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status = 0, code = 'http', detail = null } = {}) {
+  constructor(message, { status = 0, code = 'http', detail = null, paywall = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
-    // 'unauthorized' | 'offline' | 'network' | 'timeout' | 'http'
+    // 'unauthorized' | 'paywall' | 'offline' | 'network' | 'timeout' | 'http'
     this.code = code;
+    // A 402's structured answer: which free-plan limit was hit
+    // ({ reason: 'scan_limit' | 'plant_limit' | 'custom_reminders', limit,
+    // resetsAt }). null for every other failure.
+    this.paywall = paywall;
     // The underlying cause — the platform's transport message, or the server's
     // response body. Never shown as primary copy; it's what makes a TestFlight
     // report diagnosable instead of a guess.
     this.detail = detail;
   }
+}
+
+// The backend answers a free-plan limit with 402 and
+// {"detail": {"code", "limit", "resets_at"?, ...}} (app/services/entitlements.py
+// PaywallRequired). Anything unparseable still reads as a paywall, just
+// without a reason.
+function paywallFrom(text) {
+  let d = null;
+  try {
+    d = JSON.parse(text)?.detail;
+  } catch {}
+  return {
+    reason: typeof d?.code === 'string' ? d.code : null,
+    limit: d?.limit ?? null,
+    resetsAt: d?.resets_at ?? null,
+  };
 }
 
 // Read an error response body for the detail field. Bounded and non-throwing:
@@ -240,12 +260,16 @@ export async function apiFetch(
   trace(`← ${res.status} ${method} ${path} ${Date.now() - startedAt}ms`);
 
   if (!res.ok) {
-    const code = res.status === 401 || res.status === 403 ? 'unauthorized' : 'http';
+    const detail = await safeText(res);
+    const paywall = res.status === 402 ? paywallFrom(detail) : null;
+    const code =
+      res.status === 401 || res.status === 403 ? 'unauthorized' : paywall ? 'paywall' : 'http';
     throw logged(
       new ApiError(`Request failed with ${res.status}`, {
         status: res.status,
         code,
-        detail: await safeText(res),
+        detail,
+        paywall,
       }),
       method,
       path

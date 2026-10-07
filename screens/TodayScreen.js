@@ -22,6 +22,8 @@ import {
   useUndoSnackbar,
 } from '../components';
 import { useRouter } from '../routing';
+import { useEntitlement } from '../billing/EntitlementProvider';
+import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import { durationMs } from '../store/format';
 import { useTheme } from '../theme/ThemeProvider';
@@ -30,6 +32,7 @@ import { EMPTY, GROUPINGS, NO_PLANTS, TABS, salutation } from './navConfig';
 import TaskCard from './TaskCard';
 import TaskSheet from './TaskSheet';
 import GroupingButton from './GroupingButton';
+import UpgradeBanner from './today/UpgradeBanner';
 
 // Bucket the flat task list into display groups for the active grouping,
 // preserving first-seen order. `header: null` renders a headerless flat list.
@@ -110,6 +113,8 @@ export default function TodayScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
   const notify = useUndoSnackbar();
+  const { ready, isPlus } = useEntitlement();
+  const openPaywall = useUpgrade();
 
   const [segment, setSegment] = useState('today');
   const [grouping, setGrouping] = useState('task');
@@ -192,7 +197,11 @@ export default function TodayScreen() {
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingTop: insets.top + space[8], paddingBottom: space[24] }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: insets.top + space[8],
+          paddingBottom: space[24],
+        }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.greeting}>{greeting}</Text>
@@ -205,7 +214,11 @@ export default function TodayScreen() {
             style={styles.segment}
           />
 
-          {segment === 'today' && (
+          {/* Only once the plan is known — see SettingsScreen's upgrade card. */}
+          {ready && !isPlus ? <UpgradeBanner onPress={() => openPaywall('today_banner')} /> : null}
+
+          {/* Nothing due → no header; "All caught up" takes the space instead. */}
+          {segment === 'today' && groups.length > 0 && (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today’s tasks</Text>
               <Button
@@ -213,7 +226,6 @@ export default function TodayScreen() {
                 variant="outline"
                 size="sm"
                 fullWidth={false}
-                disabled={taskCount === 0}
                 onPress={() => setConfirmAll(true)}
               />
             </View>
@@ -237,6 +249,7 @@ export default function TodayScreen() {
           {segment === 'today' && groups.length === 0 && (
             <View style={styles.empty}>
               <State
+                style={styles.emptyState}
                 icon={<Icon name={hasPlants ? 'check-all' : 'plant'} size={28} color={t.text.primary} />}
                 iconVariant="secondary"
                 title={empty.title}
@@ -361,7 +374,7 @@ const makeStyles = (t) =>
       paddingHorizontal: space[16],
       marginBottom: space[16],
     },
-    content: { paddingHorizontal: space[16], gap: space[24] },
+    content: { flexGrow: 1, paddingHorizontal: space[16], gap: space[24] },
     segment: { alignSelf: 'stretch' },
     sectionHeader: {
       flexDirection: 'row',
@@ -372,7 +385,10 @@ const makeStyles = (t) =>
     groups: { gap: space[16] },
     group: { gap: space[12] },
     groupHeader: { ...typography.headingSmall, color: t.text.primary },
-    empty: { gap: space[24] },
+    // Figma "Today / All done" (1:11067): the State fills the free height and
+    // centres itself, which pins the snoozed banner and Next up to the bottom.
+    empty: { flex: 1, gap: space[12] },
+    emptyState: { flex: 1, justifyContent: 'center' },
     nextUpHeader: { ...typography.headingSmallEmphasized, color: t.text.primary },
     bottom: { alignItems: 'center', backgroundColor: t.background.primary },
     groupingRow: { alignItems: 'center', paddingVertical: space[8] },

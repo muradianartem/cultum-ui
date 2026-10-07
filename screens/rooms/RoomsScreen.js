@@ -10,6 +10,7 @@ import {
   SegmentedControl,
   State,
   TabBar,
+  useSnackbarOffset,
 } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -20,7 +21,6 @@ import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
 import AddRoomSheet from '../addPlant/AddRoomSheet';
 import PlantGrid from './PlantGrid';
-import { useRoomGate } from './useRoomGate';
 
 /**
  * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8, "Rooms / First
@@ -45,13 +45,16 @@ export default function RoomsScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
 
   const garden = useGarden();
-  const gate = useRoomGate();
   const [query, setQueryRaw] = useState('');
   const [tab, setTab] = useState(null); // null = pick whichever has results
   const [showEmpty, setShowEmpty] = useState(false);
   const [creating, setCreating] = useState(false);
-  const openCreate = () => gate(() => setCreating(true));
+  const openCreate = () => setCreating(true);
   const searching = query.trim().length > 0;
+  // The snackbar sits above the tab bar; measure the bottom block rather than
+  // hardcode a height, so it tracks the safe-area inset.
+  const [bottomH, setBottomH] = useState(0);
+  useSnackbarOffset(bottomH);
 
   const setQuery = (next) => {
     setQueryRaw(next);
@@ -226,7 +229,10 @@ export default function RoomsScreen() {
         testID="new-room-sheet"
       />
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom }]}
+        onLayout={(e) => setBottomH(e.nativeEvent.layout.height)}
+      >
         <TabBar
           tabs={tabBarTabs}
           value="rooms"
