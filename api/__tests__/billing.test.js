@@ -7,7 +7,6 @@ const LIVE_RESPONSE = {
   trial_days: 7,
   timeline: [
     { day: 0, label: 'Today', title: 'Full access', body: 'Every plan, check and reminder unlocks straight away.' },
-    { day: 5, label: 'Day 5', title: 'Reminder', body: 'We email you two days before the trial ends.' },
     { day: 7, label: 'Day 7', title: 'Trial ends', body: 'Billing starts unless you have cancelled by then.' },
   ],
   features: [
@@ -43,7 +42,15 @@ const LIVE_RESPONSE = {
       default: false,
     },
   ],
-  footnote: 'Cancel any time in the App Store. Cancel before your free trial ends and you are not charged.',
+  footnote: 'Cancel any time. Cancel before your free trial ends and you are not charged.',
+  renewal_terms: {
+    apple: 'Payment is charged to your Apple Account when you confirm the purchase. The subscription renews automatically.',
+    google: 'Payment is charged to your Google Play account when you confirm the purchase. The subscription renews automatically.',
+  },
+  legal: [
+    { key: 'terms', label: 'Terms of Use', url: 'https://legal.cultum.app/terms' },
+    { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+  ],
 };
 
 // The mapper's whole job is deciding what to do with a payload that is not the
@@ -56,7 +63,7 @@ describe('mapPaywall', () => {
     expect(c.title).toBe('Cultum Plus, free for 7 days');
     expect(c.trialDays).toBe(7);
     expect(c.footnote).toMatch(/^Cancel any time/);
-    expect(c.timeline).toHaveLength(3);
+    expect(c.timeline).toHaveLength(2);
     expect(c.timeline[0]).toEqual({
       day: 0,
       label: 'Today',
@@ -85,6 +92,36 @@ describe('mapPaywall', () => {
       isDefault: true,
     });
     expect(c.products[1].badge).toBeNull();
+  });
+
+  test('maps the renewal terms and legal links', () => {
+    const c = mapPaywall(LIVE_RESPONSE);
+    expect(c.renewalTerms.apple).toMatch(/Apple Account/);
+    expect(c.renewalTerms.google).toMatch(/Google Play/);
+    expect(c.legal).toEqual([
+      { key: 'terms', label: 'Terms of Use', url: 'https://legal.cultum.app/terms' },
+      { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+    ]);
+  });
+
+  test('an older backend without terms or links still yields a paywall', () => {
+    const { renewal_terms: _r, legal: _l, ...old } = LIVE_RESPONSE;
+    const c = mapPaywall(old);
+    expect(c).not.toBeNull();
+    expect(c.renewalTerms).toEqual({ apple: null, google: null });
+    expect(c.legal).toEqual([]);
+  });
+
+  test('drops a legal link that is not an https URL', () => {
+    const c = mapPaywall(
+      patched({
+        legal: [
+          { key: 'terms', label: 'Terms of Use', url: 'javascript:alert(1)' },
+          { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+        ],
+      }),
+    );
+    expect(c.legal.map((l) => l.key)).toEqual(['privacy']);
   });
 
   test('breaks the headline after the comma, and leaves a comma-less one alone', () => {

@@ -25,10 +25,16 @@
 // "Restore purchases" sits below both CTAs because Apple requires a route back
 // to a subscription this Apple ID already owns — a reinstall leaves the store
 // no unfinished transaction to replay. Play gets the same button.
+//
+// Below the footnote sit the store's auto-renewal terms and the Terms of Use /
+// Privacy Policy links, both from the payload. Apple (3.1.2) and Play require
+// them on the screen that sells the subscription. The renewal text is the one
+// for the store this platform buys through, and only where there is a store.
 
 import { useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -48,6 +54,8 @@ import { useOnboarding } from '../onboarding';
 import { usePaywallResource } from '../billing/paywallContent';
 import useStorePurchase from '../billing/useStorePurchase';
 import { headline } from '../billing/storeTerms';
+import { storeFor } from '../billing/stores';
+import { legalUrl } from '../billing/legal';
 import ChoosePlanSheet from './ChoosePlanSheet';
 
 // Figma geometry with no scale step of its own.
@@ -181,6 +189,7 @@ function Paywall({ content, source }) {
   // Either store call has the screen's full attention: both end in the
   // entitlement changing, and neither wants the other started underneath it.
   const busy = store.busy || store.restoring;
+  const renewalTerms = store.supported ? content.renewalTerms?.[storeFor().id] : null;
 
   // Store sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and
@@ -336,6 +345,22 @@ function Paywall({ content, source }) {
           </View>
 
           <Text style={styles.footnote}>{content.footnote}</Text>
+          {renewalTerms ? <Text style={styles.renewalTerms}>{renewalTerms}</Text> : null}
+          <View style={styles.legal}>
+            {[
+              { key: 'terms', label: 'Terms of Use' },
+              { key: 'privacy', label: 'Privacy Policy' },
+            ].map((link) => (
+              <TextButton
+                key={link.key}
+                tone="muted"
+                size="sm"
+                label={link.label}
+                accessibilityLabel={link.label}
+                onPress={() => WebBrowser.openBrowserAsync(legalUrl(content, link.key))}
+              />
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -539,6 +564,15 @@ function makeStyles(t, insets) {
       color: t.text.placeholder,
       textAlign: 'center',
     },
+    // Legal small print: read by the few who want it, so it is quieter than
+    // the footnote — regular weight, same ink.
+    renewalTerms: {
+      ...typography.caption,
+      color: t.text.placeholder,
+      textAlign: 'center',
+      marginTop: -space[16],
+    },
+    legal: { flexDirection: 'row', justifyContent: 'center', gap: space[16], marginTop: -space[16] },
 
     // ---- sticky price bar ----
     priceBar: {

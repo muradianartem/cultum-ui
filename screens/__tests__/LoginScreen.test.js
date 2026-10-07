@@ -24,7 +24,7 @@ jest.mock('../../lib/config', () => ({
   },
   googleClientIdFor: (platform = require('react-native').Platform.OS) => mockGoogleIds[platform] ?? null,
 }));
-jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
+jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn(), openBrowserAsync: jest.fn(async () => {}) }));
 // Sign in with Apple: available by default (the screen hides the button when
 // it isn't), with each test free to override the two calls it makes.
 let mockAppleAvailable = true;
@@ -51,7 +51,11 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../api/auth', () => ({
   authApi: { createNonce: jest.fn(async () => ({ nonce: 'srv', expires_in: 300 })) },
 }));
-jest.mock('../../billing/paywallContent', () => ({ prefetchPaywall: jest.fn() }));
+let mockPaywallContent = null;
+jest.mock('../../billing/paywallContent', () => ({
+  prefetchPaywall: jest.fn(),
+  usePaywallContent: () => mockPaywallContent,
+}));
 const { prefetchPaywall } = require('../../billing/paywallContent');
 const mockCompleteGoogleLogin = jest.fn(async () => {});
 const mockCompleteAppleLogin = jest.fn(async () => {});
@@ -147,6 +151,42 @@ test('renders the wordmark, tagline and legal line', async () => {
   expect(allText).toContain('By continuing you agree to the');
   expect(allText).toContain('Terms of Use');
   expect(allText).toContain('Privacy Policy');
+});
+
+describe('the legal links', () => {
+  const { openBrowserAsync } = require('expo-web-browser');
+  const link = (tree, label) =>
+    tree.root.find((n) => n.type === Text && n.props.accessibilityRole === 'link' && n.props.children === label);
+
+  afterEach(() => {
+    mockPaywallContent = null;
+  });
+
+  test('open the bundled pages before the paywall has loaded', async () => {
+    const tree = await render();
+    act(() => {
+      link(tree, 'Terms of Use').props.onPress();
+    });
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://legal.cultum.app/terms');
+    act(() => {
+      link(tree, 'Privacy Policy').props.onPress();
+    });
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://legal.cultum.app/privacy');
+  });
+
+  test("open the server's pages once it has answered", async () => {
+    mockPaywallContent = {
+      legal: [
+        { key: 'terms', label: 'Terms of Use', url: 'https://example.test/terms' },
+        { key: 'privacy', label: 'Privacy Policy', url: 'https://example.test/privacy' },
+      ],
+    };
+    const tree = await render();
+    act(() => {
+      link(tree, 'Terms of Use').props.onPress();
+    });
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://example.test/terms');
+  });
 });
 
 // Both providers are Figma's "Type=Outlined" pill; outline resolves to an

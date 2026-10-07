@@ -12,7 +12,8 @@ import { radius, space, typography } from '../theme/foundations';
 import { GOOGLE_CLIENT_IDS, googleClientIdFor } from '../lib/config';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
-import { prefetchPaywall } from '../billing/paywallContent';
+import { prefetchPaywall, usePaywallContent } from '../billing/paywallContent';
+import { legalUrl } from '../billing/legal';
 
 // Required so the web OAuth popup can hand the result back and close itself.
 WebBrowser.maybeCompleteAuthSession();
@@ -74,6 +75,8 @@ function WelcomeScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(t, insets), [t, insets]);
+  // Only for its legal URLs; null until the prefetch below has landed.
+  const paywall = usePaywallContent();
 
   const [nonce, setNonce] = useState(null);
   // Which provider is mid-sign-in ('google' | 'apple' | null): the spinner
@@ -241,12 +244,26 @@ function WelcomeScreen() {
               disabled={!nonce || busy === 'google'}
             />
           ) : null}
-          {/* TODO: link the two spans to the real Terms/Privacy URLs via
-              WebBrowser.openBrowserAsync once they exist. */}
+          {/* The server's URLs once the prefetched paywall lands, the bundled
+              ones until then — see billing/legal.js. */}
           <Text style={styles.legal}>
             By continuing you agree to the{' '}
-            <Text style={styles.legalLink}>Terms of Use</Text> and{' '}
-            <Text style={styles.legalLink}>Privacy Policy</Text>.
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => WebBrowser.openBrowserAsync(legalUrl(paywall, 'terms'))}
+            >
+              Terms of Use
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => WebBrowser.openBrowserAsync(legalUrl(paywall, 'privacy'))}
+            >
+              Privacy Policy
+            </Text>
+            .
           </Text>
         </View>
       </View>

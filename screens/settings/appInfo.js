@@ -13,11 +13,17 @@ export const APP_VERSION = Application.nativeApplicationVersion ?? '—';
 /** "42" — CFBundleVersion. Null on web, where there is no native bundle. */
 export const APP_BUILD = Application.nativeBuildVersion ?? '—';
 
-/** Where the legal pages live. Opened in an in-app browser, not Safari. */
+/**
+ * Where the legal pages live. Opened in an in-app browser, not Safari.
+ *
+ * GET /billing/plans serves the Terms and Privacy URLs too, and those win where
+ * the app has them (billing/legal.js); these are what the screens use before
+ * the backend has answered, which on the Login screen is the usual case.
+ */
 export const LEGAL_LINKS = [
-  { title: 'Privacy Policy', value: 'cultum.app/privacy', url: 'https://cultum.app/privacy' },
-  { title: 'Terms of Use', value: 'cultum.app/terms', url: 'https://cultum.app/terms' },
-  { title: 'Licences', value: 'cultum.app/licences', url: 'https://cultum.app/licences' },
+  { key: 'privacy', title: 'Privacy Policy', value: 'legal.cultum.app/privacy', url: 'https://legal.cultum.app/privacy' },
+  { key: 'terms', title: 'Terms of Use', value: 'legal.cultum.app/terms', url: 'https://legal.cultum.app/terms' },
+  { key: 'licences', title: 'Licences', value: 'cultum.app/licences', url: 'https://cultum.app/licences' },
 ];
 
 /** The address on the Contact us card. */

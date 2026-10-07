@@ -143,6 +143,15 @@ function mapProduct(dto) {
   };
 }
 
+function mapLink(dto) {
+  const key = str(dto?.key);
+  const label = str(dto?.label);
+  const url = str(dto?.url);
+  // Opened in a browser, so only a real web address gets through.
+  if (!key || !label || !url || !/^https:\/\//.test(url)) return null;
+  return { key, label, url };
+}
+
 /**
  * PaywallOut → the camelCase `PaywallContent` every consumer sees, or `null`
  * when the payload cannot be trusted.
@@ -181,5 +190,14 @@ export function mapPaywall(dto) {
     products,
     defaultProductKey: (products.find((p) => p.isDefault) ?? products[0]).key,
     footnote: str(dto.footnote) ?? '',
+    // Per store: the screen shows the one for the store it is buying through.
+    // Missing (an older backend) is null rather than fatal — the paywall still
+    // renders, just without the disclosure.
+    renewalTerms: {
+      apple: str(dto.renewal_terms?.apple),
+      google: str(dto.renewal_terms?.google),
+    },
+    // Terms of Use and Privacy Policy, for the links beside the CTA.
+    legal: arr(dto.legal).map(mapLink).filter(Boolean),
   };
 }

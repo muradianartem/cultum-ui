@@ -11,6 +11,7 @@ jest.mock('expo-linear-gradient', () => {
   const RN = require('react-native');
   return { __esModule: true, LinearGradient: (props) => R.createElement(RN.View, props, props.children) };
 });
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn(async () => {}) }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
 }));
@@ -63,7 +64,6 @@ const LIVE_RESPONSE = {
   trial_days: 7,
   timeline: [
     { day: 0, label: 'Today', title: 'Full access', body: 'Every plan, check and reminder unlocks straight away.' },
-    { day: 5, label: 'Day 5', title: 'Reminder', body: 'We email you two days before the trial ends.' },
     { day: 7, label: 'Day 7', title: 'Trial ends', body: 'Billing starts unless you have cancelled by then.' },
   ],
   features: [
@@ -99,7 +99,15 @@ const LIVE_RESPONSE = {
       default: false,
     },
   ],
-  footnote: 'Cancel any time in the App Store. Cancel before your free trial ends and you are not charged.',
+  footnote: 'Cancel any time. Cancel before your free trial ends and you are not charged.',
+  renewal_terms: {
+    apple: 'Payment is charged to your Apple Account. Manage or cancel it in your App Store account settings.',
+    google: 'Payment is charged to your Google Play account. Cancel any time in Google Play.',
+  },
+  legal: [
+    { key: 'terms', label: 'Terms of Use', url: 'https://example.test/terms' },
+    { key: 'privacy', label: 'Privacy Policy', url: 'https://example.test/privacy' },
+  ],
 };
 
 const texts = (tree) => tree.root.findAllByType(Text).flatMap((n) => [].concat(n.props.children));
@@ -232,7 +240,7 @@ describe('with the live payload', () => {
 
   test('renders the three trial steps', async () => {
     const tree = await renderWith(LIVE_RESPONSE);
-    for (const day of ['Today', 'Day 5', 'Day 7']) expect(texts(tree)).toContain(day);
+    for (const day of ['Today', 'Day 7']) expect(texts(tree)).toContain(day);
     expect(texts(tree)).toContain('Full access');
     expect(texts(tree)).toContain('Trial ends');
   });
@@ -496,7 +504,7 @@ describe('StoreKit terms (iOS)', () => {
     expect(texts(tree)).toContain('$39.99 a year');
     expect(texts(tree)).toContain('Subscribe');
     expect(texts(tree)).not.toContain('Start free trial');
-    for (const day of ['Today', 'Day 5', 'Day 7']) expect(texts(tree)).not.toContain(day);
+    for (const day of ['Today', 'Day 7']) expect(texts(tree)).not.toContain(day);
 
     await act(async () => press(tree, 'Subscribe'));
     expect(mockStore.purchase).toHaveBeenCalledWith(expect.objectContaining({ key: 'yearly' }));
@@ -574,5 +582,48 @@ describe('at the end of onboarding', () => {
     act(() => press(tree, 'Close'));
     expect(mockBack).toHaveBeenCalled();
     expect(mockComplete).not.toHaveBeenCalled();
+  });
+});
+
+describe('renewal terms and legal links', () => {
+  const { openBrowserAsync } = require('expo-web-browser');
+  const { Platform } = require('react-native');
+  const realOS = Platform.OS;
+  afterEach(() => {
+    Platform.OS = realOS;
+  });
+
+  test("shows this platform's store terms only", async () => {
+    Platform.OS = 'ios';
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain(LIVE_RESPONSE.renewal_terms.apple);
+    expect(texts(tree)).not.toContain(LIVE_RESPONSE.renewal_terms.google);
+  });
+
+  test('Android shows the Play terms', async () => {
+    Platform.OS = 'android';
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).toContain(LIVE_RESPONSE.renewal_terms.google);
+    expect(texts(tree)).not.toContain(LIVE_RESPONSE.renewal_terms.apple);
+  });
+
+  test('no store, no renewal terms — but the links stay', async () => {
+    mockStore.supported = false;
+    const tree = await renderWith(LIVE_RESPONSE);
+    expect(texts(tree)).not.toContain(LIVE_RESPONSE.renewal_terms.apple);
+    expect(texts(tree)).not.toContain(LIVE_RESPONSE.renewal_terms.google);
+    expect(texts(tree)).toContain('Terms of Use');
+  });
+
+  test("the links open the server's URLs", async () => {
+    const tree = await renderWith(LIVE_RESPONSE);
+    act(() => {
+      press(tree, 'Terms of Use');
+    });
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://example.test/terms');
+    act(() => {
+      press(tree, 'Privacy Policy');
+    });
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://example.test/privacy');
   });
 });

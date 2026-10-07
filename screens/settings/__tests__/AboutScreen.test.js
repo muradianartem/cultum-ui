@@ -51,6 +51,6 @@ describe('About', () => {
   test('legal links open in the in-app browser, not Safari', () => {
     const tree = create();
     press(tree, 'Privacy Policy');
-    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://cultum.app/privacy');
+    expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://legal.cultum.app/privacy');
   });
 });
