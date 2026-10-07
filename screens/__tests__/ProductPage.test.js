@@ -1,7 +1,8 @@
-import { Alert, ImageBackground } from 'react-native';
+import { Alert, ImageBackground, Text } from 'react-native';
 import { act } from 'react-test-renderer';
 import { speciesDetailToVM } from '../../api/mapPlant';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
+import { SegmentedControl } from '../../components';
 import ProductPage from '../ProductPage';
 
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
@@ -64,6 +65,14 @@ describe('a catalog entry', () => {
     expect(hero(r).props.source).toEqual({ uri: 'https://img/snake.jpg' });
   });
 
+  test('the hero carries no difficulty / toxicity pills', () => {
+    const t = render(<ProductPage plant={VM} />).texts();
+    expect(t).not.toContain('Toxic');
+    expect(t).not.toContain('Moderate');
+    // Easy still appears once, as the Maintenance highlight's value.
+    expect(t.filter((x) => x === 'Easy')).toHaveLength(1);
+  });
+
   test('with nothing at all it still renders, on the bundled hero asset', () => {
     const r = render(<ProductPage />);
     // A bundled asset resolves to a number (require id), never a { uri } object.
@@ -105,6 +114,16 @@ describe('the sections the redesign added', () => {
     expect(t).toContain('Rarely needed');
   });
 
+  test('a long toxicity list shows in full rather than being cut off', () => {
+    const vm = speciesDetailToVM({ ...DETAIL, toxic_to: ['humans', 'cats', 'dogs', 'children'] });
+    const r = render(<ProductPage plant={vm} />);
+    const value = r.tree.root
+      .findAllByType(Text)
+      .find((n) => n.props.children === 'Toxic to humans, cats, dogs, children');
+    expect(value).toBeTruthy();
+    expect(value.props.numberOfLines).toBeUndefined();
+  });
+
   test('How to care states the species\' own cadence for each action', () => {
     const t = render(<ProductPage plant={VM} />).texts();
     expect(t).toContain('How to care');
@@ -136,6 +155,14 @@ describe('an owned plant', () => {
     expect(t).not.toContain('Add to my plants');
     expect(t).toContain('Mo');
     expect(t).toContain('Dracaena trifasciata · Kitchen');
+  });
+
+  test('shows the description with no About / Journal switch (Journal is v2)', () => {
+    const state = owned();
+    const r = render(<ProductPage plantId={state.plants[0].id} />, state);
+    expect(r.texts()).toContain('A hardy succulent that tolerates neglect.');
+    expect(r.texts()).not.toContain('Journal');
+    expect(r.tree.root.findAllByType(SegmentedControl)).toHaveLength(0);
   });
 
   test('lists what is due today, and completing it flips to All caught up', () => {
