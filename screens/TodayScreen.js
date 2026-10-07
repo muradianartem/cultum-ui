@@ -192,7 +192,11 @@ export default function TodayScreen() {
     <View style={styles.screen}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingTop: insets.top + space[8], paddingBottom: space[24] }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: insets.top + space[8],
+          paddingBottom: space[24],
+        }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.greeting}>{greeting}</Text>
@@ -237,6 +241,7 @@ export default function TodayScreen() {
           {segment === 'today' && groups.length === 0 && (
             <View style={styles.empty}>
               <State
+                style={styles.emptyState}
                 icon={<Icon name={hasPlants ? 'check-all' : 'plant'} size={28} color={t.text.primary} />}
                 iconVariant="secondary"
                 title={empty.title}
@@ -361,7 +366,7 @@ const makeStyles = (t) =>
       paddingHorizontal: space[16],
       marginBottom: space[16],
     },
-    content: { paddingHorizontal: space[16], gap: space[24] },
+    content: { flexGrow: 1, paddingHorizontal: space[16], gap: space[24] },
     segment: { alignSelf: 'stretch' },
     sectionHeader: {
       flexDirection: 'row',
@@ -372,7 +377,10 @@ const makeStyles = (t) =>
     groups: { gap: space[16] },
     group: { gap: space[12] },
     groupHeader: { ...typography.headingSmall, color: t.text.primary },
-    empty: { gap: space[24] },
+    // Figma "Today / All done" (1:11067): the State fills the free height and
+    // centres itself, which pins the snoozed banner and Next up to the bottom.
+    empty: { flex: 1, gap: space[12] },
+    emptyState: { flex: 1, justifyContent: 'center' },
     nextUpHeader: { ...typography.headingSmallEmphasized, color: t.text.primary },
     bottom: { alignItems: 'center', backgroundColor: t.background.primary },
     groupingRow: { alignItems: 'center', paddingVertical: space[8] },

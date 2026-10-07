@@ -1,4 +1,6 @@
+import { StyleSheet } from 'react-native';
 import { act } from 'react-test-renderer';
+import { State } from '../../components';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
 import TaskCard from '../TaskCard';
 import TodayScreen from '../TodayScreen';
@@ -115,6 +117,18 @@ test('completing everything shows "All caught up" and previews what is next', ()
   expect(t).toContain('Your plants are on their own schedule.');
   expect(t).toContain('Next up');
   expect(t).toContain('Trim the aerial roots'); // the soonest upcoming task
+});
+
+test('"All caught up" fills the free space so Next up sits at the bottom', () => {
+  const r = render();
+  r.press('Complete All');
+  r.press('Complete 2 tasks');
+
+  const state = r.tree.root.findByType(State);
+  expect(StyleSheet.flatten(state.props.style)).toMatchObject({
+    flex: 1,
+    justifyContent: 'center',
+  });
 });
 
 test('an empty garden offers a way in rather than "all caught up"', () => {
