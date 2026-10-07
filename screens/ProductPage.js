@@ -3,9 +3,10 @@
 //
 // Before it is yours it is a catalog entry: hero, description, Highlights, How
 // to care, FAQ, and a CTA to add it. Once it is yours the same page gains the
-// things only an owned plant has — today's tasks for it, an About/Journal
-// switch, and the Actions list (Edit Reminders / Rename / Move / Delete) that
-// used to be a three-item overflow menu.
+// things only an owned plant has — today's tasks for it and the Actions list
+// (Edit Reminders / Rename / Move / Delete) that used to be a three-item
+// overflow menu. V2: an About/Journal switch above the description (Figma
+// "Product Page / About and Journal tabs", node 1082:24366).
 //
 // Which life it is in is decided by the store, not by a route param: an owned
 // plant is addressed by `plantId` and every field is read live, so a rename
@@ -28,7 +29,6 @@ import {
   List,
   ListItem,
   Overlay,
-  SegmentedControl,
   TextButton,
   useUndoSnackbar,
 } from '../components';
@@ -75,14 +75,15 @@ function NavButton({ icon, label, onPress, t }) {
 }
 
 // One 68pt fact card — used by both Highlights (two per row) and How to care
-// (one per row); the only difference is how wide the parent lets it be.
-function FactCard({ icon, label, value, styles, t }) {
+// (one per row); the only difference is how wide the parent lets it be. The
+// value wraps rather than truncating — a toxicity list can run to three lines.
+function FactCard({ icon, label, value, style, styles, t }) {
   return (
-    <View style={styles.factCard}>
+    <View style={[styles.factCard, style]}>
       <Glyph name={icon} size={24} color={t.text.primary} textStyle={styles.factGlyph} />
       <View style={styles.factText}>
         <Text style={styles.factLabel} numberOfLines={1}>{label}</Text>
-        <Text style={styles.factValue} numberOfLines={2}>{value}</Text>
+        <Text style={styles.factValue}>{value}</Text>
       </View>
     </View>
   );
@@ -182,7 +183,6 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const garden = useGarden();
   const notify = useUndoSnackbar();
 
-  const [segment, setSegment] = useState('about');
   const [openFaq, setOpenFaq] = useState(0);
   const [renaming, setRenaming] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -328,14 +328,7 @@ export default function ProductPage({ plantId, plant, owned = false }) {
 
   const title = isOwned ? record.nickname : vm.commonName;
 
-  const description =
-    segment === 'journal' && isOwned ? (
-      <Text style={styles.bodyText}>
-        No journal entries yet. Care you log — waterings, repottings, new leaves — will show up here.
-      </Text>
-    ) : (
-      <AboutText key={vm.speciesKey} about={vm.about} styles={styles} />
-    );
+  const description = <AboutText key={vm.speciesKey} about={vm.about} styles={styles} />;
 
   return (
     <View style={styles.screen}>
@@ -364,17 +357,6 @@ export default function ProductPage({ plantId, plant, owned = false }) {
               style={styles.heroText}
               onLayout={(e) => setHeroTextTop(e.nativeEvent.layout.y)}
             >
-              <View style={styles.chips}>
-                {vm.chips.map((c) => (
-                  <Badge
-                    key={c.label}
-                    label={c.label}
-                    intent={c.intent}
-                    variant="secondary"
-                    leftIcon={<Icon name={c.icon} size={16} color={t.text.primary} />}
-                  />
-                ))}
-              </View>
               {/* Once it's yours it goes by the name you gave it, and the species
                   drops to the line below, next to where it lives. */}
               <Text style={styles.heroTitle}>{title}</Text>
@@ -428,18 +410,7 @@ export default function ProductPage({ plantId, plant, owned = false }) {
                 )}
               </Section>
 
-              <View style={styles.section}>
-                <SegmentedControl
-                  segments={[
-                    { label: 'About', value: 'about' },
-                    { label: 'Journal', value: 'journal' },
-                  ]}
-                  value={segment}
-                  onChange={setSegment}
-                  style={styles.segment}
-                />
-                {description}
-              </View>
+              <View style={styles.section}>{description}</View>
             </>
           ) : (
             <>
@@ -469,7 +440,14 @@ export default function ProductPage({ plantId, plant, owned = false }) {
             <View style={styles.grid}>
               {vm.highlights.map((h) => (
                 <View key={h.key} style={styles.gridCell}>
-                  <FactCard icon={h.icon} label={h.label} value={h.value} styles={styles} t={t} />
+                  <FactCard
+                    icon={h.icon}
+                    label={h.label}
+                    value={h.value}
+                    style={styles.factCardFill}
+                    styles={styles}
+                    t={t}
+                  />
                 </View>
               ))}
             </View>
@@ -641,7 +619,6 @@ const makeStyles = (t) =>
     },
     heroGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: hero.fadeHeight },
     heroText: { gap: space[4] },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
     heroTitle: { ...typography.headingLarge, color: t.text.primary },
     heroSubtitle: { ...typography.bodyLarge, color: t.text.secondary },
 
@@ -682,7 +659,6 @@ const makeStyles = (t) =>
     bodyText: { ...typography.bodyMedium, color: t.text.secondary },
     about: { gap: space[4] },
     aboutToggle: { paddingLeft: 0, paddingVertical: space[4] },
-    segment: { alignSelf: 'stretch' },
 
     // ── Today's tasks ──
     taskList: { gap: space[12] },
@@ -719,6 +695,9 @@ const makeStyles = (t) =>
       borderRadius: radius[16],
       backgroundColor: t.surface.primary,
     },
+    // A Highlights card fills its cell, so when one value wraps further its
+    // row partner grows with it instead of sitting short.
+    factCardFill: { flexGrow: 1 },
     factGlyph: { fontSize: 22 },
     factText: { flex: 1, gap: space[2] },
     factLabel: { ...typography.bodyLargeEmphasized, color: t.text.primary },
