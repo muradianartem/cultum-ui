@@ -212,7 +212,9 @@ test('pressing Apple signs in with the server nonce and exchanges the identity t
   });
 
   expect(mockAppleSignIn).toHaveBeenCalledWith(expect.objectContaining({ nonce: 'srv' }));
-  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', 'Ada');
+  // The code is what lets account deletion revoke the Apple grant; it was
+  // once dropped here, and every deletion then left the grant behind.
+  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', 'Ada', 'code');
   expect(mockPromptAsync).not.toHaveBeenCalled();
 });
 
@@ -232,7 +234,7 @@ test('a returning Apple user with no name still exchanges the identity token', a
     await pressButton(tree, 'Continue with Apple');
   });
 
-  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', null);
+  expect(mockCompleteAppleLogin).toHaveBeenCalledWith('apple-id-token', null, 'code');
 });
 
 test('backing out of the Apple sheet is silent — no error snackbar', async () => {

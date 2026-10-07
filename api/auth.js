@@ -17,10 +17,19 @@ export const authApi = {
   // name back on their very first authorization — never again, not even after a
   // reinstall. Send it while we have it so the backend is the thing that
   // remembers it; `null` on every later sign-in.
-  loginApple: (idToken, name) =>
+  //
+  // `authorizationCode` comes with every Apple sign-in. The backend exchanges it
+  // for Apple's refresh token, the only credential that can revoke the grant
+  // when the account is deleted (App Store Review 5.1.1(v)). Without it the
+  // account still deletes, but Cultum stays listed under the user's Apple ID.
+  loginApple: (idToken, name, authorizationCode) =>
     apiFetch('/auth/apple', {
       method: 'POST',
-      body: JSON.stringify({ id_token: idToken, name: name ?? null }),
+      body: JSON.stringify({
+        id_token: idToken,
+        name: name ?? null,
+        authorization_code: authorizationCode ?? null,
+      }),
     }),
 
   // Rotate the refresh token for a fresh access token (backend rotates the

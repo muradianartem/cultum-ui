@@ -96,10 +96,10 @@ test('completeAppleLogin forwards the name and persists it alongside the tokens'
   const { ref } = await renderAuth();
 
   await act(async () => {
-    await ref.current.completeAppleLogin('apple-id-token', 'Ada');
+    await ref.current.completeAppleLogin('apple-id-token', 'Ada', 'code');
   });
 
-  expect(authApi.loginApple).toHaveBeenCalledWith('apple-id-token', 'Ada');
+  expect(authApi.loginApple).toHaveBeenCalledWith('apple-id-token', 'Ada', 'code');
   expect(authStorage.saveTokens).toHaveBeenCalledWith(expect.objectContaining({
     access_token: 'A',
     name: 'Ada',

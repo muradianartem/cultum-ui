@@ -290,12 +290,14 @@ export function AuthProvider({ children }) {
   // token has no name claim: the name is handed to the *screen*, once, in the
   // credential, so it arrives as an argument here. It is `null` on every sign-in
   // after the first — see `loginApple` in api/auth.js.
-  async function completeAppleLogin(idToken, name) {
+  // `authorizationCode` is passed through to the backend untouched; see
+  // `loginApple` for why it matters.
+  async function completeAppleLogin(idToken, name, authorizationCode) {
     // The name arrives as an argument (Apple gives it once, in the credential);
     // the email is read from the token like Google's, because Apple *does* put
     // that claim in every identity token it issues.
     await establishSession(
-      await authApi.loginApple(idToken, name),
+      await authApi.loginApple(idToken, name, authorizationCode),
       profileFromIdToken(idToken, name ?? null),
     );
   }

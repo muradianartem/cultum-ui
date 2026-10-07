@@ -54,7 +54,7 @@ describe('authApi.loginGoogle', () => {
 });
 
 describe('authApi.loginApple', () => {
-  test('POSTs /auth/apple with the identity token and the name', async () => {
+  test('POSTs /auth/apple with the identity token, the name and the authorization code', async () => {
     const tokens = {
       access_token: 'a',
       refresh_token: 'r',
@@ -63,12 +63,12 @@ describe('authApi.loginApple', () => {
     };
     mockFetchOnce({ json: tokens });
 
-    const res = await authApi.loginApple('aid', 'Ada');
+    const res = await authApi.loginApple('aid', 'Ada', 'code');
 
     const [url, opts] = global.fetch.mock.calls[0];
     expect(url).toMatch(/\/auth\/apple$/);
     expect(opts.method).toBe('POST');
-    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: 'Ada' });
+    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: 'Ada', authorization_code: 'code' });
     expect(res).toEqual(tokens);
   });
 
@@ -81,7 +81,7 @@ describe('authApi.loginApple', () => {
     await authApi.loginApple('aid');
 
     const [, opts] = global.fetch.mock.calls[0];
-    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: null });
+    expect(JSON.parse(opts.body)).toEqual({ id_token: 'aid', name: null, authorization_code: null });
   });
 });
 

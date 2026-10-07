@@ -163,7 +163,15 @@ function WelcomeScreen() {
         ],
         nonce,
       });
-      await auth.completeAppleLogin(credential.identityToken, firstNameOf(credential));
+      // `authorizationCode` is what lets the backend revoke this Apple grant
+      // when the account is deleted (App Store Review 5.1.1(v)): it trades the
+      // code for Apple's refresh token, which only that exchange ever returns.
+      // Single-use and valid for five minutes, so it is sent straight away.
+      await auth.completeAppleLogin(
+        credential.identityToken,
+        firstNameOf(credential),
+        credential.authorizationCode,
+      );
     } catch (err) {
       if (err?.code !== APPLE_CANCELED) {
         if (__DEV__) console.warn('[login] Apple sign-in failed:', err?.message ?? err);
