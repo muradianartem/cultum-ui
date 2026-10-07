@@ -117,6 +117,8 @@ test('completing everything shows "All caught up" and previews what is next', ()
   expect(t).toContain('Your plants are on their own schedule.');
   expect(t).toContain('Next up');
   expect(t).toContain('Trim the aerial roots'); // the soonest upcoming task
+  expect(t).not.toContain('Today’s tasks'); // nothing left to complete
+  expect(t).not.toContain('Complete All');
 });
 
 test('"All caught up" fills the free space so Next up sits at the bottom', () => {
@@ -136,6 +138,8 @@ test('an empty garden offers a way in rather than "all caught up"', () => {
   expect(t).toContain('No plants yet');
   expect(t).toContain('Add a plant');
   expect(t).not.toContain('Your plants are on their own schedule.');
+  expect(t).not.toContain('Today’s tasks');
+  expect(t).not.toContain('Complete All');
 });
 
 test('renders the 4-tab bar with Today active', () => {

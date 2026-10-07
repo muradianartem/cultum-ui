@@ -68,7 +68,7 @@ test('a fresh sign-in runs onboarding, and its paywall finishes it on Today for 
 
   await signIn(app);
   expect(app.texts()).toContain('Scan a plant');
-  expect(app.texts()).not.toContain('Today’s tasks');
+  expect(app.texts()).not.toContain('Grouping: By Task');
 
   press(app, 'Skip'); // intro → Add your first plant
   expect(app.texts()).toContain('Add your first plant');
@@ -79,7 +79,7 @@ test('a fresh sign-in runs onboarding, and its paywall finishes it on Today for 
   // The plans endpoint is not routed here, so the paywall is in its error
   // state — which must still let the user out.
   press(app, 'Close');
-  expect(app.texts()).toContain('Today’s tasks');
+  expect(app.texts()).toContain('Grouping: By Task');
   expect(savedOnboarding()).toMatchObject({ stage: 'complete' });
 
   // Signing out clears the account's garden, not the installation's
@@ -89,6 +89,6 @@ test('a fresh sign-in runs onboarding, and its paywall finishes it on Today for 
   });
   await advance(0);
   await signIn(app);
-  expect(app.texts()).toContain('Today’s tasks');
+  expect(app.texts()).toContain('Grouping: By Task');
   expect(app.texts()).not.toContain('Scan a plant');
 });
