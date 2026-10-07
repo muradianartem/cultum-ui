@@ -1,4 +1,4 @@
-import { verifyApplePurchase } from '../billing';
+import { verifyApplePurchase, verifyGooglePurchase } from '../billing';
 import { apiFetch } from '../client';
 
 // Its own file: billing.test.js exercises the pure mappers against the real
@@ -25,4 +25,14 @@ test('an id alone is sent with a null JWS, as the restore path expects', async (
   apiFetch.mockResolvedValueOnce({});
   await verifyApplePurchase({ transactionId: '2000000123' });
   expect(JSON.parse(init().body)).toEqual({ signed_transaction: null, transaction_id: '2000000123' });
+});
+
+test('verifyGooglePurchase posts the Play purchase token as GoogleVerifyRequest', async () => {
+  apiFetch.mockResolvedValueOnce({ plan: 'plus', is_plus: true });
+  await verifyGooglePurchase({ purchaseToken: 'play-token', productId: 'cultum_plus_yearly' });
+
+  expect(apiFetch.mock.calls[0][0]).toBe('/billing/google/verify');
+  expect(init().method).toBe('POST');
+  expect(JSON.parse(init().body)).toEqual({ purchase_token: 'play-token', product_id: 'cultum_plus_yearly' });
+  expect(init().timeoutMs).toBeGreaterThan(30000);
 });

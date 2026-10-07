@@ -14,12 +14,17 @@
 // there is no endpoint to hunt for.
 //
 // The CTA buys the selected plan through billing/useStorePurchase: StoreKit 2
-// plus POST /billing/apple/verify on iOS. There StoreKit owns the price and the
+// plus POST /billing/apple/verify on iOS, Play Billing plus
+// POST /billing/google/verify on Android. The store owns the price and the
 // trial — the headline, plan rows and CTA read `store.termsFor(product)`, and
-// "Start free trial" (and the trial timeline) appear only when StoreKit offers
+// "Start free trial" (and the trial timeline) appear only when the store offers
 // a free trial this user is eligible for; otherwise the CTA reads "Subscribe".
-// Other platforms have no store flow yet: they keep the backend's fallback
-// price, and there the button just closes the screen.
+// Web has no store flow: it keeps the backend's fallback price, and there the
+// button just closes the screen.
+//
+// "Restore purchases" sits below both CTAs because Apple requires a route back
+// to a subscription this Apple ID already owns — a reinstall leaves the store
+// no unfinished transaction to replay. Play gets the same button.
 
 import { useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -33,6 +38,7 @@ import {
   LoadingIndicator,
   NavigationBar,
   State,
+  TextButton,
 } from '../components';
 import { useTheme } from '../theme/ThemeProvider';
 import { fontFace } from '../theme/fonts';
@@ -166,19 +172,22 @@ function Paywall({ content, source }) {
   const product =
     content.products.find((p) => p.key === planKey) ?? content.products[0];
 
-  // StoreKit's terms for the selected plan (iOS), or null: not resolved yet, or
-  // a platform with no store at all.
+  // The store's terms for the selected plan, or null: not resolved yet, or a
+  // platform with no store at all.
   const terms = store.supported ? store.termsFor(product) : null;
   const pricesPending = store.supported && !terms;
   const offersTrial = !store.supported || Boolean(terms?.trial);
   const ctaLabel = offersTrial ? 'Start free trial' : 'Subscribe';
+  // Either store call has the screen's full attention: both end in the
+  // entitlement changing, and neither wants the other started underneath it.
+  const busy = store.busy || store.restoring;
 
-  // iOS: StoreKit sheet → backend verify → new entitlement. The paywall closes
+  // Store sheet → backend verify → new entitlement. The paywall closes
   // only once the backend has confirmed. A cancel leaves it open and silent, and
   // any other failure shows above the button through the hook's `error`.
   const onStartTrial = async () => {
     if (!store.supported) {
-      // No store flow on this platform yet, so keep the screen walkable.
+      // No store flow on web, so keep the screen walkable.
       if (__DEV__) {
         console.log('[paywall] start trial (no store flow here) —', product.key, {
           google: product.googleProductId,
@@ -188,6 +197,14 @@ function Paywall({ content, source }) {
       return;
     }
     if (await store.purchase(product)) onClose();
+  };
+
+  // Apple requires a way back to a subscription this Apple ID already owns: a
+  // reinstall or a new device leaves StoreKit nothing to replay. It closes the
+  // screen only if the restore actually granted Plus — an expired subscription
+  // restores fine and grants nothing, and the hook says so through `error`.
+  const onRestore = async () => {
+    if (await store.restore()) onClose();
   };
 
   return (
@@ -222,7 +239,7 @@ function Paywall({ content, source }) {
               icon={<Icon name="close" size={16} />}
               accessibilityLabel="Close"
               // A StoreKit sheet is up; closing under it would orphan the purchase.
-              disabled={store.busy}
+              disabled={busy}
               onPress={onClose}
             />
           </View>
@@ -335,16 +352,28 @@ function Paywall({ content, source }) {
           size="lg"
           label={ctaLabel}
           loading={store.busy}
-          disabled={pricesPending}
+          disabled={pricesPending || store.restoring}
           onPress={onStartTrial}
         />
         <Button
           size="md"
           variant="ghost"
           label="See all plans"
-          disabled={store.busy}
+          disabled={busy}
           onPress={() => setPlansOpen(true)}
         />
+        {/* Store-only: there is nothing to restore on a platform with no store
+            flow, and an inert button would be worse than none. */}
+        {store.supported ? (
+          <TextButton
+            tone="muted"
+            size="sm"
+            label={store.restoring ? 'Restoring…' : 'Restore purchases'}
+            disabled={busy}
+            accessibilityLabel="Restore purchases"
+            onPress={onRestore}
+          />
+        ) : null}
       </View>
 
       <ChoosePlanSheet

@@ -38,7 +38,10 @@ function sourceFiles() {
   const out = ['App.js', 'theme/tokens.js'];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, entry.name);
+      // Forward slashes on every platform: `ALLOWED` and `SKIP` are keyed that
+      // way, and path.join would hand back `screens\Foo.js` on Windows — which
+      // matches no key, so every allowlisted colour would read as a violation.
+      const rel = path.join(dir, entry.name).split(path.sep).join('/');
       if (entry.isDirectory()) {
         if (entry.name !== '__tests__') walk(rel);
       } else if (rel.endsWith('.js') && !SKIP.has(rel)) {

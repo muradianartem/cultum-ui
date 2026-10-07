@@ -7,7 +7,8 @@
 //
 // POST /billing/apple/verify takes what StoreKit 2 hands back after a purchase
 // (billing/useStorePurchase.ios.js) and answers with the caller's new
-// entitlement. The Play equivalent is not wired: purchase is iOS-only for now.
+// entitlement. POST /billing/google/verify is the Play equivalent: it takes the
+// purchase token, and the backend both reads and acknowledges the purchase.
 
 import { apiFetch } from './client';
 
@@ -58,6 +59,25 @@ export async function verifyApplePurchase({ signedTransaction, transactionId } =
     body: JSON.stringify({
       signed_transaction: signedTransaction ?? null,
       transaction_id: transactionId ?? null,
+    }),
+    timeoutMs: PAYWALL_TIMEOUT_MS,
+  });
+}
+
+/**
+ * POST /billing/google/verify → EntitlementOut. Authenticated.
+ *
+ * `purchaseToken` is Play Billing's opaque token; the backend spends it on the
+ * Play Developer API, which is the verification, and acknowledges the purchase
+ * there (Play refunds anything unacknowledged after three days). `productId` is
+ * informational only. Idempotent like the Apple call, so a retry is safe.
+ */
+export async function verifyGooglePurchase({ purchaseToken, productId } = {}) {
+  return apiFetch('/billing/google/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      purchase_token: purchaseToken,
+      product_id: productId ?? null,
     }),
     timeoutMs: PAYWALL_TIMEOUT_MS,
   });
