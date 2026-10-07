@@ -5,12 +5,6 @@ import { useGarden } from '../../../store/GardenProvider';
 import RoomsScreen from '../RoomsScreen';
 import RoomScreen from '../RoomScreen';
 
-// The room limit comes off the entitlement; each test sets what the plan allows.
-let mockLimits = null;
-jest.mock('../../../billing/EntitlementProvider', () => ({
-  useEntitlement: () => ({ limits: mockLimits }),
-}));
-
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
 
 // Two rooms with plants and one (Bathroom) without — an empty room is still a
@@ -78,10 +72,6 @@ const roomNames = () => store.rooms.map((room) => room.name);
 const sheetVisible = (r, testID) =>
   r.tree.root.findAll((n) => n.props.testID === testID)[0].props.visible;
 
-beforeEach(() => {
-  mockLimits = null;
-});
-
 afterEach(cleanupTrees);
 
 describe('RoomsScreen', () => {
@@ -147,16 +137,8 @@ describe('RoomsScreen', () => {
     expect(r.api.callsTo('createRoom').map(([body]) => body.name)).toEqual(['Balcony']);
   });
 
-  test('at the plan’s room limit, Create new room opens the paywall instead', () => {
-    mockLimits = { rooms: 3 };
-    const r = render(<RoomsScreen />);
-    r.press('Create new room');
-    expect(r.router.route).toBe('paywall');
-    expect(roomNames()).toHaveLength(3);
-  });
-
-  test('an unlimited plan never hits the gate', () => {
-    mockLimits = { rooms: null };
+  // No plan limits rooms (api ad712b1), so there is nothing to gate.
+  test('Create new room always opens the sheet', () => {
     const r = render(<RoomsScreen />);
     r.press('Create new room');
     expect(r.router.route).toBe('rooms');
@@ -380,21 +362,5 @@ describe('RoomScreen', () => {
     const balcony = store.rooms.find((room) => room.name === 'Balcony');
     expect(store.plantsInRoom(balcony.id).map((p) => p.nickname)).toEqual(['Penny', 'Figgy']);
     expect(r.router.route).toBe('rooms');
-  });
-
-  test('at the room limit, making a new room for the plants opens the paywall', () => {
-    mockLimits = { rooms: 3 };
-    const r = open('living-room');
-    r.press('Room actions');
-    r.press('Delete');
-    dismiss(r, 'room-sheet');
-    r.press('Move to another room');
-    dismiss(r, 'room-delete-dialog');
-
-    r.press('Create new room');
-    r.press('Continue');
-
-    expect(r.router.route).toBe('paywall');
-    expect(roomNames()).toHaveLength(3);
   });
 });

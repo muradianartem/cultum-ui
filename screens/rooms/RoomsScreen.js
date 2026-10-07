@@ -20,7 +20,6 @@ import { roomCards, searchGarden } from '../../store/views';
 import { TABS } from '../navConfig';
 import AddRoomSheet from '../addPlant/AddRoomSheet';
 import PlantGrid from './PlantGrid';
-import { useRoomGate } from './useRoomGate';
 
 /**
  * RoomsScreen — the Rooms tab (Figma "Rooms / Idle" 377:8, "Rooms / First
@@ -45,12 +44,11 @@ export default function RoomsScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
 
   const garden = useGarden();
-  const gate = useRoomGate();
   const [query, setQueryRaw] = useState('');
   const [tab, setTab] = useState(null); // null = pick whichever has results
   const [showEmpty, setShowEmpty] = useState(false);
   const [creating, setCreating] = useState(false);
-  const openCreate = () => gate(() => setCreating(true));
+  const openCreate = () => setCreating(true);
   const searching = query.trim().length > 0;
 
   const setQuery = (next) => {

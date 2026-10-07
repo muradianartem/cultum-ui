@@ -5,6 +5,11 @@ import { monthLabel } from '../../components/Calendar';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing';
 import RemindersScreen from '../RemindersScreen';
 
+let mockEntitlement = { ready: false, isPlus: false };
+jest.mock('../../billing/EntitlementProvider', () => ({
+  useEntitlement: () => mockEntitlement,
+}));
+
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
 
 // One plant with the three shapes a reminder comes in: a watering that has been
@@ -43,7 +48,10 @@ const render = (state = garden()) =>
     clock: NOW,
   });
 
-afterEach(cleanupTrees);
+afterEach(() => {
+  cleanupTrees();
+  mockEntitlement = { ready: false, isPlus: false };
+});
 
 // Every Toggle renders a host node with accessibilityRole="switch".
 const switches = (r) =>
@@ -263,4 +271,27 @@ test('the sheet is titled by what the row holds', () => {
     .findAllByType(Text)
     .flatMap((n) => [].concat(n.props.children));
   expect(titles).toContain('Start date');
+});
+
+// Figma "Reminders / Default reminders only [Free]"
+describe('on the free plan', () => {
+  const FREE = { ready: true, isPlus: false, limits: { custom_reminders: false }, usage: {} };
+
+  test.each(['Add new reminder', 'Add reminder'])('%s carries Plus and opens the paywall', (label) => {
+    mockEntitlement = FREE;
+    const r = render();
+    expect(r.texts()).toContain('Plus');
+    r.press(label);
+    expect(r.router.route).toBe('paywall');
+    expect(r.router.params).toEqual({ source: 'custom_reminders' });
+  });
+
+  test('Plus adds as before, with no badge', () => {
+    mockEntitlement = { ready: true, isPlus: true, limits: { custom_reminders: true } };
+    const r = render();
+    expect(r.texts()).not.toContain('Plus');
+    r.press('Add new reminder');
+    expect(r.router.route).toBe('reminders');
+    expect(visible(r, 'add-reminder-sheet')).toBe(true);
+  });
 });

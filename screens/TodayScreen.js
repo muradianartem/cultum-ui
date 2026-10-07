@@ -22,6 +22,8 @@ import {
   useUndoSnackbar,
 } from '../components';
 import { useRouter } from '../routing';
+import { useEntitlement } from '../billing/EntitlementProvider';
+import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import { durationMs } from '../store/format';
 import { useTheme } from '../theme/ThemeProvider';
@@ -30,6 +32,7 @@ import { EMPTY, GROUPINGS, NO_PLANTS, TABS, salutation } from './navConfig';
 import TaskCard from './TaskCard';
 import TaskSheet from './TaskSheet';
 import GroupingButton from './GroupingButton';
+import UpgradeBanner from './today/UpgradeBanner';
 
 // Bucket the flat task list into display groups for the active grouping,
 // preserving first-seen order. `header: null` renders a headerless flat list.
@@ -110,6 +113,8 @@ export default function TodayScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
   const notify = useUndoSnackbar();
+  const { ready, isPlus } = useEntitlement();
+  const openPaywall = useUpgrade();
 
   const [segment, setSegment] = useState('today');
   const [grouping, setGrouping] = useState('task');
@@ -208,6 +213,9 @@ export default function TodayScreen() {
             onChange={setSegment}
             style={styles.segment}
           />
+
+          {/* Only once the plan is known — see SettingsScreen's upgrade card. */}
+          {ready && !isPlus ? <UpgradeBanner onPress={() => openPaywall('today_banner')} /> : null}
 
           {segment === 'today' && (
             <View style={styles.sectionHeader}>

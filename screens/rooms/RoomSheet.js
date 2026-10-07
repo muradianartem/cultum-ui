@@ -19,7 +19,6 @@ import { roomSubtitle } from '../../store/format';
 import { roomIcon } from '../../store/model';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
-import { useRoomGate } from './useRoomGate';
 
 const NEW_ROOM = 'new-room';
 
@@ -37,7 +36,6 @@ export default function RoomSheet({
   onCreateAndMove,
 }) {
   const t = useTheme();
-  const gate = useRoomGate();
   const [draft, setDraft] = useState('');
   const [selected, setSelected] = useState(null);
 
@@ -109,7 +107,7 @@ export default function RoomSheet({
       primaryAction: {
         label: creating ? 'Continue' : 'Move and delete room',
         disabled: !selected,
-        onPress: () => (creating ? gate(() => onStep('new-room')) : onMoveAndDelete(selected)),
+        onPress: () => (creating ? onStep('new-room') : onMoveAndDelete(selected)),
       },
     };
     body = (

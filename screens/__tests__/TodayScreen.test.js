@@ -5,6 +5,12 @@ import { cleanupTrees, renderWithGarden, seedGarden } from '../../store/testing'
 import TaskCard from '../TaskCard';
 import TodayScreen from '../TodayScreen';
 
+// Unknown plan by default, as under the real provider before it hydrates.
+let mockEntitlement = { ready: false, isPlus: false };
+jest.mock('../../billing/EntitlementProvider', () => ({
+  useEntitlement: () => mockEntitlement,
+}));
+
 // Mid-afternoon, so "Good afternoon" is deterministic and a 09:00 reminder due
 // today has already come due.
 const NOW = new Date(2026, 8, 5, 15, 0, 0);
@@ -47,7 +53,10 @@ const pressIn = (node, label) =>
       .props.onPress(),
   );
 
-afterEach(cleanupTrees);
+afterEach(() => {
+  cleanupTrees();
+  mockEntitlement = { ready: false, isPlus: false };
+});
 
 test('greets by time of day, and by name once there is one', () => {
   expect(render().texts()).toContain('Good afternoon');
@@ -245,5 +254,23 @@ describe('the snackbar takes the action back', () => {
 
     r.press('Undo');
     expect(r.texts()).toContain('Watering');
+  });
+});
+
+describe('the upgrade banner', () => {
+  test('a free account is offered Plus, and the banner opens the paywall', () => {
+    mockEntitlement = { ready: true, isPlus: false };
+    const r = render();
+    expect(r.texts()).toContain('Try Cultum Plus free');
+    r.press('Try Cultum Plus free');
+    expect(r.router.route).toBe('paywall');
+    expect(r.router.params).toEqual({ source: 'today_banner' });
+  });
+
+  test('is never shown to Plus, or before the plan is known', () => {
+    mockEntitlement = { ready: true, isPlus: true };
+    expect(render().texts()).not.toContain('Try Cultum Plus free');
+    mockEntitlement = { ready: false, isPlus: false };
+    expect(render().texts()).not.toContain('Try Cultum Plus free');
   });
 });

@@ -2,6 +2,7 @@
 export { default as Button } from './Button';
 export { default as TextButton } from './TextButton';
 export { default as Badge } from './Badge';
+export { default as PlusBadge } from './PlusBadge';
 export { default as BottomSheet } from './BottomSheet';
 export { default as Dialog } from './Dialog';
 export { default as Divider } from './Divider';
