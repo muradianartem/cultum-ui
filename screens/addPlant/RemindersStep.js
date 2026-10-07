@@ -11,12 +11,20 @@
 // Chrome-less — AddPlantScreen supplies the nav bar, the footer and the sheets.
 
 import { ScrollView, StyleSheet } from 'react-native';
+import { PlusBadge } from '../../components';
 import { space } from '../../theme/foundations';
 import ReminderCard from '../ReminderCard';
 import { draftView } from './addPlantData';
 import CardRow from './CardRow';
 
-export default function RemindersStep({ reminders, onToggle, onEditField, onRemove, onAddCustom }) {
+export default function RemindersStep({
+  reminders,
+  onToggle,
+  onEditField,
+  onRemove,
+  onAddCustom,
+  customLocked = false,
+}) {
   return (
     <ScrollView
       style={styles.scroll}
@@ -37,7 +45,12 @@ export default function RemindersStep({ reminders, onToggle, onEditField, onRemo
         />
       ))}
 
-      <CardRow icon="add" title="Add custom reminder" onPress={onAddCustom} />
+      <CardRow
+        icon="add"
+        title="Add custom reminder"
+        after={customLocked ? <PlusBadge /> : undefined}
+        onPress={onAddCustom}
+      />
     </ScrollView>
   );
 }

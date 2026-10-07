@@ -24,10 +24,13 @@
 // plant is already saved by then; nothing on that path saves it again.
 
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Icon, NavigationBar, useKeyboard } from '../../components';
 import { useRouter } from '../../routing';
+import { useEntitlement } from '../../billing/EntitlementProvider';
+import { canCustomReminders, isPaywallError } from '../../billing/limits';
+import { useUpgrade } from '../../billing/useUpgrade';
 import { ONBOARDING_PAYWALL, useOnboarding } from '../../onboarding';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space } from '../../theme/foundations';
@@ -38,7 +41,6 @@ import AddReminderSheet from '../AddReminderSheet';
 import ReminderValueSheet from '../ReminderValueSheet';
 import { parseShortDate } from '../addReminderData';
 import AddRoomSheet from './AddRoomSheet';
-import { useRoomGate } from '../rooms/useRoomGate';
 import NameStep from './NameStep';
 import RemindersStep from './RemindersStep';
 import RoomStep from './RoomStep';
@@ -71,8 +73,9 @@ export default function AddPlantScreen({ plant, today }) {
   const { visible: keyboardVisible, height: keyboardHeight } = useKeyboard();
   const { back, reset } = useRouter();
   const garden = useGarden();
-  const gate = useRoomGate();
   const onboarding = useOnboarding();
+  const customLocked = !canCustomReminders(useEntitlement());
+  const openPaywall = useUpgrade();
 
   const vm = plant;
 
@@ -198,7 +201,10 @@ export default function AddPlantScreen({ plant, today }) {
       // The plant was created but a reminder wasn't: it is still saved, so the
       // flow goes on and only the reminder is reported.
       if (!e?.plantId) {
-        showError(e, 'Couldn’t add your plant');
+        // Over the free plan's one plant (another device got there first, or
+        // the cached count was stale): nothing to save, so on to the pitch.
+        if (isPaywallError(e, 'plant_limit')) openPaywall('plant_limit');
+        else showError(e, 'Couldn’t add your plant');
         return;
       }
       savedId.current = e.plantId;
@@ -213,15 +219,21 @@ export default function AddPlantScreen({ plant, today }) {
   };
 
   // All three sheets are Modals, and iOS won't present a second over an open
-  // one — so only one of them is ever mounted visible at a time. At the plan's
-  // room limit the paywall opens instead.
-  const openRoomSheet = () =>
-    gate(() => {
-      setReminderSheet(false);
-      setEditorOpen(false);
-      setRoomSheet(true);
-    });
+  // one — so only one of them is ever mounted visible at a time.
+  const openRoomSheet = () => {
+    setReminderSheet(false);
+    setEditorOpen(false);
+    setRoomSheet(true);
+  };
   const openReminderSheet = () => {
+    // Not the paywall: leaving this route unmounts the wizard and its draft.
+    if (customLocked) {
+      Alert.alert(
+        'Custom reminders come with Plus',
+        'Add your plant first. Upgrading to Cultum Plus lets you add your own reminders from its page.',
+      );
+      return;
+    }
     setRoomSheet(false);
     setEditorOpen(false);
     setReminderSheet(true);
@@ -279,6 +291,7 @@ export default function AddPlantScreen({ plant, today }) {
             onEditField={openEditField}
             onRemove={removeReminder}
             onAddCustom={openReminderSheet}
+            customLocked={customLocked}
           />
         ) : null}
 

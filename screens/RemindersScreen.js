@@ -13,8 +13,11 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dialog, Icon, List, ListItem, NavigationBar, State } from '../components';
+import { Dialog, Icon, List, ListItem, NavigationBar, PlusBadge, State } from '../components';
 import { useRouter } from '../routing';
+import { useEntitlement } from '../billing/EntitlementProvider';
+import { canCustomReminders, isPaywallError } from '../billing/limits';
+import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import {
   dateLabelFor,
@@ -57,6 +60,10 @@ export default function RemindersScreen({ plantId, plantName }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
+  // Every reminder added here is custom, which free accounts don't get
+  // (Figma "Reminders / Default reminders only [Free]").
+  const customLocked = !canCustomReminders(useEntitlement());
+  const openPaywall = useUpgrade();
 
   // Id of the reminder pending removal (drives the confirm Dialog); null = closed.
   const [pendingRemove, setPendingRemove] = useState(null);
@@ -79,6 +86,10 @@ export default function RemindersScreen({ plantId, plantName }) {
     setEditorOpen(true);
   };
   const openAdd = () => {
+    if (customLocked) {
+      openPaywall('custom_reminders');
+      return;
+    }
     setEditorOpen(false);
     setAddOpen(true);
   };
@@ -122,7 +133,11 @@ export default function RemindersScreen({ plantId, plantName }) {
         intervalDays: parseFrequency(draft.frequency),
         startAt: draft.startAt ?? (parseShortDate(draft.dateValue) ?? new Date()).toISOString(),
       })
-      .catch((e) => showError(e, 'Couldn’t add the reminder'));
+      .catch((e) =>
+        isPaywallError(e, 'custom_reminders')
+          ? openPaywall('custom_reminders')
+          : showError(e, 'Couldn’t add the reminder'),
+      );
   };
 
   const confirmRemove = () => {
@@ -183,7 +198,11 @@ export default function RemindersScreen({ plantId, plantName }) {
           ))}
 
           <List variant="card">
-            <ListItem title="Add new reminder" onPress={openAdd} />
+            <ListItem
+              title="Add new reminder"
+              after={customLocked ? <PlusBadge /> : undefined}
+              onPress={openAdd}
+            />
           </List>
         </ScrollView>
       ) : (

@@ -12,11 +12,9 @@ import { BottomSheet, Icon, List, ListItem, RadioButton, TextInput } from '../..
 import { roomIcon } from '../../store/model';
 import { useTheme } from '../../theme/ThemeProvider';
 import { space, typography } from '../../theme/foundations';
-import { useRoomGate } from '../rooms/useRoomGate';
 
 export default function MovePlantSheet({ visible, rooms = [], roomId, onClose, onMove, onAddRoom }) {
   const t = useTheme();
-  const gate = useRoomGate();
   const [selected, setSelected] = useState(roomId ?? null);
   const [creating, setCreating] = useState(false);
   const [newRoom, setNewRoom] = useState('');
@@ -96,7 +94,7 @@ export default function MovePlantSheet({ visible, rooms = [], roomId, onClose, o
             <ListItem
               before={<Icon name="add" size={20} color={t.text.primary} />}
               title="Add a new room"
-              onPress={() => gate(() => setCreating(true))}
+              onPress={() => setCreating(true)}
             />
           </List>
         )}

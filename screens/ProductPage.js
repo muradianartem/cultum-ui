@@ -33,6 +33,9 @@ import {
   useUndoSnackbar,
 } from '../components';
 import { useRouter } from '../routing';
+import { useEntitlement } from '../billing/EntitlementProvider';
+import { plantQuota } from '../billing/limits';
+import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
 import { nextReminderLabel } from '../store/format';
@@ -242,6 +245,10 @@ export default function ProductPage({ plantId, plant, owned = false }) {
   const isOwned = !!record;
   // A catalog entry the user already has one of: the nudge banner, not the page.
   const alreadyOwned = !isOwned ? garden.getPlantBySpecies(vm.speciesKey) : null;
+  // Free accounts hold one plant (Figma "Plant page / Plant limit reached").
+  const entitlement = useEntitlement();
+  const openPaywall = useUpgrade();
+  const plants = !isOwned ? plantQuota(entitlement, garden.plants.length) : null;
 
   const room = record ? garden.getRoom(record.roomId) : null;
   const tasks = isOwned ? garden.tasksForPlant(record.id) : [];
@@ -558,12 +565,28 @@ export default function ProductPage({ plantId, plant, owned = false }) {
       {/* ── Sticky CTA (only before the plant is added) ────────── */}
       {!isOwned ? (
         <View style={[styles.cta, { paddingBottom: space[16] + insets.bottom }]}>
-          <Button
-            label="Add to my plants"
-            size="lg"
-            onPress={() => navigate('add-plant', { plant: vm })}
-            leftIcon={<Icon name="add" size={20} color={t.brand.onPrimary} />}
-          />
+          {plants?.reached ? (
+            <>
+              <Badge
+                label={`${plants.used} of ${plants.limit} free ${plants.limit === 1 ? 'plant' : 'plants'} used`}
+                variant="secondary"
+                style={styles.ctaBadge}
+              />
+              <Button
+                label="Upgrade to Plus"
+                size="lg"
+                onPress={() => openPaywall('plant_limit')}
+                leftIcon={<Icon name="power" size={20} color={t.brand.onPrimary} />}
+              />
+            </>
+          ) : (
+            <Button
+              label="Add to my plants"
+              size="lg"
+              onPress={() => navigate('add-plant', { plant: vm })}
+              leftIcon={<Icon name="add" size={20} color={t.brand.onPrimary} />}
+            />
+          )}
         </View>
       ) : null}
 
@@ -728,5 +751,7 @@ const makeStyles = (t) =>
       backgroundColor: t.background.primary,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: t.border.tertiary,
+      gap: space[12],
     },
+    ctaBadge: { alignSelf: 'center' },
   });
