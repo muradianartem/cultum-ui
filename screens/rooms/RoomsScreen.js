@@ -10,6 +10,7 @@ import {
   SegmentedControl,
   State,
   TabBar,
+  useSnackbarOffset,
 } from '../../components';
 import { useRouter } from '../../routing';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -50,6 +51,10 @@ export default function RoomsScreen() {
   const [creating, setCreating] = useState(false);
   const openCreate = () => setCreating(true);
   const searching = query.trim().length > 0;
+  // The snackbar sits above the tab bar; measure the bottom block rather than
+  // hardcode a height, so it tracks the safe-area inset.
+  const [bottomH, setBottomH] = useState(0);
+  useSnackbarOffset(bottomH);
 
   const setQuery = (next) => {
     setQueryRaw(next);
@@ -224,7 +229,10 @@ export default function RoomsScreen() {
         testID="new-room-sheet"
       />
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom }]}
+        onLayout={(e) => setBottomH(e.nativeEvent.layout.height)}
+      >
         <TabBar
           tabs={tabBarTabs}
           value="rooms"

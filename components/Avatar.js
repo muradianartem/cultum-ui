@@ -37,7 +37,9 @@ export default function Avatar({
 
   const box = [
     styles.base,
-    { width: dim, height: dim, borderRadius: radius.full, backgroundColor: t.surface.primary },
+    // Figma fill #DADBDA (surface-secondary): a step darker than the card
+    // surface it usually sits on, or the circle disappears into it.
+    { width: dim, height: dim, borderRadius: radius.full, backgroundColor: t.surface.secondary },
     ring && { borderWidth: 1, borderColor: t.background.primary },
     style,
   ];

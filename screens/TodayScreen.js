@@ -217,7 +217,8 @@ export default function TodayScreen() {
           {/* Only once the plan is known — see SettingsScreen's upgrade card. */}
           {ready && !isPlus ? <UpgradeBanner onPress={() => openPaywall('today_banner')} /> : null}
 
-          {segment === 'today' && (
+          {/* Nothing due → no header; "All caught up" takes the space instead. */}
+          {segment === 'today' && groups.length > 0 && (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today’s tasks</Text>
               <Button
@@ -225,7 +226,6 @@ export default function TodayScreen() {
                 variant="outline"
                 size="sm"
                 fullWidth={false}
-                disabled={taskCount === 0}
                 onPress={() => setConfirmAll(true)}
               />
             </View>

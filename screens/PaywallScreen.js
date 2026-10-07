@@ -236,7 +236,7 @@ function Paywall({ content, source }) {
             <ButtonIcon
               size="sm"
               variant="outline"
-              icon={<Icon name="close" size={16} />}
+              icon={<Icon name="close" size={20} />}
               accessibilityLabel="Close"
               // A StoreKit sheet is up; closing under it would orphan the purchase.
               disabled={busy}

@@ -1,7 +1,8 @@
 import { act } from 'react-test-renderer';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 import { cleanupTrees, renderWithGarden, seedGarden } from '../../../store/testing';
 import { useGarden } from '../../../store/GardenProvider';
+import { useSnackbar } from '../../../components/SnackbarProvider';
 import RoomsScreen from '../RoomsScreen';
 import RoomScreen from '../RoomScreen';
 
@@ -72,9 +73,47 @@ const roomNames = () => store.rooms.map((room) => room.name);
 const sheetVisible = (r, testID) =>
   r.tree.root.findAll((n) => n.props.testID === testID)[0].props.visible;
 
+/** Report a height for the block pinned under the list (tab bar + inset). */
+const layoutBottom = (r, height) => {
+  const block = r.tree.root.find(
+    (n) =>
+      n.type === View &&
+      typeof n.props.onLayout === 'function' &&
+      n.findAll((c) => c.props.accessibilityRole === 'tablist').length > 0,
+  );
+  act(() => block.props.onLayout({ nativeEvent: { layout: { height } } }));
+};
+
+/** The snackbar host's distance from the bottom edge. */
+const snackBottom = (r) => {
+  const host = r.tree.root.find(
+    (n) => n.type === View && n.props.pointerEvents === 'box-none' && n.props.style,
+  );
+  return [].concat(host.props.style).find((st) => st && st.bottom != null).bottom;
+};
+
 afterEach(cleanupTrees);
 
 describe('RoomsScreen', () => {
+  test('a snackbar sits 16pt above the tab bar, not on top of it', () => {
+    let snack;
+    function SnackProbe() {
+      snack = useSnackbar();
+      return null;
+    }
+    const r = render(
+      <>
+        <RoomsScreen />
+        <SnackProbe />
+      </>,
+    );
+    layoutBottom(r, 100);
+    act(() => {
+      snack.show({ label: 'Room deleted' });
+    });
+    expect(snackBottom(r)).toBe(116);
+  });
+
   test('lists the rooms with plants, with their meta lines, and hides the empty ones', () => {
     const t = render(<RoomsScreen />).texts();
     expect(t).toContain('Rooms');

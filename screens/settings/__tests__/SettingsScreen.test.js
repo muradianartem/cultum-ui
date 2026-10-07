@@ -1,8 +1,9 @@
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Router, useRouter } from '../../../routing';
 import SettingsScreen from '../SettingsScreen';
+import { SnackbarProvider, useSnackbar } from '../../../components/SnackbarProvider';
 import { useAuth } from '../../../auth/AuthProvider';
 import { useEntitlement } from '../../../billing/EntitlementProvider';
 import { deleteAccount } from '../../../api/account';
@@ -223,4 +224,65 @@ test('the Settings tab is the active one, and Today navigates home', () => {
 
   press(tree, 'Today');
   expect(api.route).toBe('today');
+});
+
+test('a snackbar sits 16pt above the tab bar, not on top of it', () => {
+  let snack;
+  function SnackProbe() {
+    snack = useSnackbar();
+    return null;
+  }
+  let tree;
+  act(() => {
+    tree = TestRenderer.create(
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <SnackbarProvider>
+          <Router initial="settings">
+            <SnackProbe />
+            <SettingsScreen />
+          </Router>
+        </SnackbarProvider>
+      </SafeAreaProvider>,
+    );
+  });
+
+  const block = tree.root.find(
+    (n) =>
+      n.type === View &&
+      typeof n.props.onLayout === 'function' &&
+      n.findAll((c) => c.props.accessibilityRole === 'tablist').length > 0,
+  );
+  act(() => block.props.onLayout({ nativeEvent: { layout: { height: 100 } } }));
+  act(() => {
+    snack.show({ label: 'Saved' });
+  });
+
+  const host = tree.root.find(
+    (n) => n.type === View && n.props.pointerEvents === 'box-none' && n.props.style,
+  );
+  expect([].concat(host.props.style).find((st) => st && st.bottom != null).bottom).toBe(116);
+  act(() => tree.unmount());
+});
+
+test('Delete account uses the same label colour as Log out', () => {
+  const tree = create();
+  const colour = (label) =>
+    [].concat(tree.root.findAll((n) => n.type === Text && n.props.children === label)[0].props.style)
+      .reduce((acc, st) => ({ ...acc, ...st }), {}).color;
+  expect(colour('Delete account')).toBe(colour('Log out'));
+});
+
+test('the upgrade button fills the card and the avatar has its own fill', () => {
+  const tree = create();
+  const upgrade = tree.root.find(
+    (n) => n.props.label === 'Upgrade' && n.props.fullWidth !== undefined,
+  );
+  expect(upgrade.props.fullWidth).toBe(true);
+
+  const avatar = tree.root.find(
+    (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'image' && n.props.accessibilityLabel === 'A',
+  );
+  const fill = [].concat(avatar.props.style).flat(Infinity)
+    .reduce((acc, st) => ({ ...acc, ...st }), {}).backgroundColor;
+  expect(fill).toBe('#DADBDA');
 });

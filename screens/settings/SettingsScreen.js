@@ -21,6 +21,7 @@ import {
   PlusBadge,
   StateIcon,
   TabBar,
+  useSnackbarOffset,
 } from '../../components';
 import { useRouter } from '../../routing';
 import { useAuth } from '../../auth/AuthProvider';
@@ -57,6 +58,10 @@ export default function SettingsScreen() {
   // them. Shown before the sign-out that unmounts this whole tree.
   const [deleteNotice, setDeleteNotice] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  // The snackbar sits above the tab bar; measure the bottom block rather than
+  // hardcode a height, so it tracks the safe-area inset.
+  const [bottomH, setBottomH] = useState(0);
+  useSnackbarOffset(bottomH);
 
   const chevron = <Icon name="chevron-right" size={20} color={t.text.primary} />;
   const badge = (name) => (
@@ -128,7 +133,12 @@ export default function SettingsScreen() {
             icon={<Icon name="power" size={24} color={t.text.primary} />}
             title="Upgrade to Cultum Plus"
             subtitle="Unlimited scans, plants and custom reminders."
-            primaryAction={{ label: 'Upgrade', onPress: () => navigate('paywall', { source: 'settings' }) }}
+            // Figma 387:1728: the one action fills the card's width.
+            primaryAction={{
+              label: 'Upgrade',
+              fullWidth: true,
+              onPress: () => navigate('paywall', { source: 'settings' }),
+            }}
           />
         ) : null}
 
@@ -161,7 +171,6 @@ export default function SettingsScreen() {
         <Section label="Preferences">
           <ListItem
             title="Notifications"
-            subtitle="Where the nudge lands"
             before={badge('bell')}
             value="App"
             after={chevron}
@@ -170,7 +179,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="Appearance"
-            subtitle="Light, dark, or whatever the phone is doing"
             before={badge('sun')}
             value={APPEARANCE_LABEL[appearance]}
             after={chevron}
@@ -202,7 +210,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="About Cultum"
-            subtitle="Version, privacy, terms and licences"
             before={badge('info')}
             value={APP_VERSION}
             after={chevron}
@@ -220,7 +227,6 @@ export default function SettingsScreen() {
           />
           <ListItem
             title="Delete account"
-            destructive
             before={badge('trash')}
             after={chevron}
             onPress={() => {
@@ -231,7 +237,10 @@ export default function SettingsScreen() {
         </Section>
       </ScrollView>
 
-      <View style={[styles.bottom, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[styles.bottom, { paddingBottom: insets.bottom }]}
+        onLayout={(e) => setBottomH(e.nativeEvent.layout.height)}
+      >
         <TabBar
           tabs={tabBarTabs}
           value="settings"
