@@ -116,6 +116,16 @@ test('Upgrade opens the paywall', () => {
   const tree = create();
   press(tree, 'Upgrade');
   expect(api.route).toBe('paywall');
+  expect(api.params).toEqual({ source: 'settings' });
+});
+
+test('a Plus member\'s name carries the Plus tag; a free account\'s does not', () => {
+  expect(texts(create())).not.toContain('Plus');
+
+  useEntitlement.mockReturnValue({ ready: true, isPlus: true });
+  const t = texts(create());
+  expect(t).toContain('Allison');
+  expect(t).toContain('Plus');
 });
 
 test('each Preferences and Help row reaches its own screen', () => {
