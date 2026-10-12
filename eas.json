@@ -13,7 +13,14 @@
     },
     "production": {
       "autoIncrement": true,
-      "credentialsSource": "local"
+      "credentialsSource": "local",
+      "android": {
+        "credentialsSource": "remote"
+      }
+    },
+    "apk": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
     }
   },
   "submit": {
