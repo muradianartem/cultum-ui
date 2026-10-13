@@ -37,20 +37,20 @@ const PHOTO_GAP = 5;
 const MOSAIC = [
   [
     require('../assets/auth/mosaic-01.png'),
-    require('../assets/auth/mosaic-02.png'),
-    require('../assets/auth/mosaic-03.png'),
-    require('../assets/auth/mosaic-04.png'),
+    require('../assets/auth/mosaic-02.jpg'),
+    require('../assets/auth/mosaic-03.jpg'),
+    require('../assets/auth/mosaic-04.jpg'),
   ],
   [
-    require('../assets/auth/mosaic-05.png'),
-    require('../assets/auth/mosaic-06.png'),
-    require('../assets/auth/mosaic-07.png'),
-    require('../assets/auth/mosaic-08.png'),
+    require('../assets/auth/mosaic-05.jpg'),
+    require('../assets/auth/mosaic-06.jpg'),
+    require('../assets/auth/mosaic-07.jpg'),
+    require('../assets/auth/mosaic-08.jpg'),
   ],
   [
-    require('../assets/auth/mosaic-09.png'),
-    require('../assets/auth/mosaic-10.png'),
-    require('../assets/auth/mosaic-11.png'),
+    require('../assets/auth/mosaic-09.jpg'),
+    require('../assets/auth/mosaic-10.jpg'),
+    require('../assets/auth/mosaic-11.jpg'),
     require('../assets/auth/mosaic-01.png'),
   ],
 ];
