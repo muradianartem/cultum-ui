@@ -10,6 +10,10 @@
 // latest tap is kept, in memory. It is delivered once onboarding completes,
 // and only if the garden still has that plant; otherwise Today stays put.
 //
+// A grouped banner ("3 plants need you today") names no single plant, so it
+// opens Today. During onboarding it is simply dropped: finishing onboarding
+// lands on Today anyway.
+//
 // Renders nothing.
 
 import { useEffect, useRef, useState } from 'react';
@@ -19,7 +23,7 @@ import { useGarden } from '../store/GardenProvider';
 import { useOnboarding } from '../onboarding';
 
 export default function NotificationRouter() {
-  const { navigate } = useRouter();
+  const { navigate, reset } = useRouter();
   const garden = useGarden();
   const { active } = useOnboarding();
   const [pending, setPending] = useState(null);
@@ -33,8 +37,12 @@ export default function NotificationRouter() {
     let alive = true;
 
     const open = (response) => {
-      const plantId = response?.notification?.request?.content?.data?.plantId;
-      if (!plantId) return;
+      const data = response?.notification?.request?.content?.data;
+      const plantId = data?.plantId;
+      if (!plantId) {
+        if (data?.kind === 'today' && !onboardingActive.current) reset('today');
+        return;
+      }
       if (onboardingActive.current) setPending(plantId);
       else navigate('product', { plantId });
     };
@@ -54,7 +62,7 @@ export default function NotificationRouter() {
       alive = false;
       sub?.remove?.();
     };
-  }, [navigate]);
+  }, [navigate, reset]);
 
   // Onboarding finished (or never started): deliver the held tap, if the plant
   // it names is still there. Waits for the garden, because until it has loaded

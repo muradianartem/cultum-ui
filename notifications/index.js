@@ -1,8 +1,14 @@
 // Local notifications for upcoming care.
 //
+// Occurrences that fire at the same moment share one banner — "3 plants need
+// you today" rather than three in a row (Figma, onboarding "Get notified",
+// node 772:20980). Most reminders share the user's one reminder time, so on a
+// busy day that is a single notification; a snooze or a per-reminder time gets
+// its own.
+//
 // iOS caps an app at 64 pending local notifications, so this doesn't try to
-// schedule the whole future: it takes the next `MAX_SCHEDULED` occurrences
-// across every plant and rebuilds the whole set whenever the garden changes.
+// schedule the whole future: it takes the next `MAX_SCHEDULED` banners across
+// every plant and rebuilds the whole set whenever the garden changes.
 // Rebuilding wholesale rather than diffing keeps it honest — there is no
 // bookkeeping to drift out of sync with the reminders themselves.
 //
@@ -89,16 +95,76 @@ function contentFor(task) {
   };
 }
 
+/** "Monstera and Pothos", "Monstera, Pothos and Figgy". */
+const joinNames = (names) =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
+/**
+ * One banner for everything due at the same moment.
+ *
+ * A lone task keeps its own instruction ("Water Penny"), which says more than
+ * a summary could. One plant with several tasks names the plant and lists the
+ * tasks. Several plants follow the Figma: "5 plants need you today" over
+ * "Monstera, Pothos and 3 more" — and a tap opens Today, where they all are.
+ */
+export function contentForGroup(tasks) {
+  if (tasks.length === 1) return contentFor(tasks[0]);
+
+  const plants = [];
+  for (const t of tasks) {
+    if (!plants.some((p) => p.plantId === t.plantId)) plants.push(t);
+  }
+
+  if (plants.length === 1) {
+    const [{ plant, plantId }] = plants;
+    return {
+      title: `${plant} needs you today`,
+      body: joinNames(tasks.map((t) => t.title)),
+      data: { plantId },
+    };
+  }
+
+  const names = plants.map((p) => p.plant);
+  return {
+    title: `${names.length} plants need you today`,
+    body:
+      names.length > 3
+        ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+        : joinNames(names),
+    data: { kind: 'today' },
+  };
+}
+
 /**
  * The occurrences worth scheduling: everything still ahead of us, soonest
- * first, trimmed to the platform's budget. Today's tasks are included when
- * their time of day hasn't passed — the rest are already visible in the app.
+ * first, trimmed to `limit`. Today's tasks are included when their time of day
+ * hasn't passed — the rest are already visible in the app.
  */
 export function pendingOccurrences(state, now = new Date(), limit = MAX_SCHEDULED) {
   const ahead = (t) => new Date(t.dueAt) > now;
   return [...todayTasks(state, now).filter(ahead), ...upcomingTasks(state, now, HORIZON_DAYS)]
     .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt))
     .slice(0, limit);
+}
+
+/**
+ * The banners to schedule: pending occurrences bucketed by the minute they
+ * fire, soonest first, trimmed to the platform's budget. The budget counts
+ * banners, not tasks, so grouping lets the schedule reach further ahead.
+ *
+ * @returns {{ at: Date, tasks: object[] }[]}
+ */
+export function pendingGroups(state, now = new Date(), limit = MAX_SCHEDULED) {
+  const groups = new Map();
+  for (const task of pendingOccurrences(state, now, Infinity)) {
+    // Keyed by minute; fires at the group's first occurrence, which is still
+    // ahead of `now` where a rounded-down minute might not be.
+    const key = Math.floor(new Date(task.dueAt).getTime() / 60000);
+    if (!groups.has(key)) groups.set(key, { at: new Date(task.dueAt), tasks: [] });
+    groups.get(key).tasks.push(task);
+  }
+  // Map keeps insertion order, and the occurrences arrived sorted.
+  return [...groups.values()].slice(0, limit);
 }
 
 // Serialisation state for rescheduleAll — see the guard inside it.
@@ -157,13 +223,13 @@ async function rebuild(state, now, notificationsEnabled, gen) {
       if (__DEV__) console.log('[notifications] master switch off — nothing scheduled');
       return;
     }
-    const due = pendingOccurrences(state, now);
-    for (const task of due) {
+    const due = pendingGroups(state, now);
+    for (const group of due) {
       await Notifications.scheduleNotificationAsync({
-        content: contentFor(task),
+        content: contentForGroup(group.tasks),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: new Date(task.dueAt),
+          date: group.at,
         },
       });
       // Signed out mid-loop: stop adding the previous user's reminders.

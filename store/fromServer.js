@@ -81,6 +81,10 @@ export function reminderFromServer(dto, prev = null, local = {}, now = new Date(
     intervalDays: dto.interval_days,
     timeOfDay: dto.time_of_day ? String(dto.time_of_day).slice(0, 5) : DEFAULT_TIME_OF_DAY,
     enabled: dto.enabled !== false,
+    // The free plan does not cover this plant (GET /users/me/subscription's
+    // `free_plant_id`). Server-computed, never sent back; `enabled` stays the
+    // user's own switch so upgrading restores everything as it was.
+    pausedByPlan: dto.paused_by_plan === true,
     startAt: local.startAt ?? prev?.startAt ?? now,
     lastDoneAt: later(dto.last_done_at ?? null, local.lastDoneAt ?? prev?.lastDoneAt ?? null),
     snoozedUntil: local.snoozedUntil !== undefined ? local.snoozedUntil : prev?.snoozedUntil ?? null,

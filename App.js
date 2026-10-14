@@ -32,6 +32,8 @@ import SendFeedbackScreen from './screens/settings/SendFeedbackScreen';
 import ContactUsScreen from './screens/settings/ContactUsScreen';
 import AboutScreen from './screens/settings/AboutScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import PlanEndedScreen from './screens/PlanEndedScreen';
+import PlanLapseLauncher from './billing/PlanLapseLauncher';
 import ScanCameraScreen from './screens/scan/ScanCameraScreen';
 import ScanMatchesScreen from './screens/scan/ScanMatchesScreen';
 import ScanSearchScreen from './screens/scan/ScanSearchScreen';
@@ -156,6 +158,8 @@ function AppRoutes() {
       {/* Also not a route: it settles an onboarding checkpoint a previous
           launch left behind. */}
       <OnboardingNavigator />
+      {/* Nor this: it opens the lapse notice over whichever screen is up. */}
+      <PlanLapseLauncher />
       <Route name="onboarding" component={OnboardingScreen} />
       <Route name="today" component={TodayScreen} />
       <Route name="snoozed" component={SnoozedScreen} />
@@ -177,6 +181,8 @@ function AppRoutes() {
           subscription guard's fallback. There is no launch paywall any more:
           it would land on top of onboarding. */}
       <Route name="paywall" component={PaywallScreen} />
+      {/* "Your free trial has ended" — opened by <PlanLapseLauncher>. */}
+      <Route name="plan-ended" component={PlanEndedScreen} />
       <Route
         name="premium-gallery"
         guard={requireSubscription}

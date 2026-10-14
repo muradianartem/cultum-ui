@@ -28,7 +28,7 @@ import {
   reminderDateValue,
   shortDate,
 } from '../store/format';
-import { nextDueAt } from '../store/schedule';
+import { isLive, nextDueAt } from '../store/schedule';
 import { showError } from '../lib/showError';
 import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/foundations';
@@ -44,9 +44,13 @@ import ReminderCard from './ReminderCard';
  * step with the numbers underneath.
  */
 function toView(reminder) {
-  const due = reminder.enabled ? nextDueAt(reminder) : null;
+  const due = isLive(reminder) ? nextDueAt(reminder) : null;
   return {
-    nextLabel: due ? `Next reminder: ${longDate(due)}` : null,
+    nextLabel: reminder.pausedByPlan
+      ? 'Paused on the free plan'
+      : due
+        ? `Next reminder: ${longDate(due)}`
+        : null,
     dateLabel: dateLabelFor(reminder),
     dateValue: reminderDateValue(reminder),
     frequency: frequencyValue(reminder.intervalDays),
@@ -185,12 +189,17 @@ export default function RemindersScreen({ plantId, plantName }) {
               key={reminder.id}
               title={reminder.title}
               action={reminder.action}
-              enabled={reminder.enabled}
+              // Paused by the free plan (another plant keeps reminders): it
+              // reads as off, and switching it on is an upgrade, not a PATCH
+              // that would leave it paused anyway.
+              enabled={isLive(reminder)}
               view={toView(reminder)}
               onToggle={() =>
-                garden
-                  .toggleReminder(reminder.id, !reminder.enabled)
-                  .catch((e) => showError(e, 'Couldn’t change the reminder'))
+                reminder.pausedByPlan
+                  ? openPaywall('paused_reminder')
+                  : garden
+                    .toggleReminder(reminder.id, !reminder.enabled)
+                    .catch((e) => showError(e, 'Couldn’t change the reminder'))
               }
               onEditField={(field) => openEditField(reminder.id, field)}
               onRemove={() => setPendingRemove(reminder.id)}

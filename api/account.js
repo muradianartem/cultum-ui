@@ -1,4 +1,5 @@
-// The caller's own account: read it, mark onboarding shown, delete it.
+// The caller's own account: read it, mark onboarding shown, pick the free
+// plant, delete it.
 
 import { apiFetch } from './client';
 
@@ -39,5 +40,21 @@ export async function setOnboardingShown(shown = true) {
   return apiFetch('/users/me', {
     method: 'PATCH',
     body: JSON.stringify({ onboarding_shown: shown }),
+  });
+}
+
+/**
+ * PATCH /users/me `{ free_plant_id }` → MeOut
+ *
+ * After a trial or subscription lapses with more plants than the free plan
+ * covers, this picks the one whose reminders stay on. The server allows it
+ * once: a second, different pick is a 409 (`free_plant_already_chosen`), the
+ * same pick again is a harmless retry, and a Plus account gets a 409
+ * (`not_on_free_plan`).
+ */
+export async function chooseFreePlant(plantId) {
+  return apiFetch('/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ free_plant_id: plantId }),
   });
 }

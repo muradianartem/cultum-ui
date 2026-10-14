@@ -28,6 +28,9 @@ import { useTheme } from '../theme/ThemeProvider';
 export default function ListItem({
   title,
   subtitle,
+  // Lines the subtitle may wrap to before it truncates. One keeps list rows
+  // even; a standalone card whose subtitle is the message can allow more.
+  subtitleLines = 1,
   before,
   after,
   value,
@@ -87,7 +90,7 @@ export default function ListItem({
           title
         )}
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: t.text.secondary }]} numberOfLines={1}>
+          <Text style={[styles.subtitle, { color: t.text.secondary }]} numberOfLines={subtitleLines}>
             {subtitle}
           </Text>
         ) : null}
