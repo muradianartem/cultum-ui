@@ -295,3 +295,30 @@ describe('on the free plan', () => {
     expect(visible(r, 'add-reminder-sheet')).toBe(true);
   });
 });
+
+describe('a reminder the free plan pauses', () => {
+  const paused = () =>
+    seedGarden({
+      now: NOW,
+      plants: [
+        {
+          nickname: 'Figgy',
+          room: 'Kitchen',
+          reminders: [
+            { action: 'water', intervalDays: 7, dueInDays: 1, overrides: { pausedByPlan: true } },
+          ],
+        },
+      ],
+    });
+
+  test('reads as off, says why, and switching it on is an upgrade', () => {
+    const r = render(paused());
+    expect(switches(r)[0].props.accessibilityState.checked).toBe(false);
+    expect(r.texts()).toContain('Paused on the free plan');
+
+    r.press('Enable Watering');
+    expect(r.api.callsTo('updateReminder')).toEqual([]);
+    expect(r.router.route).toBe('paywall');
+    expect(r.router.params).toEqual({ source: 'paused_reminder' });
+  });
+});

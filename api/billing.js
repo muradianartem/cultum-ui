@@ -31,7 +31,8 @@ export async function getPaywall({ timeoutMs = PAYWALL_TIMEOUT_MS } = {}) {
 /**
  * GET /users/me/subscription → EntitlementOut. Authenticated.
  *
- * `{ plan, is_plus, limits, usage, subscription }` — the backend calls it "the
+ * `{ plan, is_plus, limits, usage, subscription, free_plant_id, free_plant_chosen }`
+ * — the backend calls it "the
  * caller's plan, limits and usage, polled by the app on launch". Only `is_plus`
  * is read today (the upgrade card, the subscription guard); `limits` is what a
  * plant/scan ceiling will read when those are enforced client-side.
@@ -99,6 +100,12 @@ export function mapEntitlement(dto) {
     limits: dto?.limits ?? null,
     usage: dto?.usage ?? null,
     subscription: dto?.subscription ?? null,
+    // Over the free plant limit after a lapse, the one plant that keeps its
+    // reminders (the user's pick, else the earliest added) — null when nothing
+    // is paused. `freePlantChosen` is whether the pick has been made; it can
+    // only be made once.
+    freePlantId: typeof dto?.free_plant_id === 'string' ? dto.free_plant_id : null,
+    freePlantChosen: dto?.free_plant_chosen === true,
   };
 }
 

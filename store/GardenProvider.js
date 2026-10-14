@@ -321,7 +321,7 @@ export function GardenProvider({ children, initialState = null, clock = null, ap
       state.reminders
         .map(
           (r) =>
-            `${r.id}|${r.enabled ? 1 : 0}|${r.intervalDays}|${r.timeOfDay}|${r.startAt}|${r.lastDoneAt}|${r.snoozedUntil}|${r.title}`,
+            `${r.id}|${r.enabled && !r.pausedByPlan ? 1 : 0}|${r.intervalDays}|${r.timeOfDay}|${r.startAt}|${r.lastDoneAt}|${r.snoozedUntil}|${r.title}`,
         )
         .join(';') +
       '#' +

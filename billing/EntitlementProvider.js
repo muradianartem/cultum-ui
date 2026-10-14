@@ -14,6 +14,7 @@ import { getEntitlement, mapEntitlement } from '../api/billing';
 import { loadEntitlementSync, saveEntitlement } from '../lib/entitlementCache';
 import { setEntitlement } from './entitlementRef';
 import { useAuth } from '../auth/AuthProvider';
+import { planPreview, previewEntitlementDto } from './planPreview';
 
 /** Re-check on foreground if the answer is older than this. */
 const STALE_MS = 5 * 60 * 1000;
@@ -23,6 +24,8 @@ const UNKNOWN = { ready: false, plan: 'free', isPlus: false, limits: null, usage
 const EntitlementContext = createContext({ ...UNKNOWN, refresh: async () => {}, apply: () => {} });
 
 const fromCache = () => {
+  const preview = previewEntitlementDto();
+  if (preview) return { ...mapEntitlement(preview), ready: true };
   const cached = loadEntitlementSync();
   return cached ? { ...mapEntitlement(cached), ready: true } : UNKNOWN;
 };
@@ -52,7 +55,7 @@ export function EntitlementProvider({ children, initial = null }) {
     // A dev-bypass session has no real credentials: the fake tokens 401, and
     // apiFetch answers a 401 by rotating the session, which fails and signs the
     // developer straight out. Same reason GardenProvider#runSync sits it out.
-    if (inFlight.current || status !== 'signedIn' || devSession) return;
+    if (inFlight.current || status !== 'signedIn' || devSession || planPreview()) return;
     inFlight.current = true;
     try {
       apply(await getEntitlement());

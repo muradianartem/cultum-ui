@@ -123,6 +123,7 @@ export function fakeGardenApi(doc = emptyState()) {
         time_of_day: r.timeOfDay,
         enabled: r.enabled !== false,
         last_done_at: r.lastDoneAt ?? null,
+        paused_by_plan: r.pausedByPlan === true,
       },
     ]),
   );

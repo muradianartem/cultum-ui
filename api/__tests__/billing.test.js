@@ -1,4 +1,4 @@
-import { mapPaywall } from '../billing';
+import { mapEntitlement, mapPaywall } from '../billing';
 
 // GET /billing/plans, recorded from the live backend. It lives here because it
 // is test input and nothing else — the app ships no copy of the paywall's copy.
@@ -141,4 +141,24 @@ describe('mapPaywall', () => {
     ]);
   });
 
+});
+
+describe('mapEntitlement', () => {
+  test('carries the free plant after a lapse', () => {
+    const ent = mapEntitlement({
+      plan: 'free',
+      is_plus: false,
+      subscription: { id: 's1', status: 'expired' },
+      free_plant_id: 'p1',
+      free_plant_chosen: true,
+    });
+    expect(ent).toMatchObject({ plan: 'free', freePlantId: 'p1', freePlantChosen: true });
+  });
+
+  test('a payload from before the free plant existed reads as nothing paused', () => {
+    expect(mapEntitlement({ plan: 'plus', is_plus: true })).toMatchObject({
+      freePlantId: null,
+      freePlantChosen: false,
+    });
+  });
 });

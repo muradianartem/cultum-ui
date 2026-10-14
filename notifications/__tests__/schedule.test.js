@@ -1,4 +1,11 @@
-import { MAX_SCHEDULED, cancelAll, pendingOccurrences, rescheduleAll } from '../index';
+import {
+  MAX_SCHEDULED,
+  cancelAll,
+  contentForGroup,
+  pendingGroups,
+  pendingOccurrences,
+  rescheduleAll,
+} from '../index';
 import { seedGarden } from '../../store/testing';
 
 const NOW = new Date(2026, 8, 5, 11, 0, 0);
@@ -109,6 +116,106 @@ test('a custom reminder keeps the name the user gave it', async () => {
   const [{ content }] = Notifications.scheduleNotificationAsync.mock.calls[0];
   expect(content.title).toBe('Check for better pods');
   expect(content.body).toBe('Figgy · Bedroom');
+});
+
+describe('grouping what fires together', () => {
+  // Monthly reminders all due tomorrow at the shared reminder time, so the
+  // first group is exactly these plants and nothing repeats into it.
+  const gardenOf = (names, extra = {}) =>
+    seedGarden({
+      now: NOW,
+      plants: names.map((nickname) => ({
+        nickname,
+        room: 'Kitchen',
+        reminders: [{ action: 'water', intervalDays: 30, dueInDays: 1 }],
+        ...extra,
+      })),
+    });
+
+  test('two plants due at the same moment share one banner that opens Today', async () => {
+    await rescheduleAll(gardenOf(['Monstera', 'Pothos']), NOW);
+    const calls = Notifications.scheduleNotificationAsync.mock.calls;
+    const first = calls[0][0];
+    expect(first.content.title).toBe('2 plants need you today');
+    expect(first.content.body).toBe('Monstera and Pothos');
+    expect(first.content.data).toEqual({ kind: 'today' });
+    // One banner per moment, never two at the same time.
+    const times = calls.map(([c]) => c.trigger.date.getTime());
+    expect(new Set(times).size).toBe(times.length);
+  });
+
+  test('three plants are all named, in the order Today lists them', () => {
+    const [group] = pendingGroups(gardenOf(['Monstera', 'Pothos', 'Figgy']), NOW);
+    expect(contentForGroup(group.tasks).body).toBe('Figgy, Monstera and Pothos');
+  });
+
+  test('past three, the rest are counted — as in the Figma', () => {
+    const names = ['Monstera', 'Pothos', 'Rubber plant', 'Snake plant', 'ZZ'];
+    const [group] = pendingGroups(gardenOf(names), NOW);
+    const content = contentForGroup(group.tasks);
+    expect(content.title).toBe('5 plants need you today');
+    expect(content.body).toBe('Monstera, Pothos and 3 more');
+  });
+
+  test('one plant with several tasks names the plant and lists the tasks', () => {
+    const garden = seedGarden({
+      now: NOW,
+      plants: [
+        {
+          nickname: 'Penny',
+          reminders: [
+            { action: 'water', intervalDays: 30, dueInDays: 1 },
+            { action: 'fertilize', intervalDays: 30, dueInDays: 1 },
+          ],
+        },
+      ],
+    });
+    const [group] = pendingGroups(garden, NOW);
+    expect(contentForGroup(group.tasks)).toEqual({
+      title: 'Penny needs you today',
+      body: 'Watering and Fertilizing',
+      data: { plantId: garden.plants[0].id },
+    });
+  });
+
+  test('a different time of day gets its own banner', () => {
+    const garden = seedGarden({
+      now: NOW,
+      plants: [
+        { nickname: 'Monstera', reminders: [{ action: 'water', intervalDays: 30, dueInDays: 1 }] },
+        {
+          nickname: 'Pothos',
+          reminders: [
+            {
+              action: 'water',
+              intervalDays: 30,
+              dueInDays: 1,
+              overrides: { timeOfDay: '18:30' },
+            },
+          ],
+        },
+      ],
+    });
+    const [morning, evening] = pendingGroups(garden, NOW);
+    expect(morning.tasks.map((t) => t.plant)).toEqual(['Monstera']);
+    expect(evening.tasks.map((t) => t.plant)).toEqual(['Pothos']);
+    expect(contentForGroup(evening.tasks).title).toBe('Water Pothos');
+  });
+
+  test('the budget counts banners, not tasks', () => {
+    // A dozen plants misting daily: one banner a day, so the budget reaches
+    // MAX_SCHEDULED days ahead instead of a few.
+    const garden = seedGarden({
+      now: NOW,
+      plants: Array.from({ length: 12 }, (_, i) => ({
+        nickname: `Plant ${i}`,
+        reminders: [{ action: 'mist', intervalDays: 1, dueInDays: 1 }],
+      })),
+    });
+    const groups = pendingGroups(garden, NOW);
+    expect(groups).toHaveLength(MAX_SCHEDULED);
+    expect(groups.every((g) => g.tasks.length === 12)).toBe(true);
+  });
 });
 
 test('rebuilding always starts from a clean slate', async () => {

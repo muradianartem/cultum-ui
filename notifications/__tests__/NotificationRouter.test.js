@@ -23,7 +23,8 @@ let tap;
 beforeEach(() => {
   require('expo-file-system').__files.clear();
   Notifications.addNotificationResponseReceivedListener.mockImplementation((fn) => {
-    tap = (plantId) => act(() => fn({ notification: { request: { content: { data: { plantId } } } } }));
+    tap = (plantId, data = { plantId }) =>
+      act(() => fn({ notification: { request: { content: { data } } } }));
     return { remove: jest.fn() };
   });
 });
@@ -92,4 +93,25 @@ test('a held tap for a plant that is gone is dropped, and Today stays', async ()
   finish(r);
   expect(r.texts()).toContain('today');
   expect(r.router.canGoBack).toBe(false);
+});
+
+describe('a grouped banner', () => {
+  const tapGroup = () => tap(null, { kind: 'today' });
+
+  test('opens Today from wherever the user is', async () => {
+    const r = await boot(COMPLETE);
+    act(() => r.router.navigate('product', { plantId: PENNY }));
+    tapGroup();
+    expect(r.texts()).toContain('today');
+    expect(r.router.canGoBack).toBe(false);
+  });
+
+  test('is dropped during onboarding, which ends on Today anyway', async () => {
+    const r = await boot(FRESH);
+    tapGroup();
+    expect(r.texts()).toContain('onboarding');
+    finish(r);
+    expect(r.texts()).toContain('today');
+    expect(r.router.canGoBack).toBe(false);
+  });
 });

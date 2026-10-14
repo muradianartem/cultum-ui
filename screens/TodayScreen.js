@@ -33,6 +33,8 @@ import TaskCard from './TaskCard';
 import TaskSheet from './TaskSheet';
 import GroupingButton from './GroupingButton';
 import UpgradeBanner from './today/UpgradeBanner';
+import TrialBanner from './today/TrialBanner';
+import { trialCountdown } from '../billing/lapse';
 
 // Bucket the flat task list into display groups for the active grouping,
 // preserving first-seen order. `header: null` renders a headerless flat list.
@@ -113,7 +115,9 @@ export default function TodayScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const garden = useGarden();
   const notify = useUndoSnackbar();
-  const { ready, isPlus } = useEntitlement();
+  const entitlement = useEntitlement();
+  const { ready, isPlus } = entitlement;
+  const trial = trialCountdown(entitlement, garden.now);
   const openPaywall = useUpgrade();
 
   const [segment, setSegment] = useState('today');
@@ -214,8 +218,17 @@ export default function TodayScreen() {
             style={styles.segment}
           />
 
-          {/* Only once the plan is known — see SettingsScreen's upgrade card. */}
-          {ready && !isPlus ? <UpgradeBanner onPress={() => openPaywall('today_banner')} /> : null}
+          {/* Only once the plan is known — see SettingsScreen's upgrade card.
+              A running trial counts down instead (Figma 987:30151). */}
+          {trial ? (
+            <TrialBanner
+              daysLeft={trial.daysLeft}
+              plantCount={garden.plants.length}
+              onPress={() => openPaywall('trial_banner')}
+            />
+          ) : ready && !isPlus ? (
+            <UpgradeBanner onPress={() => openPaywall('today_banner')} />
+          ) : null}
 
           {/* Nothing due → no header; "All caught up" takes the space instead. */}
           {segment === 'today' && groups.length > 0 && (

@@ -278,3 +278,36 @@ describe('the upgrade banner', () => {
     expect(render().texts()).not.toContain('Try Cultum Plus free');
   });
 });
+
+describe('the trial countdown', () => {
+  const trial = (days) => ({
+    ready: true,
+    isPlus: true,
+    subscription: {
+      status: 'trialing',
+      trial_ends_at: new Date(NOW.getTime() + days * 24 * 3600 * 1000).toISOString(),
+    },
+  });
+
+  test('replaces the upgrade card while a trial runs, and opens the paywall', () => {
+    mockEntitlement = trial(2);
+    const r = render();
+    const t = r.texts();
+    expect(t).toContain('Your trial ends in 2 days');
+    expect(t).toContain('Upgrade to keep reminders for all 2 plants');
+    expect(t).not.toContain('Try Cultum Plus free');
+    r.press('Your trial ends in 2 days');
+    expect(r.router.route).toBe('paywall');
+    expect(r.router.params).toEqual({ source: 'trial_banner' });
+  });
+
+  test('says tomorrow on the last full day', () => {
+    mockEntitlement = trial(1);
+    expect(render().texts()).toContain('Your trial ends tomorrow');
+  });
+
+  test('is not shown on a paid plan', () => {
+    mockEntitlement = { ready: true, isPlus: true, subscription: { status: 'active' } };
+    expect(render().texts().some((s) => String(s).startsWith('Your trial ends'))).toBe(false);
+  });
+});

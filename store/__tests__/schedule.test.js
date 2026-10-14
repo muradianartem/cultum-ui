@@ -108,6 +108,12 @@ describe('todayTasks', () => {
     expect(todayTasks(g, NOW)).toEqual([]);
   });
 
+  test('a reminder the free plan pauses produces nothing, though it is still on', () => {
+    const g = garden({ reminders: [{ action: 'water', pausedByPlan: true, intervalDays: 1 }] });
+    expect(g.reminders[0].enabled).toBe(true);
+    expect(todayTasks(g, NOW)).toEqual([]);
+  });
+
   test('a plant with no room still reads sensibly', () => {
     const g = garden({ roomId: null, reminders: [{ action: 'water', intervalDays: 7 }] });
     expect(todayTasks(g, NOW)[0].room).toBe('No room');

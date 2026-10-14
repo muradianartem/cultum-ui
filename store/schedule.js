@@ -131,11 +131,17 @@ function toTask(state, plant, reminder, dueAt, now) {
   };
 }
 
+/**
+ * Whether a reminder fires: switched on by the user, and not paused because the
+ * free plan covers a different plant.
+ */
+export const isLive = (r) => r.enabled && !r.pausedByPlan;
+
 /** Every reminder that can actually fire, paired with its plant. */
 function activePairs(state) {
   const plants = new Map(livePlants(state).map((p) => [p.id, p]));
   return state.reminders
-    .filter((r) => r.enabled && plants.has(r.plantId))
+    .filter((r) => isLive(r) && plants.has(r.plantId))
     .map((r) => ({ reminder: r, plant: plants.get(r.plantId) }));
 }
 
@@ -210,7 +216,7 @@ export const plantTasks = (state, plantId, now = new Date()) =>
  */
 export function nextTaskForPlant(state, plantId, now = new Date()) {
   const dues = state.reminders
-    .filter((r) => r.plantId === plantId && r.enabled)
+    .filter((r) => r.plantId === plantId && isLive(r))
     .map((r) => nextDueAt(r))
     .filter(Boolean)
     .sort((a, b) => a - b);

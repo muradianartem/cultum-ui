@@ -14,6 +14,8 @@ import Button from './Button';
  *   Primary/Secondary action → `primaryAction` / `secondaryAction`
  *                              ({ label, onPress }); actions reuse <Button size="sm">
  *   Show icon      → `icon` inside a badge; `iconVariant` (badge colour) + `iconSize`
+ *   `titleStyle` overrides the title's text style for a screen-sized State
+ *   (Figma's full-screen notices use Heading Small Emphasized).
  */
 // The badge borrows Button's fills for the same variant names.
 function iconPalette(t, variant) {
@@ -33,6 +35,7 @@ export default function State({
   iconVariant = 'primary',
   iconSize = 'lg',
   title,
+  titleStyle,
   subtitle,
   primaryAction,
   secondaryAction,
@@ -67,7 +70,7 @@ export default function State({
       ) : null}
 
       <View style={styles.text}>
-        {title ? <Text style={[styles.title, { color: t.text.primary }]}>{title}</Text> : null}
+        {title ? <Text style={[styles.title, { color: t.text.primary }, titleStyle]}>{title}</Text> : null}
         {subtitle ? (
           <Text style={[styles.subtitle, { color: t.text.secondary }]}>{subtitle}</Text>
         ) : null}

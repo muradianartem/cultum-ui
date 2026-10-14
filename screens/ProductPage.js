@@ -39,6 +39,7 @@ import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import { plantPhoto } from '../store/model';
 import { nextReminderLabel } from '../store/format';
+import { isLive } from '../store/schedule';
 import { showError } from '../lib/showError';
 import { truncateText } from '../lib/truncateText';
 import { speciesDetailToVM, cardToVM } from '../api/mapPlant';
@@ -404,11 +405,14 @@ export default function ProductPage({ plantId, plant, owned = false }) {
                       }
                       title="All caught up"
                       // Nothing scheduled at all is a different state from
-                      // everything being done, and reads as one.
+                      // everything being done, and reads as one — and so is
+                      // the free plan pausing them for another plant.
                       subtitle={
-                        reminders.some((r) => r.enabled)
+                        reminders.some(isLive)
                           ? nextReminderLabel(nextDue)
-                          : 'No reminders'
+                          : reminders.some((r) => r.enabled && r.pausedByPlan)
+                            ? 'Reminders paused on the free plan'
+                            : 'No reminders'
                       }
                       after={<Icon name="chevron-right" size={20} color={t.text.primary} />}
                       onPress={openReminders}
