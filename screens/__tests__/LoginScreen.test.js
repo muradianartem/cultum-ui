@@ -167,11 +167,11 @@ describe('the legal links', () => {
     act(() => {
       link(tree, 'Terms of Use').props.onPress();
     });
-    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://legal.cultum.app/terms');
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://cultum.app/terms');
     act(() => {
       link(tree, 'Privacy Policy').props.onPress();
     });
-    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://legal.cultum.app/privacy');
+    expect(openBrowserAsync).toHaveBeenLastCalledWith('https://cultum.app/privacy');
   });
 
   test("open the server's pages once it has answered", async () => {

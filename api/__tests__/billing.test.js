@@ -48,8 +48,8 @@ const LIVE_RESPONSE = {
     google: 'Payment is charged to your Google Play account when you confirm the purchase. The subscription renews automatically.',
   },
   legal: [
-    { key: 'terms', label: 'Terms of Use', url: 'https://legal.cultum.app/terms' },
-    { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+    { key: 'terms', label: 'Terms of Use', url: 'https://cultum.app/terms' },
+    { key: 'privacy', label: 'Privacy Policy', url: 'https://cultum.app/privacy' },
   ],
 };
 
@@ -99,8 +99,8 @@ describe('mapPaywall', () => {
     expect(c.renewalTerms.apple).toMatch(/Apple Account/);
     expect(c.renewalTerms.google).toMatch(/Google Play/);
     expect(c.legal).toEqual([
-      { key: 'terms', label: 'Terms of Use', url: 'https://legal.cultum.app/terms' },
-      { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+      { key: 'terms', label: 'Terms of Use', url: 'https://cultum.app/terms' },
+      { key: 'privacy', label: 'Privacy Policy', url: 'https://cultum.app/privacy' },
     ]);
   });
 
@@ -117,7 +117,7 @@ describe('mapPaywall', () => {
       patched({
         legal: [
           { key: 'terms', label: 'Terms of Use', url: 'javascript:alert(1)' },
-          { key: 'privacy', label: 'Privacy Policy', url: 'https://legal.cultum.app/privacy' },
+          { key: 'privacy', label: 'Privacy Policy', url: 'https://cultum.app/privacy' },
         ],
       }),
     );

@@ -21,8 +21,8 @@ export const APP_BUILD = Application.nativeBuildVersion ?? '—';
  * the backend has answered, which on the Login screen is the usual case.
  */
 export const LEGAL_LINKS = [
-  { key: 'privacy', title: 'Privacy Policy', value: 'legal.cultum.app/privacy', url: 'https://legal.cultum.app/privacy' },
-  { key: 'terms', title: 'Terms of Use', value: 'legal.cultum.app/terms', url: 'https://legal.cultum.app/terms' },
+  { key: 'privacy', title: 'Privacy Policy', value: 'cultum.app/privacy', url: 'https://cultum.app/privacy' },
+  { key: 'terms', title: 'Terms of Use', value: 'cultum.app/terms', url: 'https://cultum.app/terms' },
   { key: 'licences', title: 'Licences', value: 'cultum.app/licences', url: 'https://cultum.app/licences' },
 ];
 
