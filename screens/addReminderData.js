@@ -11,9 +11,9 @@
 import { shortDate } from '../store/format';
 import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
-  FREQUENCY_NUMBERS,
   FREQUENCY_UNITS,
   MONTHS_SHORT,
+  frequencyNumbers,
   unitLabel,
 } from './durationUnits';
 
@@ -22,6 +22,12 @@ export { shortDate };
 // The wheel opens on "2 days", matching the Figma.
 export const DEFAULT_NUMBER_INDEX = 1; // FREQUENCY_NUMBERS[1] === 2
 export const DEFAULT_UNIT_INDEX = DEFAULT_FREQUENCY_UNIT_INDEX; // 'days'
+
+// The wheel's number, held inside the unit's cap.
+const numberAt = (numberIndex, unitIndex) => {
+  const numbers = frequencyNumbers(unitIndex);
+  return numbers[Math.min(numberIndex, numbers.length - 1)];
+};
 
 // Shift by calendar day (not by 24h) so DST changes can't slip the date.
 const shiftDays = (from, n) =>
@@ -63,7 +69,7 @@ export const setDateLabel = (date) => `Set ${shortDate(date)}`;
 // Step 2's CTA: "Remind every 2 days" — and "Remind every day" at 1, which
 // reads better than "every 1 day".
 export function frequencyLabel(numberIndex, unitIndex) {
-  const n = FREQUENCY_NUMBERS[numberIndex];
+  const n = numberAt(numberIndex, unitIndex);
   const u = FREQUENCY_UNITS[unitIndex];
   return n === 1
     ? `Remind every ${u.singular}`
@@ -73,7 +79,7 @@ export function frequencyLabel(numberIndex, unitIndex) {
 // The stored "2 days" detail-row value. Kept in the same shape buildResult()
 // produces in ReminderValueSheet so a new reminder is editable straight away.
 export function frequencyValue(numberIndex, unitIndex) {
-  const n = FREQUENCY_NUMBERS[numberIndex];
+  const n = numberAt(numberIndex, unitIndex);
   return `${n} ${unitLabel(FREQUENCY_UNITS[unitIndex], n)}`;
 }
 

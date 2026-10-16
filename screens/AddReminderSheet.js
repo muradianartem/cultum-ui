@@ -27,7 +27,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider';
 import { wheel } from '../theme/tokens';
 import { typography } from '../theme/foundations';
-import { FREQUENCY_NUMBERS, FREQUENCY_UNITS } from './durationUnits';
+import { FREQUENCY_UNITS, frequencyNumbers } from './durationUnits';
 import {
   DEFAULT_NUMBER_INDEX,
   DEFAULT_UNIT_INDEX,
@@ -90,6 +90,12 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
 
   const canContinue = label.trim().length > 0;
 
+  // Moving onto a capped unit pulls the number back inside it (30 → 12 months).
+  const pickUnit = (i) => {
+    setUnitIndex(i);
+    setNumberIndex((n) => Math.min(n, frequencyNumbers(i).length - 1));
+  };
+
   return (
     <BottomSheet
       visible={visible}
@@ -129,7 +135,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
             <View style={styles.band} pointerEvents="none" />
             <View style={styles.wheels}>
               <WheelPicker
-                items={FREQUENCY_NUMBERS}
+                items={frequencyNumbers(unitIndex)}
                 index={numberIndex}
                 onChange={setNumberIndex}
                 itemHeight={ITEM_H}
@@ -144,7 +150,7 @@ export default function AddReminderSheet({ visible, onClose, onConfirm, today })
               <WheelPicker
                 items={FREQUENCY_UNITS.map((u) => u.plural)}
                 index={unitIndex}
-                onChange={setUnitIndex}
+                onChange={pickUnit}
                 itemHeight={ITEM_H}
                 height={WHEEL_H}
                 style={styles.unitCol}

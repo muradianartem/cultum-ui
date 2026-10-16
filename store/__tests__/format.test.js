@@ -31,6 +31,12 @@ describe('frequencyValue', () => {
     }
   });
 
+  test('never goes past 12 months, the longest interval the server accepts', () => {
+    expect(parseFrequency('12 months')).toBe(360);
+    expect(parseFrequency('18 months')).toBe(360);
+    expect(parseFrequency('400 days')).toBe(360);
+  });
+
   test('and every unit the frequency wheel offers is understood', () => {
     for (const unit of FREQUENCY_UNITS) {
       expect(parseFrequency(`2 ${unit.plural}`)).toBeGreaterThan(0);

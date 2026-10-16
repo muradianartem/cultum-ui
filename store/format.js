@@ -45,24 +45,23 @@ export function frequencyValue(days) {
 export const frequencyLabel = (days) => `Every ${frequencyValue(days)}`;
 
 /**
+ * The longest cadence a reminder may keep: 12 months. The backend refuses an
+ * interval past 365 days, and 360 is the 12 months the frequency wheel tops
+ * out at.
+ */
+export const MAX_INTERVAL_DAYS = 360;
+
+/**
  * The inverse of frequencyValue, for values coming back off a wheel. Hours are
  * offered by the shared duration units but can't be a reminder cadence, so they
- * round up to a whole day.
+ * round up to a whole day. Capped at MAX_INTERVAL_DAYS.
  */
 export function parseFrequency(value, fallback = 7) {
   const m = /^(\d+)\s*(hour|day|week|month)s?$/i.exec(String(value ?? '').trim());
   if (!m) return fallback;
   const n = Number(m[1]);
-  switch (m[2].toLowerCase()) {
-    case 'hour':
-      return Math.max(1, Math.round(n / 24));
-    case 'week':
-      return n * 7;
-    case 'month':
-      return n * 30;
-    default:
-      return Math.max(1, n);
-  }
+  const per = { hour: 1 / 24, day: 1, week: 7, month: 30 }[m[2].toLowerCase()];
+  return Math.min(MAX_INTERVAL_DAYS, Math.max(1, Math.round(n * per)));
 }
 
 /** A duration string ("2 days", "None") as milliseconds; 0 for none/unparsable. */

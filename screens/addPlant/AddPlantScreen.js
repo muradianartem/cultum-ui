@@ -158,7 +158,7 @@ export default function AddPlantScreen({ plant, today }) {
       list.map((r) => {
         if (r.id !== id) return r;
         if (field === 'frequency') {
-          // The catalog's "Every 7–10 days" no longer describes it.
+          // The row's "Every 4 weeks" no longer describes it.
           return { ...r, intervalDays: parseFrequency(value, r.intervalDays), frequency: null };
         }
         const date = noon(parseShortDate(value, today ?? new Date())).toISOString();

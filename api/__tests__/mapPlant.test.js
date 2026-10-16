@@ -7,6 +7,7 @@ import {
   careActions,
   faq,
   highlights,
+  parseInterval,
 } from '../mapPlant';
 import { DEFAULT_ABOUT } from '../fallbacks';
 import { MOCK_DETAIL } from '../__mocks__/scanFixtures';
@@ -274,6 +275,17 @@ describe('careActions', () => {
   test('an unknown cadence cannot seed a reminder, and says so', () => {
     expect(row({}, 'fertilize')).toMatchObject({ value: '—', intervalDays: null });
   });
+
+  test('intervals sent as strings still seed numeric reminders', () => {
+    const d = {
+      water_interval_days_min: '7-10 days',
+      fertilize_interval_days: 'Every 2 weeks',
+      repot_interval_months: '1-2 years',
+    };
+    expect(row(d, 'water')).toMatchObject({ value: 'Every 7–10 days', intervalDays: 7 });
+    expect(row(d, 'fertilize')).toMatchObject({ value: 'Every 2 weeks', intervalDays: 14 });
+    expect(row(d, 'repot')).toMatchObject({ value: 'Every year', intervalDays: 360 });
+  });
 });
 
 describe('faq', () => {
@@ -303,5 +315,25 @@ describe('faq', () => {
   test('growth rate closes the list', () => {
     const items = faq(MOCK_DETAIL);
     expect(items[items.length - 1].q).toBe('How fast does it grow?');
+  });
+});
+
+describe('parseInterval', () => {
+  test('reads numbers, numeric strings, ranges and units as days', () => {
+    expect(parseInterval(7)).toEqual([7, 7]);
+    expect(parseInterval('7')).toEqual([7, 7]);
+    expect(parseInterval('7-10 days')).toEqual([7, 10]);
+    expect(parseInterval('Every 7–10 days')).toEqual([7, 10]);
+    expect(parseInterval('7 to 10 days')).toEqual([7, 10]);
+    expect(parseInterval('2 weeks')).toEqual([14, 14]);
+    expect(parseInterval('1-2 months')).toEqual([30, 60]);
+    expect(parseInterval(24, 'month')).toEqual([720, 720]);
+  });
+
+  test('gives nothing for values with no usable number', () => {
+    expect(parseInterval(null)).toBeNull();
+    expect(parseInterval('')).toBeNull();
+    expect(parseInterval('when the soil is dry')).toBeNull();
+    expect(parseInterval(0)).toBeNull();
   });
 });

@@ -50,18 +50,23 @@ describe('defaultReminders', () => {
     const todayNoon = new Date(2026, 8, 10, 12).toISOString();
     expect(rows.every((r) => r.lastDoneAt === todayNoon)).toBe(true);
 
-    // The interval the reminder will actually use, and the label the catalog
-    // states — a range reads better than the flattened number behind it.
-    expect(rows[0]).toMatchObject({ frequency: 'Every 7–10 days', intervalDays: 7 });
+    // A range is seeded from its low end, and the label names that number.
+    expect(rows[0]).toMatchObject({ frequency: 'Every 7 days', intervalDays: 7 });
     expect(rows[1]).toMatchObject({ frequency: 'Every 4 weeks', intervalDays: 28 });
-    expect(rows[2]).toMatchObject({ frequency: 'Every 2 years', intervalDays: 720 });
+    // 24 months is past what the server accepts, so it is seeded at a year.
+    expect(rows[2]).toMatchObject({ frequency: 'Every year', intervalDays: 360 });
   });
 
   test('a species with no cadence still gets a row, on the action default', () => {
     const [water, feed, repot] = defaultReminders(vm({}));
     expect(water).toMatchObject({ frequency: 'Every 7 days', intervalDays: 7 });
     expect(feed).toMatchObject({ frequency: 'Every month', intervalDays: 30 });
-    expect(repot).toMatchObject({ frequency: 'Every 12 months', intervalDays: 360 });
+    expect(repot).toMatchObject({ frequency: 'Every year', intervalDays: 360 });
+  });
+
+  test('a cadence past 12 months is seeded at a year, the most the server accepts', () => {
+    const [, , repot] = defaultReminders(vm({ repot_interval_months: 18 }), TODAY);
+    expect(repot).toMatchObject({ intervalDays: 360, frequency: 'Every year' });
   });
 
   test('works from nothing at all, which is what a failed detail fetch gives', () => {
@@ -86,9 +91,9 @@ describe('draftView', () => {
     expect(draftView({ ...water, enabled: false }).nextLabel).toBe('Reminder is turned off');
   });
 
-  test('keeps the catalog wording until the cadence is edited', () => {
-    const row = { ...water, frequency: 'Every 7–10 days' };
-    expect(draftView(row).frequency).toBe('Every 7–10 days');
+  test('keeps the row wording until the cadence is edited', () => {
+    const row = { ...water, frequency: 'Every 1 week' };
+    expect(draftView(row).frequency).toBe('Every 1 week');
     expect(draftView({ ...row, frequency: null, intervalDays: 14 }).frequency).toBe('Every 2 weeks');
   });
 
