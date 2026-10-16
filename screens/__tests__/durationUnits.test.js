@@ -8,6 +8,7 @@ import {
   SNOOZE_DURATION_UNITS,
   SNOOZE_NUMBERS,
   SNOOZE_UNITS,
+  frequencyNumbers,
   unitLabel,
 } from '../durationUnits';
 
@@ -45,4 +46,11 @@ test('short month names are the 12 three-letter forms', () => {
   expect(MONTHS_SHORT).toHaveLength(12);
   expect(MONTHS_SHORT[0]).toBe('Jan');
   expect(MONTHS_SHORT[8]).toBe('Sep');
+});
+
+test('the months column stops at 12; days and weeks run the full 1–30', () => {
+  const index = (plural) => FREQUENCY_UNITS.findIndex((u) => u.plural === plural);
+  expect(frequencyNumbers(index('months')).at(-1)).toBe(12);
+  expect(frequencyNumbers(index('days')).at(-1)).toBe(30);
+  expect(frequencyNumbers(index('weeks')).at(-1)).toBe(30);
 });

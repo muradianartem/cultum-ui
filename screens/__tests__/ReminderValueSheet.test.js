@@ -23,6 +23,12 @@ describe('buildResult', () => {
     expect(buildResult('frequency', 2, 2)).toBe('3 months');
   });
 
+  test('frequency holds months inside 12, whatever the number wheel says', () => {
+    expect(buildResult('frequency', 29, 2)).toBe('12 months');
+    expect(parseValue('frequency', '18 months')).toEqual({ a: 11, b: 2 });
+    expect(parseValue('frequency', '18 days')).toEqual({ a: 17, b: DAYS_UNIT });
+  });
+
   test('frequency uses the singular unit for a value of 1', () => {
     expect(buildResult('frequency', 0, DAYS_UNIT)).toBe('1 day');
   });

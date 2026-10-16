@@ -185,8 +185,9 @@ describe('step 3 — reminders', () => {
     expect(t).toEqual(expect.arrayContaining(['Last watering', 'Last fertilizing', 'Last repotting']));
     expect(t.filter((x) => x === 'Frequency')).toHaveLength(3);
     expect(t.filter((x) => x === '10 Sep')).toHaveLength(3); // today
-    // The catalog's own phrasing, not a flattened number.
-    expect(t).toContain('Every 7–10 days');
+    // The species' 7–10 day range, as the 7 days the reminder will keep.
+    expect(t).toContain('Every 7 days');
+    expect(t).not.toContain('Every 7–10 days');
     expect(t).toContain('Next reminder: Thu, Sep 17');
     expect(t).not.toContain('Reminder is turned off');
     expect(t).toContain('Continue');
@@ -234,13 +235,13 @@ describe('step 3 — reminders', () => {
     expect(t).toContain('Next reminder: Thu, Sep 10');
   });
 
-  test('Frequency replaces the catalog wording with the chosen cadence', async () => {
+  test('Frequency replaces the seeded cadence with the chosen one', async () => {
     const tree = create();
     await walkTo(tree, 'reminders');
     press(tree, 'Watering Frequency');
     confirmValue(tree, '2 weeks');
     const t = texts(tree);
-    expect(t).not.toContain('Every 7–10 days');
+    expect(t).not.toContain('Every 7 days');
     expect(t).toContain('Every 2 weeks');
     expect(t).toContain('Next reminder: Thu, Sep 24');
   });

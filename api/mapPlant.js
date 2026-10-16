@@ -56,8 +56,48 @@ export function summaryToCard(s) {
 // interval is phrased identically wherever it appears.
 const cToF = (c) => Math.round((c * 9) / 5 + 32);
 
+// ---- Care intervals → numbers ---------------------------------------------
+// The schema types the intervals as integers, but scan and search results have
+// been seen carrying them as prose — "7-10 days", "Every 7–10 days", "2 weeks".
+// A string intervalDays reaches the scheduler as NaN and the reminder never
+// fires, so every interval is coerced to whole days here, at the boundary.
+const UNIT_DAYS = { day: 1, week: 7, month: 30, year: 360 };
+
+/**
+ * A care interval as `[low, high]` in days, or null when there is no number in
+ * it. Numbers pass through in `unit`; strings may name their own unit and may
+ * be a range ("7-10 days", "1 to 2 months"). A bare "7" is read in `unit`.
+ */
+export function parseInterval(value, unit = 'day') {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const days = Math.max(1, Math.round(value * UNIT_DAYS[unit]));
+    return [days, days];
+  }
+  if (typeof value !== 'string') return null;
+  const m = /(\d+(?:\.\d+)?)(?:\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?))?\s*(day|week|month|year)?/i.exec(value);
+  if (!m) return null;
+  const per = UNIT_DAYS[(m[3] ?? unit).toLowerCase()];
+  const low = Math.max(1, Math.round(Number(m[1]) * per));
+  const high = m[2] != null ? Math.max(low, Math.round(Number(m[2]) * per)) : low;
+  return [low, high];
+}
+
+/** The detail's care intervals, all as numbers (or null) whatever they came as. */
+function careIntervals(d) {
+  const min = parseInterval(d.water_interval_days_min);
+  const max = parseInterval(d.water_interval_days_max);
+  const repot = parseInterval(d.repot_interval_months, 'month');
+  return {
+    waterMin: min?.[0] ?? max?.[0] ?? null,
+    waterMax: max?.[1] ?? min?.[1] ?? null,
+    fertilizeDays: parseInterval(d.fertilize_interval_days)?.[0] ?? null,
+    repotMonths: repot ? Math.max(1, Math.round(repot[0] / 30)) : null,
+  };
+}
+
 function waterValue(d) {
-  const { water_interval_days_min: min, water_interval_days_max: max } = d;
+  const { waterMin: min, waterMax: max } = careIntervals(d);
   if (min != null && max != null) {
     return min === max ? `Every ${min} days` : `Every ${min}–${max} days`;
   }
@@ -153,9 +193,7 @@ const monthsLabel = (months) => {
  * (`water_note`); it just can't seed a reminder, and `intervalDays` is null.
  */
 export function careActions(d) {
-  const waterMin = d.water_interval_days_min ?? d.water_interval_days_max ?? null;
-  const fertilizeDays = d.fertilize_interval_days ?? null;
-  const repotMonths = d.repot_interval_months ?? null;
+  const { waterMin, fertilizeDays, repotMonths } = careIntervals(d);
 
   return [
     {

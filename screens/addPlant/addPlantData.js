@@ -14,6 +14,7 @@ import {
   dateLabelFor,
   frequencyLabel,
   longDate,
+  MAX_INTERVAL_DAYS,
   reminderDateValue,
   weekdayDate,
 } from '../../store/format';
@@ -58,7 +59,9 @@ export function defaultReminders(vm = {}, today = new Date()) {
   return PRIMARY_ACTIONS.map((key) => {
     const meta = ACTIONS[key];
     const catalog = fromCatalog.get(key);
-    const intervalDays = catalog?.intervalDays ?? meta.defaultIntervalDays;
+    // A catalog cadence past 12 months (repotting every 18–24) is seeded at 12:
+    // the backend refuses anything longer, and would fail the whole save.
+    const intervalDays = Math.min(catalog?.intervalDays ?? meta.defaultIntervalDays, MAX_INTERVAL_DAYS);
     return {
       id: key,
       action: key,
@@ -67,9 +70,10 @@ export function defaultReminders(vm = {}, today = new Date()) {
       enabled: true,
       intervalDays,
       lastDoneAt,
-      // "Every 7–10 days" from the catalog reads better than a flattened
-      // "Every 7 days"; only fall back to the derived label when there is none.
-      frequency: catalog?.value && catalog.value !== '—' ? catalog.value : everyDays(intervalDays),
+      // The cadence the reminder will actually keep. A catalog range ("Every
+      // 7–10 days") is seeded from its low end, so the card names that number
+      // rather than promising a range no reminder follows.
+      frequency: everyDays(intervalDays),
     };
   });
 }
@@ -87,8 +91,10 @@ export const customReminderRow = (draft, intervalDays) => ({
   frequency: `Every ${draft.frequency}`,
 });
 
-// "Every 4 weeks" reads better than "Every 28 days" once a cadence is monthly.
+// "Every 4 weeks" reads better than "Every 28 days" once a cadence is monthly,
+// and "Every 2 years" better than "Every 24 months".
 function everyDays(days) {
+  if (days % 360 === 0 && days >= 360) return days === 360 ? 'Every year' : `Every ${days / 360} years`;
   if (days % 30 === 0 && days >= 30) return days === 30 ? 'Every month' : `Every ${days / 30} months`;
   if (days % 7 === 0 && days >= 14) return `Every ${days / 7} weeks`;
   return `Every ${days} days`;
@@ -97,7 +103,7 @@ function everyDays(days) {
 /**
  * A draft row as its ReminderCard reads it — the same labels Edit Reminders
  * shows for a stored reminder, so a row looks alike before and after saving.
- * `frequency` keeps the catalog's wording ("Every 7–10 days") until the user
+ * `frequency` keeps the row's own wording ("Every 4 weeks") until the user
  * picks a cadence, which clears it.
  */
 export function draftView(r) {

@@ -15,13 +15,15 @@
 // import from this module keep working against one definition.
 export { MONTHS_SHORT, WEEKDAYS_SHORT } from '../store/format';
 
-const unit = (plural, singular) => ({ plural, singular });
+// `max` caps the number column for that unit; without one it runs the full list.
+const unit = (plural, singular, max) => ({ plural, singular, max });
 
 // The repeat units, ordered shortest → longest.
+// Months stop at 12: the backend refuses a reminder interval past 365 days.
 export const FREQUENCY_UNITS = [
   unit('days', 'day'),
   unit('weeks', 'week'),
-  unit('months', 'month'),
+  unit('months', 'month', 12),
 ];
 
 // Snooze leads with a "None" option (index 0) that hides the number column,
@@ -39,6 +41,13 @@ export const DEFAULT_FREQUENCY_UNIT_INDEX = 0;
 
 export const FREQUENCY_NUMBERS = Array.from({ length: 30 }, (_, i) => i + 1); // 1–30
 export const SNOOZE_NUMBERS = Array.from({ length: 12 }, (_, i) => i + 1); // 1–12
+
+/** The number column for a unit: `numbers`, cut at the unit's `max` if it has one. */
+export const numbersFor = (numbers, u) => (u?.max ? numbers.slice(0, u.max) : numbers);
+
+/** The repeat wheel's number column for FREQUENCY_UNITS[unitIndex]. */
+export const frequencyNumbers = (unitIndex) =>
+  numbersFor(FREQUENCY_NUMBERS, FREQUENCY_UNITS[unitIndex]);
 
 // "1 day" / "2 days" — singular only at exactly 1.
 export const unitLabel = (u, n) => (n === 1 ? u.singular : u.plural);

@@ -23,6 +23,7 @@ import {
   FREQUENCY_UNITS,
   SNOOZE_NUMBERS,
   SNOOZE_UNITS,
+  numbersFor,
   unitLabel,
 } from './durationUnits';
 import {
@@ -60,13 +61,17 @@ export const FIELD = {
 
 const clamp = (i, len) => Math.max(0, Math.min(len - 1, i));
 
+// The number column under unit `b` — shorter for a unit with a cap (months).
+const numbersAt = (cfg, b) => numbersFor(cfg.numbers, cfg.units[b]);
+
 // Format the two wheel indices into the stored value string for `field`.
 // Amount fields only — `date` is a calendar, and formats via shortDate().
 // Pure — the unit worth testing on its own.
 export function buildResult(field, a, b) {
   const cfg = FIELD[field];
   if (cfg.noneIndex != null && b === cfg.noneIndex) return 'None';
-  const n = cfg.numbers[a];
+  const numbers = numbersAt(cfg, b);
+  const n = numbers[clamp(a, numbers.length)];
   return `${n} ${unitLabel(cfg.units[b], n)}`;
 }
 
@@ -84,9 +89,10 @@ export function parseValue(field, value) {
   const b = cfg.units.findIndex(
     (u) => u.plural === unitStr || u.singular === unitStr
   );
+  const unit = b >= 0 ? b : cfg.defaultUnitIndex ?? 0;
   return {
-    a: Number.isFinite(n) ? clamp(n - 1, cfg.numbers.length) : 0,
-    b: b >= 0 ? b : cfg.defaultUnitIndex ?? 0,
+    a: Number.isFinite(n) ? clamp(n - 1, numbersAt(cfg, unit).length) : 0,
+    b: unit,
   };
 }
 
@@ -129,6 +135,12 @@ export default function ReminderValueSheet({
 
   const isCalendar = cfg.kind === 'calendar';
   const showNumber = cfg.noneIndex == null || b !== cfg.noneIndex;
+  const numbers = isCalendar ? [] : numbersAt(cfg, b);
+  // Moving onto a capped unit pulls the number back inside it (30 → 12 months).
+  const pickUnit = (i) => {
+    setB(i);
+    setA((prev) => clamp(prev, numbersAt(cfg, i).length));
+  };
 
   const confirm = () => {
     onConfirm?.(isCalendar ? shortDate(date) : buildResult(field, a, b));
@@ -172,7 +184,7 @@ export default function ReminderValueSheet({
             <View style={styles.wheels}>
               {showNumber ? (
                 <WheelPicker
-                  items={cfg.numbers}
+                  items={numbers}
                   index={a}
                   onChange={setA}
                   itemHeight={ITEM_H}
@@ -186,7 +198,7 @@ export default function ReminderValueSheet({
               <WheelPicker
                 items={cfg.units.map((u) => u.plural)}
                 index={b}
-                onChange={setB}
+                onChange={pickUnit}
                 itemHeight={ITEM_H}
                 height={WHEEL_H}
                 style={styles.rightCol}
