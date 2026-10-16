@@ -24,7 +24,10 @@ jest.mock('../../lib/config', () => ({
   },
   googleClientIdFor: (platform = require('react-native').Platform.OS) => mockGoogleIds[platform] ?? null,
 }));
-jest.mock('expo-web-browser', () => ({ maybeCompleteAuthSession: jest.fn() }));
+jest.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: jest.fn(),
+  openBrowserAsync: jest.fn(async () => {}),
+}));
 // Sign in with Apple: available by default (the screen hides the button when
 // it isn't), with each test free to override the two calls it makes.
 let mockAppleAvailable = true;
@@ -147,6 +150,23 @@ test('renders the wordmark, tagline and legal line', async () => {
   expect(allText).toContain('By continuing you agree to the');
   expect(allText).toContain('Terms of Use');
   expect(allText).toContain('Privacy Policy');
+});
+
+test('the legal spans open the Terms and Privacy pages in the in-app browser', async () => {
+  const WebBrowser = require('expo-web-browser');
+  const tree = await render();
+  const link = (label) =>
+    tree.root.find(
+      (n) => n.type === Text && n.props.accessibilityRole === 'link' && n.props.children === label
+    );
+  act(() => {
+    link('Terms of Use').props.onPress();
+  });
+  expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://www.cultum.app/terms');
+  act(() => {
+    link('Privacy Policy').props.onPress();
+  });
+  expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith('https://www.cultum.app/privacy');
 });
 
 // Both providers are Figma's "Type=Outlined" pill; outline resolves to an

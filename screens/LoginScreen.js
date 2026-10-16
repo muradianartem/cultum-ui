@@ -13,6 +13,7 @@ import { GOOGLE_CLIENT_IDS, googleClientIdFor } from '../lib/config';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
 import { prefetchPaywall } from '../billing/paywallContent';
+import { PRIVACY_URL, TERMS_URL } from './settings/appInfo';
 
 // Required so the web OAuth popup can hand the result back and close itself.
 WebBrowser.maybeCompleteAuthSession();
@@ -241,12 +242,24 @@ function WelcomeScreen() {
               disabled={!nonce || busy === 'google'}
             />
           ) : null}
-          {/* TODO: link the two spans to the real Terms/Privacy URLs via
-              WebBrowser.openBrowserAsync once they exist. */}
           <Text style={styles.legal}>
             By continuing you agree to the{' '}
-            <Text style={styles.legalLink}>Terms of Use</Text> and{' '}
-            <Text style={styles.legalLink}>Privacy Policy</Text>.
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => WebBrowser.openBrowserAsync(TERMS_URL)}
+            >
+              Terms of Use
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.legalLink}
+              accessibilityRole="link"
+              onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}
+            >
+              Privacy Policy
+            </Text>
+            .
           </Text>
         </View>
       </View>
