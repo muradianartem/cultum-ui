@@ -13,11 +13,13 @@ export const APP_VERSION = Application.nativeApplicationVersion ?? '—';
 /** "42" — CFBundleVersion. Null on web, where there is no native bundle. */
 export const APP_BUILD = Application.nativeBuildVersion ?? '—';
 
+export const PRIVACY_URL = 'https://www.cultum.app/privacy';
+export const TERMS_URL = 'https://www.cultum.app/terms';
+
 /** Where the legal pages live. Opened in an in-app browser, not Safari. */
 export const LEGAL_LINKS = [
-  { title: 'Privacy Policy', value: 'cultum.app/privacy', url: 'https://cultum.app/privacy' },
-  { title: 'Terms of Use', value: 'cultum.app/terms', url: 'https://cultum.app/terms' },
-  { title: 'Licences', value: 'cultum.app/licences', url: 'https://cultum.app/licences' },
+  { title: 'Privacy Policy', value: 'cultum.app/privacy', url: PRIVACY_URL },
+  { title: 'Terms of Use', value: 'cultum.app/terms', url: TERMS_URL },
 ];
 
 /** The address on the Contact us card. */
