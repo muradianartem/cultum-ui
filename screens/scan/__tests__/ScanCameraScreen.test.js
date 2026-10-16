@@ -26,9 +26,10 @@ jest.mock('expo-camera', () => {
   };
 });
 
+// No permission request in the mock: the picker must open without one.
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
-  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  UIImagePickerPreferredAssetRepresentationMode: { Compatible: 'compatible' },
 }));
 
 jest.mock('../../../api/scans', () => ({ createScan: jest.fn() }));
@@ -44,6 +45,7 @@ jest.mock('../../../lib/prepareImage', () => ({ prepareScanImage: jest.fn() }));
 
 const { warmUp } = require('../../../api/health');
 const { prepareScanImage } = require('../../../lib/prepareImage');
+const ImagePicker = require('expo-image-picker');
 
 const PREPARED = {
   uri: 'file:///cache/out.jpg',
@@ -186,7 +188,7 @@ test('uploads the original when preparation fails, rather than dropping the phot
 
   await press(tree, 'Shutter');
 
-  expect(createScan).toHaveBeenCalledWith('file://captured.jpg');
+  expect(createScan).toHaveBeenCalledWith({ uri: 'file://captured.jpg', mimeType: undefined });
   expect(api.route).toBe('scan-matches');
 });
 
@@ -345,6 +347,15 @@ describe('free plan scan limit', () => {
     expect(texts(tree)).toContain('Today’s 3 free scans are used');
   });
 
+  test('with none left, Upload opens the sheet instead of the picker', async () => {
+    free(3);
+    const tree = create(<ScanCameraScreen />);
+    await press(tree, 'Skip for now');
+    await press(tree, 'Upload');
+    expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+    expect(texts(tree)).toContain('Today’s 3 free scans are used');
+  });
+
   test('the trial button opens the paywall', async () => {
     free(3);
     const tree = create(<ScanCameraScreen />);
@@ -376,5 +387,81 @@ describe('free plan scan limit', () => {
     const t = texts(create(<ScanCameraScreen />));
     expect(t).toContain('Upgrade to Plus');
     expect(t).not.toContain('Start 7-day free trial');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Upload from the photo library.
+// ---------------------------------------------------------------------------
+describe('Upload', () => {
+  const PICKED = {
+    uri: 'file://picked.jpg',
+    width: 3024,
+    height: 4032,
+    mimeType: 'image/jpeg',
+  };
+
+  beforeEach(() => {
+    mockPermissionState = { granted: true, canAskAgain: true };
+  });
+
+  test('a picked photo is scanned and opens Matches', async () => {
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [PICKED],
+    });
+    createScan.mockResolvedValueOnce(MOCK_SCAN);
+    const tree = create(<ScanCameraScreen />);
+
+    await press(tree, 'Upload');
+
+    expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ mediaTypes: ['images'] })
+    );
+    expect(prepareScanImage).toHaveBeenCalledWith('file://picked.jpg', {
+      width: 3024,
+      height: 4032,
+    });
+    expect(createScan).toHaveBeenCalledWith(PREPARED);
+    expect(api.route).toBe('scan-matches');
+    expect(api.params.photoUri).toBe('file://picked.jpg');
+  });
+
+  test('when preparation fails, the original goes up with the picker’s type', async () => {
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ ...PICKED, mimeType: 'image/png', uri: 'file://picked.png' }],
+    });
+    prepareScanImage.mockResolvedValueOnce(null);
+    createScan.mockResolvedValueOnce(MOCK_SCAN);
+
+    await press(create(<ScanCameraScreen />), 'Upload');
+
+    expect(createScan).toHaveBeenCalledWith({ uri: 'file://picked.png', mimeType: 'image/png' });
+  });
+
+  test('cancelling the picker leaves the camera as it was', async () => {
+    ImagePicker.launchImageLibraryAsync.mockResolvedValueOnce({ canceled: true, assets: null });
+    const tree = create(<ScanCameraScreen />);
+
+    await press(tree, 'Upload');
+
+    expect(createScan).not.toHaveBeenCalled();
+    expect(texts(tree)).toContain('Frame the plant, a leaf, or its label');
+    expect(api.route).toBe('scan-camera');
+  });
+
+  test('a picker that fails to open says so, with the cause behind Details', async () => {
+    ImagePicker.launchImageLibraryAsync.mockRejectedValueOnce(
+      new Error("Cannot find native module 'ExponentImagePicker'")
+    );
+    const tree = create(<ScanCameraScreen />);
+
+    await press(tree, 'Upload');
+    expect(texts(tree)).toContain('Couldn’t open your photos.');
+    expect(createScan).not.toHaveBeenCalled();
+
+    await press(tree, 'Error details');
+    expect(texts(tree).join('')).toMatch(/picker: Cannot find native module/);
   });
 });
