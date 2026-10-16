@@ -160,7 +160,9 @@ export default function ScanCameraScreen() {
     setPhase('error');
   }
 
-  async function runScan(uri, dimensions) {
+  // `mimeType` is the picker's, when it knows one: it labels the fallback
+  // upload if preparation fails and the original file goes instead.
+  async function runScan(uri, dimensions, mimeType) {
     abandonedRef.current = false;
     setPhotoUri(uri);
     setPhase('analyzing');
@@ -168,7 +170,7 @@ export default function ScanCameraScreen() {
       // Shrink and normalise first: full-resolution captures are what make an
       // upload slow enough to drop, and the picker's HEIC isn't accepted at all.
       const prepared = await prepareScanImage(uri, dimensions);
-      const scan = await createScan(prepared ?? uri);
+      const scan = await createScan(prepared ?? { uri, mimeType });
       // One fewer free scan: refetch so the counter is right on the way back.
       if (quota) entitlement.refresh();
       if (abandonedRef.current) return;
@@ -215,17 +217,29 @@ export default function ScanCameraScreen() {
     await runScan(photo.uri, { width: photo.width, height: photo.height });
   }
 
+  // No photo-library permission first: the system picker runs out of process
+  // and needs none, and asking only gave a denial a way to make this button
+  // silently do nothing forever.
   async function onUpload() {
     if (busy || outOfScans()) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    await runScan(asset.uri, { width: asset.width, height: asset.height });
+    let result;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+        exif: false,
+        // JPEG rather than HEIC where iOS can, so even the unprepared fallback
+        // is a format the API accepts.
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
+    } catch (e) {
+      fail('picker', e?.message);
+      return;
+    }
+    const asset = result?.canceled ? null : result?.assets?.[0];
+    if (!asset) return;
+    await runScan(asset.uri, { width: asset.width, height: asset.height }, asset.mimeType);
   }
 
   // ── Permission rationale — Figma "Scan / Camera access" ───────────────────

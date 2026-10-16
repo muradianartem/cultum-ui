@@ -30,6 +30,10 @@ const ERROR_COPY = {
     title: 'Couldn’t take the photo.',
     subtitle: 'Try again, or pick an existing picture.',
   },
+  picker: {
+    title: 'Couldn’t open your photos.',
+    subtitle: 'Try again, or take a photo instead.',
+  },
   http: {
     title: 'Something went wrong.',
     subtitle: 'Try again in a moment.',
