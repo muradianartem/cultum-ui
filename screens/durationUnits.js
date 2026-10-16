@@ -1,12 +1,10 @@
 // Shared value lists + label formatting for the reminder pickers.
 //
-// Three sheets used to declare their own unit lists, and they disagreed:
-// SnoozeContent had [hours, days, weeks], ReminderValueSheet's frequency had
-// [days, weeks, months], and its snooze had [None, hours, days, weeks]. So
+// The sheets used to declare their own unit lists, and they disagreed, so
 // creating a reminder and editing the same field afterwards offered different
-// options. One list now backs all of them: FREQUENCY_UNITS for a repeat, and
-// snooze is days and weeks only (behind its "None" lead) — putting a plant off
-// by hours is noise, and a months-long snooze is really a schedule change.
+// options. One list now backs each: FREQUENCY_UNITS for a repeat, and snooze
+// is days and weeks only — putting a plant off by hours is noise, and a
+// months-long snooze is really a schedule change.
 //
 // Pure: no React/RN imports, so it unit-tests directly.
 
@@ -26,11 +24,8 @@ export const FREQUENCY_UNITS = [
   unit('months', 'month', 12),
 ];
 
-// Snooze leads with a "None" option (index 0) that hides the number column,
-// then days and weeks.
-export const NONE_UNIT = unit('None', 'None');
+// Snooze (the Today task sheet): days and weeks.
 export const SNOOZE_DURATION_UNITS = [unit('days', 'day'), unit('weeks', 'week')];
-export const SNOOZE_UNITS = [NONE_UNIT, ...SNOOZE_DURATION_UNITS];
 
 // Index of 'days' within SNOOZE_DURATION_UNITS — what a snooze opens on.
 export const DEFAULT_SNOOZE_UNIT_INDEX = 0;

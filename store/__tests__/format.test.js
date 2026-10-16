@@ -1,4 +1,4 @@
-import { FREQUENCY_UNITS, SNOOZE_UNITS } from '../../screens/durationUnits';
+import { FREQUENCY_UNITS, SNOOZE_DURATION_UNITS } from '../../screens/durationUnits';
 import {
   dateLabelFor,
   durationMs,
@@ -58,7 +58,7 @@ describe('durationMs', () => {
     expect(durationMs('2 hours')).toBe(2 * 3600 * 1000);
     expect(durationMs('3 days')).toBe(3 * 24 * 3600 * 1000);
     expect(durationMs('None')).toBe(0);
-    for (const unit of SNOOZE_UNITS.filter((u) => u.plural !== 'None')) {
+    for (const unit of SNOOZE_DURATION_UNITS) {
       expect(durationMs(`1 ${unit.singular}`)).toBeGreaterThan(0);
     }
   });

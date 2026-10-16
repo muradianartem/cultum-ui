@@ -4,10 +4,8 @@ import {
   FREQUENCY_NUMBERS,
   FREQUENCY_UNITS,
   MONTHS_SHORT,
-  NONE_UNIT,
   SNOOZE_DURATION_UNITS,
   SNOOZE_NUMBERS,
-  SNOOZE_UNITS,
   frequencyNumbers,
   unitLabel,
 } from '../durationUnits';
@@ -16,10 +14,7 @@ test('frequency units have no hours — a cadence is whole days at least', () =>
   expect(FREQUENCY_UNITS.map((u) => u.plural)).toEqual(['days', 'weeks', 'months']);
 });
 
-test('snooze units are days and weeks only, behind a "None" lead', () => {
-  expect(SNOOZE_UNITS[0]).toBe(NONE_UNIT);
-  expect(SNOOZE_UNITS[0].plural).toBe('None');
-  expect(SNOOZE_UNITS.slice(1)).toEqual(SNOOZE_DURATION_UNITS);
+test('snooze units are days and weeks only', () => {
   expect(SNOOZE_DURATION_UNITS.map((u) => u.plural)).toEqual(['days', 'weeks']);
   expect(SNOOZE_DURATION_UNITS[DEFAULT_SNOOZE_UNIT_INDEX].plural).toBe('days');
 });
