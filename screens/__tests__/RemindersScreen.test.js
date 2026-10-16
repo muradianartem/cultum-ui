@@ -116,8 +116,7 @@ test('each card shows its detail rows, anchored to what the reminder knows', () 
   expect(t).toContain('Start date'); // the others have not
   expect(t).toContain('Frequency');
   expect(t).toContain('7 days');
-  expect(t).toContain('Snooze for');
-  expect(t).toContain('None');
+  expect(t).not.toContain('Snooze for');
 });
 
 test('an enabled reminder shows when it next comes round', () => {
@@ -169,17 +168,6 @@ test('an edited frequency is stored as an interval, and re-read as one', async (
   expect(r.texts()).toContain('1 day');
   // And the schedule moves with it: 21 Aug + 1 day.
   expect(r.texts()).toContain('Next reminder: Sat, Aug 22');
-});
-
-test('a snooze pushes the reminder out and the row says until when', () => {
-  const r = render();
-  r.press('Watering Snooze');
-  // On "None" the sheet hides the number column, so the only wheel is the unit
-  // one; picking 'days' (index 1 of [None, days, weeks]) brings the number
-  // column back at its default of 1.
-  act(() => r.tree.root.findAllByType(WheelPicker)[0].props.onChange(1));
-  r.press('Set snooze');
-  expect(r.texts()).toContain('Until 6 Sep'); // 5 Sep + 1 day
 });
 
 // ---- the "Add new reminder" flow (screens/AddReminderSheet.js) ----

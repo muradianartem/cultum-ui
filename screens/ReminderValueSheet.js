@@ -1,12 +1,12 @@
 // ReminderValueSheet — the value editor for a reminder's detail rows. A single
-// BottomSheet typed by `field` ('date' | 'frequency' | 'snooze'):
+// BottomSheet typed by `field` ('date' | 'frequency'):
 //
-//   frequency / snooze → a two-column WheelPicker over a selection band,
-//                        following SnoozeContent's wheel/band pattern
-//   date               → the <Calendar> primitive, the same picker (and the
-//                        same suggestion chips) the add-reminder flow uses, so
-//                        choosing a date reads identically whether you are
-//                        creating a reminder or editing one
+//   frequency → a two-column WheelPicker over a selection band, following
+//               SnoozeContent's wheel/band pattern
+//   date      → the <Calendar> primitive, the same picker (and the same
+//               suggestion chips) the add-reminder flow uses, so choosing a
+//               date reads identically whether you are creating a reminder
+//               or editing one
 //
 // On confirm it hands the parent a formatted value string to write back into
 // local state. V1 mock — no scheduling, no persistence.
@@ -21,8 +21,6 @@ import {
   DEFAULT_FREQUENCY_UNIT_INDEX,
   FREQUENCY_NUMBERS,
   FREQUENCY_UNITS,
-  SNOOZE_NUMBERS,
-  SNOOZE_UNITS,
   numbersFor,
   unitLabel,
 } from './durationUnits';
@@ -36,8 +34,8 @@ import {
 const ITEM_H = 44;
 const WHEEL_H = 176;
 
-// Per-field configuration. `date` is picked on a calendar; the others are
-// number+unit wheels, with their value lists shared via ./durationUnits so the
+// Per-field configuration. `date` is picked on a calendar; frequency is a
+// number+unit wheel, with their value lists shared via ./durationUnits so the
 // create flow and this editor always offer the same options.
 export const FIELD = {
   date: { title: 'Date', kind: 'calendar' },
@@ -48,14 +46,6 @@ export const FIELD = {
     numbers: FREQUENCY_NUMBERS,
     units: FREQUENCY_UNITS,
     defaultUnitIndex: DEFAULT_FREQUENCY_UNIT_INDEX,
-  },
-  snooze: {
-    title: 'Snooze for',
-    confirm: 'Set snooze',
-    kind: 'amount',
-    numbers: SNOOZE_NUMBERS,
-    units: SNOOZE_UNITS,
-    noneIndex: 0,
   },
 };
 
@@ -69,7 +59,6 @@ const numbersAt = (cfg, b) => numbersFor(cfg.numbers, cfg.units[b]);
 // Pure — the unit worth testing on its own.
 export function buildResult(field, a, b) {
   const cfg = FIELD[field];
-  if (cfg.noneIndex != null && b === cfg.noneIndex) return 'None';
   const numbers = numbersAt(cfg, b);
   const n = numbers[clamp(a, numbers.length)];
   return `${n} ${unitLabel(cfg.units[b], n)}`;
@@ -81,9 +70,6 @@ export function buildResult(field, a, b) {
 export function parseValue(field, value) {
   const cfg = FIELD[field];
   const s = String(value ?? '').trim();
-  if (cfg.noneIndex != null && s.toLowerCase() === 'none') {
-    return { a: 0, b: cfg.noneIndex };
-  }
   const [numStr, unitStr = ''] = s.split(/\s+/);
   const n = parseInt(numStr, 10);
   const b = cfg.units.findIndex(
@@ -134,7 +120,6 @@ export default function ReminderValueSheet({
   if (!cfg) return <BottomSheet testID="value-sheet" visible={false} onClose={onClose} />;
 
   const isCalendar = cfg.kind === 'calendar';
-  const showNumber = cfg.noneIndex == null || b !== cfg.noneIndex;
   const numbers = isCalendar ? [] : numbersAt(cfg, b);
   // Moving onto a capped unit pulls the number back inside it (30 → 12 months).
   const pickUnit = (i) => {
@@ -182,19 +167,17 @@ export default function ReminderValueSheet({
           <View style={styles.picker}>
             <View style={styles.band} pointerEvents="none" />
             <View style={styles.wheels}>
-              {showNumber ? (
-                <WheelPicker
-                  items={numbers}
-                  index={a}
-                  onChange={setA}
-                  itemHeight={ITEM_H}
-                  height={WHEEL_H}
-                  style={styles.leftCol}
-                  renderItem={(v, active) => (
-                    <Text style={[styles.number, active ? styles.active : styles.dim]}>{v}</Text>
-                  )}
-                />
-              ) : null}
+              <WheelPicker
+                items={numbers}
+                index={a}
+                onChange={setA}
+                itemHeight={ITEM_H}
+                height={WHEEL_H}
+                style={styles.leftCol}
+                renderItem={(v, active) => (
+                  <Text style={[styles.number, active ? styles.active : styles.dim]}>{v}</Text>
+                )}
+              />
               <WheelPicker
                 items={cfg.units.map((u) => u.plural)}
                 index={b}

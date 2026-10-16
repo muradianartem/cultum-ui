@@ -1,7 +1,7 @@
 // One reminder card (Figma "Reminder Group", node 1:7894): a card-style List
 // panel with a (non-pressable) header row — chip, title, "Next reminder"
-// subtitle, enable Toggle — followed by pressable detail rows (date, frequency,
-// and snooze when given) and, when removable, a Remove button.
+// subtitle, enable Toggle — followed by pressable detail rows (date and
+// frequency) and, when removable, a Remove button.
 //
 // Shared by Edit Reminders (stored reminders) and the add-a-plant "Set
 // reminders" step (draft rows), so the two read identically. The card only
@@ -51,8 +51,7 @@ function DetailRow({ label, value, onPress, accessibilityLabel, styles, t }) {
 
 /**
  * `view` is the card's display strings: `{ nextLabel, dateLabel, dateValue,
- * frequency, snooze? }`. The Snooze row shows only when `view.snooze` is set,
- * and Remove only when `onRemove` is passed. With `collapsible`, a reminder
+ * frequency }`. Remove shows only when `onRemove` is passed. With `collapsible`, a reminder
  * that is off folds down to its header — its parameters only matter once on.
  */
 export default function ReminderCard({
@@ -99,16 +98,6 @@ export default function ReminderCard({
             styles={styles}
             t={t}
           />
-          {view.snooze != null ? (
-            <DetailRow
-              label="Snooze for"
-              value={view.snooze}
-              accessibilityLabel={`${title} Snooze`}
-              onPress={() => onEditField('snooze')}
-              styles={styles}
-              t={t}
-            />
-          ) : null}
           {onRemove ? (
             <View style={styles.removeWrap}>
               <Button

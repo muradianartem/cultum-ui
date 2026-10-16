@@ -5,10 +5,8 @@ import { DEFAULT_FREQUENCY_UNIT_INDEX } from '../durationUnits';
 // <Calendar> now, and formats via shortDate()/parseShortDate() in
 // screens/addReminderData.js, which addReminderData.test.js covers.
 //
-// Frequency and snooze both read their units from screens/durationUnits.js:
-// FREQUENCY_UNITS is [days, weeks, months]; SNOOZE_UNITS is [None, days,
-// weeks]. So the unit index for "days" is 0 on the frequency wheel and 1 on
-// the snooze wheel.
+// Frequency reads its units from screens/durationUnits.js: FREQUENCY_UNITS is
+// [days, weeks, months], so the unit index for "days" is 0.
 const DAYS_UNIT = DEFAULT_FREQUENCY_UNIT_INDEX; // 0
 
 describe('buildResult', () => {
@@ -33,18 +31,8 @@ describe('buildResult', () => {
     expect(buildResult('frequency', 0, DAYS_UNIT)).toBe('1 day');
   });
 
-  test('snooze returns "None" for the None unit regardless of number', () => {
-    expect(buildResult('snooze', 5, 0)).toBe('None');
-  });
-
-  test('snooze formats number + unit for a real unit', () => {
-    // SNOOZE numbers 1..12; units [None, days, weeks].
-    expect(buildResult('snooze', 1, 1)).toBe('2 days');
-    expect(buildResult('snooze', 0, 2)).toBe('1 week');
-  });
-
-  test('snooze offers days and weeks only', () => {
-    expect(FIELD.snooze.units.map((u) => u.plural)).toEqual(['None', 'days', 'weeks']);
+  test('there is no snooze field — snoozing lives on the Today task sheet', () => {
+    expect(Object.keys(FIELD)).toEqual(['date', 'frequency']);
   });
 });
 
@@ -57,11 +45,6 @@ describe('parseValue', () => {
   test('frequency parses a singular value', () => {
     const { a, b } = parseValue('frequency', '1 day');
     expect(buildResult('frequency', a, b)).toBe('1 day');
-  });
-
-  test('snooze parses "None" to the None unit', () => {
-    const { b } = parseValue('snooze', 'None');
-    expect(b).toBe(0);
   });
 
   test('falls back to defaults for unparseable input', () => {

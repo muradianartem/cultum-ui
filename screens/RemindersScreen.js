@@ -21,12 +21,10 @@ import { useUpgrade } from '../billing/useUpgrade';
 import { useGarden } from '../store/GardenProvider';
 import {
   dateLabelFor,
-  durationMs,
   frequencyValue,
   longDate,
   parseFrequency,
   reminderDateValue,
-  shortDate,
 } from '../store/format';
 import { isLive, nextDueAt } from '../store/schedule';
 import { showError } from '../lib/showError';
@@ -38,7 +36,7 @@ import AddReminderSheet from './AddReminderSheet';
 import ReminderCard from './ReminderCard';
 
 /**
- * The stored reminder as the three detail rows read it.
+ * The stored reminder as the detail rows read it.
  *
  * The card is entirely derived — there is no separate display copy to keep in
  * step with the numbers underneath.
@@ -54,7 +52,6 @@ function toView(reminder) {
     dateLabel: dateLabelFor(reminder),
     dateValue: reminderDateValue(reminder),
     frequency: frequencyValue(reminder.intervalDays),
-    snooze: reminder.snoozedUntil ? `Until ${shortDate(new Date(reminder.snoozedUntil))}` : 'None',
   };
 }
 
@@ -109,11 +106,6 @@ export default function RemindersScreen({ plantId, plantName }) {
       garden
         .updateReminder(id, { intervalDays: parseFrequency(value, editing.intervalDays) })
         .catch((e) => showError(e, 'Couldn’t change the reminder'));
-      return;
-    }
-    if (field === 'snooze') {
-      // "None" parses to 0, which the store reads as "clear the snooze".
-      garden.snoozeReminder(id, durationMs(value));
       return;
     }
     // The date row anchors the schedule: once something has been done it is the
