@@ -25,17 +25,23 @@ const logo = fs.readFileSync(path.join(ASSETS, 'brand/logo.svg'), 'utf8');
 const TILE = logo.match(/<rect\b[^>]*fill="(#[0-9A-Fa-f]{6})"/)[1];
 const MARK = logo.match(/<g id="mark"[\s\S]*?<\/g>/)[0];
 
-// Padding around the 88-unit tile that puts the mark (~70 units wide) inside
-// the adaptive icon's 66/108 safe zone.
-const ADAPTIVE_VIEWBOX = '-15 -15 118 118';
+// Framing taken from the Release Files "App Icon (iOS, Android)" canvas
+// (JGm5p5KryioMadlTw2RvM7, 5036:9641). Its exports are this same mark, only
+// translated and scaled:
+//   iOS 1024 / Play 512       mark nudged 1.853 left, 0.88 down (optically centred).
+//   Android foreground 432    mark ~38% of the canvas, well inside the dashed
+//                             safe-zone circle.
+const STORE_VIEWBOX = '1.853 -0.88 88 88';
+const ADAPTIVE_VIEWBOX = '-42.148 -41.51 166.039 166.039';
 
 const svg = (viewBox, body) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="none">${body}</svg>`;
+const fill = `<rect x="-100" y="-100" width="300" height="300" fill="${TILE}"/>`;
 
 const outputs = [
-  ['icon.png', 1024, svg('0 0 88 88', `<rect width="88" height="88" fill="${TILE}"/>${MARK}`)],
-  ['android-icon-foreground.png', 512, svg(ADAPTIVE_VIEWBOX, MARK)],
-  ['android-icon-background.png', 512, svg('0 0 88 88', `<rect width="88" height="88" fill="${TILE}"/>`)],
+  ['icon.png', 1024, svg(STORE_VIEWBOX, fill + MARK)],
+  ['android-icon-foreground.png', 432, svg(ADAPTIVE_VIEWBOX, MARK)],
+  ['android-icon-background.png', 432, svg(ADAPTIVE_VIEWBOX, fill)],
   ['android-icon-monochrome.png', 432, svg(ADAPTIVE_VIEWBOX, MARK.replace(/stroke="#[0-9A-Fa-f]{6}"/, 'stroke="#FFFFFF"'))],
   ['splash-icon.png', 1024, logo],
   ['favicon.png', 48, logo],
