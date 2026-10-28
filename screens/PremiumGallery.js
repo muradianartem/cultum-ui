@@ -14,8 +14,8 @@ import { radius, space, stroke, typography } from '../theme/foundations';
  * follows light/dark); geometry and type come from the Figma foundation scales.
  */
 const PHOTOS = [
-  require('../assets/plant/gallery1.png'),
-  require('../assets/plant/gallery2.png'),
+  require('../assets/plant/gallery1.jpg'),
+  require('../assets/plant/gallery2.jpg'),
   require('../assets/plant/hero.png'),
 ];
 

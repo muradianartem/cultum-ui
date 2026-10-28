@@ -7,7 +7,7 @@
 export const HERO = require('../assets/plant/hero.png');
 
 export const PHOTOS = [
-  require('../assets/plant/gallery1.png'),
-  require('../assets/plant/gallery2.png'),
+  require('../assets/plant/gallery1.jpg'),
+  require('../assets/plant/gallery2.jpg'),
   require('../assets/plant/hero.png'),
 ];

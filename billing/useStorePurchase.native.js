@@ -23,6 +23,7 @@
 // say about the result.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { ErrorCode, getAvailablePurchases, isEligibleForIntroOfferIOS, useIAP } from 'expo-iap';
 import { useEntitlement } from './EntitlementProvider';
 import { storeFor } from './stores';
@@ -79,6 +80,16 @@ export default function useStorePurchase(products) {
   // useIAP's callbacks are built before useIAP returns, and they need its
   // finishTransaction — so everything they touch is read through refs.
   const iapRef = useRef(null);
+  // Whether the app left `active` while the current tap waited on the store:
+  // a system prompt (Apple Account sign-in) or the purchase sheet took over.
+  const interrupted = useRef(false);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (pending.current && next !== 'active') interrupted.current = true;
+    });
+    return () => sub.remove();
+  }, []);
 
   const settle = (ok, message = null) => {
     if (mounted.current) {
@@ -149,11 +160,21 @@ export default function useStorePurchase(products) {
   const onPurchaseError = (e) => {
     // Nobody is waiting: a stray error from a connection-level retry.
     if (!pending.current) return;
-    if (e?.code === ErrorCode.UserCancelled) return settle(false);
+    // Every failure, cancels included, and in release builds too: a purchase
+    // that resets with nothing on screen is otherwise undiagnosable from a
+    // TestFlight build. Shows up in the device log under [billing].
+    console.log(
+      `[billing] ${store.id} purchase failed:`,
+      e?.code,
+      e?.message,
+      interrupted.current ? '(after app went inactive)' : ''
+    );
+    if (e?.code === ErrorCode.UserCancelled) {
+      return settle(false, interrupted.current ? MESSAGES.interrupted : null);
+    }
     if (e?.code === ErrorCode.Pending || e?.code === ErrorCode.DeferredPayment) {
       return settle(false, MESSAGES.pending);
     }
-    if (__DEV__) console.log('[billing] purchase failed:', e?.code, e?.message);
     settle(false, MESSAGES.failed);
   };
 
@@ -256,6 +277,7 @@ export default function useStorePurchase(products) {
     }
     setBusy(true);
     setError(null);
+    interrupted.current = false;
     const result = new Promise((resolve) => {
       pending.current = { sku, resolve };
     });
