@@ -3,7 +3,7 @@
     "name": "cultum-ui",
     "slug": "cultum-ui",
     "version": "1.1.5",
-    "scheme": "cultum",
+    "scheme": ["cultum", "com.cultum.ui"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -88,7 +88,7 @@
       "apiBaseUrl": "https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io",
       "googleWebClientId": "43108753457-9iio5bhp2gaqotg1jk0ualc4hg9teua7.apps.googleusercontent.com",
       "googleIosClientId": "43108753457-1mjaknk760fk9k6uaamve042tr2oibnl.apps.googleusercontent.com",
-      "googleAndroidClientId": "REPLACE_WITH_ANDROID_CLIENT_ID.apps.googleusercontent.com"
+      "googleAndroidClientId": "43108753457-pf5p7oajbtq8p8fe8g250il0eed6ul4v.apps.googleusercontent.com"
     }
   }
 }

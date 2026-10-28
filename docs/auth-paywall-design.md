@@ -108,7 +108,7 @@ deliberately left out.
 
 ## Assets
 
-- `assets/auth/mosaic-01.png` … `mosaic-11.png` — the Welcome mosaic, exported
+- `assets/auth/mosaic-01.png`, `mosaic-02.jpg` … `mosaic-11.jpg` — the Welcome mosaic, exported
   via `download_figma_images` from nodes `253:220`–`253:232`. Figma's 12 slots
   share one image between slots 1 and 12, hence 11 files. `mosaic-01.png` is
   also the paywall hero (same `imageRef` in Figma).

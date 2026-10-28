@@ -31,7 +31,7 @@ jest.mock('../../api/billing', () => ({ verifyApplePurchase: jest.fn(), verifyGo
 const { verifyApplePurchase, verifyGooglePurchase } = require('../../api/billing');
 
 // Jest resolves the .native.js file (jest-expo's default platform is iOS), same as Metro.
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import useStorePurchase from '../useStorePurchase';
 import { storeFor } from '../stores';
 
@@ -67,6 +67,8 @@ const PLUS = { plan: 'plus', is_plus: true, limits: {}, usage: null, subscriptio
 
 let hook;
 let tree;
+// The hook's AppState listener, so a test can play the OS taking the screen.
+const appState = { change: null };
 function Harness() {
   hook = useStorePurchase([YEARLY, MONTHLY]);
   return null;
@@ -79,6 +81,10 @@ beforeEach(async () => {
   mockEligible.mockResolvedValue(true);
   mockGetAvailablePurchases.mockResolvedValue([]);
   jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((type, handler) => {
+    if (type === 'change') appState.change = handler;
+    return { remove: () => {} };
+  });
   await act(async () => {
     tree = TestRenderer.create(<Harness />);
   });
@@ -87,6 +93,7 @@ beforeEach(async () => {
 afterEach(() => {
   act(() => tree.unmount());
   console.log.mockRestore();
+  AppState.addEventListener.mockRestore();
 });
 
 // Start a purchase without awaiting it: it only resolves once StoreKit answers.
@@ -145,6 +152,32 @@ test('a cancelled sheet is silent and verifies nothing', async () => {
   await expect(result).resolves.toBe(false);
   expect(verifyApplePurchase).not.toHaveBeenCalled();
   expect(hook.busy).toBe(false);
+  expect(hook.error).toBeNull();
+});
+
+test('a cancel after the sign-in prompt says to tap again, and is logged', async () => {
+  const { result } = await startPurchase();
+  await act(async () => {
+    appState.change('inactive');
+    appState.change('active');
+    mockCallbacks.current.onPurchaseError({ code: 'user-cancelled', message: 'cancelled' });
+  });
+
+  await expect(result).resolves.toBe(false);
+  expect(hook.error).toBe(PURCHASE_MESSAGES.interrupted);
+  expect(console.log).toHaveBeenCalledWith(
+    '[billing] apple purchase failed:',
+    'user-cancelled',
+    'cancelled',
+    '(after app went inactive)'
+  );
+
+  // The next tap starts clean: a plain cancel is silent again.
+  const retry = await startPurchase();
+  await act(async () => {
+    mockCallbacks.current.onPurchaseError({ code: 'user-cancelled', message: 'cancelled' });
+  });
+  await expect(retry.result).resolves.toBe(false);
   expect(hook.error).toBeNull();
 });
 

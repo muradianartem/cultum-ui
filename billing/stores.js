@@ -22,6 +22,11 @@ import { storeTerms } from './storeTerms';
 const messages = ({ store, account }) => ({
   unavailable: `${store} isn't available right now. Try again in a moment.`,
   pending: 'Your purchase is waiting for approval.',
+  // A cancel that came after the OS took over the screen. StoreKit reports a
+  // purchase interrupted by the Apple Account sign-in prompt as cancelled, and
+  // the tap after signing in goes through. A cancel on the sheet itself looks
+  // the same from here, hence the "if".
+  interrupted: `Purchase not completed. If you just signed in to your ${account}, tap again to continue.`,
   failed: `${store} couldn't complete the purchase. Try again.`,
   verifyOffline:
     "Your purchase went through, but we couldn't confirm it while you're offline. It will be confirmed automatically.",
