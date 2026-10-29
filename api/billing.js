@@ -85,6 +85,47 @@ export async function verifyGooglePurchase({ purchaseToken, productId } = {}) {
 }
 
 /**
+ * POST /billing/client-events/purchase-failed → 204. Authenticated.
+ *
+ * A purchase that dies inside StoreKit or Play Billing never reaches verify, so
+ * this is the server's only record that someone tried. Fire and forget: it
+ * never throws, because a failed report must not become a second failure on a
+ * screen that already has one.
+ */
+export async function reportPurchaseFailure({
+  store,
+  stage,
+  productId,
+  code,
+  message,
+  interrupted = false,
+  shown = null,
+  appVersion,
+  build,
+  osVersion,
+} = {}) {
+  try {
+    await apiFetch('/billing/client-events/purchase-failed', {
+      method: 'POST',
+      body: JSON.stringify({
+        store,
+        stage,
+        product_id: productId ?? null,
+        code: code == null ? null : String(code).slice(0, 100),
+        message: message == null ? null : String(message).slice(0, 500),
+        interrupted,
+        shown,
+        app_version: appVersion ?? null,
+        build: build ?? null,
+        os_version: osVersion == null ? null : String(osVersion),
+      }),
+    });
+  } catch (e) {
+    if (__DEV__) console.log('[billing] failure report not sent:', e?.message ?? e);
+  }
+}
+
+/**
  * EntitlementOut → the camelCase shape the app uses.
  *
  * Unlike `mapPaywall` this never returns null: there is always an answer to
