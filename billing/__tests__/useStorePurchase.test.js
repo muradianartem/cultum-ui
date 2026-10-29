@@ -27,8 +27,12 @@ jest.mock('expo-iap', () => ({
 
 const mockApply = jest.fn();
 jest.mock('../EntitlementProvider', () => ({ useEntitlement: () => ({ apply: mockApply }) }));
-jest.mock('../../api/billing', () => ({ verifyApplePurchase: jest.fn(), verifyGooglePurchase: jest.fn() }));
-const { verifyApplePurchase, verifyGooglePurchase } = require('../../api/billing');
+jest.mock('../../api/billing', () => ({
+  verifyApplePurchase: jest.fn(),
+  verifyGooglePurchase: jest.fn(),
+  reportPurchaseFailure: jest.fn(async () => {}),
+}));
+const { verifyApplePurchase, verifyGooglePurchase, reportPurchaseFailure } = require('../../api/billing');
 
 // Jest resolves the .native.js file (jest-expo's default platform is iOS), same as Metro.
 import { AppState, Platform } from 'react-native';
@@ -181,6 +185,60 @@ test('a cancel after the sign-in prompt says to tap again, and is logged', async
   expect(hook.error).toBeNull();
 });
 
+test('a silent cancel is reported to the backend with its code and build', async () => {
+  const { result } = await startPurchase();
+  await act(async () => {
+    appState.change('inactive');
+    mockCallbacks.current.onPurchaseError({ code: 'user-cancelled', message: 'cancelled' });
+  });
+  await result;
+
+  expect(reportPurchaseFailure).toHaveBeenCalledWith(
+    expect.objectContaining({
+      store: 'apple',
+      stage: 'error',
+      productId: 'com.cultum.plus.yearly',
+      code: 'user-cancelled',
+      interrupted: true,
+      shown: PURCHASE_MESSAGES.interrupted,
+      appVersion: '1.0.6',
+      build: '42',
+    })
+  );
+});
+
+test('a cancel with nothing on screen is reported as shown: null', async () => {
+  const { result } = await startPurchase();
+  await act(async () => {
+    mockCallbacks.current.onPurchaseError({ code: 'user-cancelled', message: 'cancelled' });
+  });
+  await result;
+  expect(reportPurchaseFailure).toHaveBeenCalledWith(expect.objectContaining({ shown: null, interrupted: false }));
+});
+
+test('the paywall unmounting under an open sheet is reported', async () => {
+  const { result } = await startPurchase();
+  act(() => tree.unmount());
+  await expect(result).resolves.toBe(false);
+  expect(reportPurchaseFailure).toHaveBeenCalledWith(
+    expect.objectContaining({ stage: 'unmounted', productId: 'com.cultum.plus.yearly', shown: null })
+  );
+  // afterEach unmounts again; give it something to unmount.
+  await act(async () => {
+    tree = TestRenderer.create(<Harness />);
+  });
+});
+
+test('a successful purchase reports nothing', async () => {
+  verifyApplePurchase.mockResolvedValue(PLUS);
+  const { result } = await startPurchase();
+  await act(async () => {
+    await mockCallbacks.current.onPurchaseSuccess(PURCHASE);
+  });
+  await result;
+  expect(reportPurchaseFailure).not.toHaveBeenCalled();
+});
+
 test('a store failure says so', async () => {
   const { result } = await startPurchase();
   await act(async () => {
@@ -306,6 +364,9 @@ describe('StoreKit terms', () => {
     expect(ok).toBe(false);
     expect(mockIap.requestPurchase).not.toHaveBeenCalled();
     expect(hook.error).toBe(PURCHASE_MESSAGES.unavailable);
+    expect(reportPurchaseFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ stage: 'unavailable', code: 'sku-unresolved', productId: 'com.cultum.plus.yearly' })
+    );
   });
 });
 

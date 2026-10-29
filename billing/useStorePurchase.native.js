@@ -23,8 +23,10 @@
 // say about the result.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import * as Application from 'expo-application';
 import { ErrorCode, getAvailablePurchases, isEligibleForIntroOfferIOS, useIAP } from 'expo-iap';
+import { reportPurchaseFailure } from '../api/billing';
 import { useEntitlement } from './EntitlementProvider';
 import { storeFor } from './stores';
 
@@ -157,6 +159,23 @@ export default function useStorePurchase(products) {
     settle(false, result.unreachable ? MESSAGES.verifyOffline : MESSAGES.verifyFailed);
   };
 
+  // Tell the backend about a purchase that ended on the device. Without it a
+  // tester's silent reset leaves no trace anywhere we can read.
+  const report = (stage, sku, e, shown) => {
+    reportPurchaseFailure({
+      store: store.id,
+      stage,
+      productId: sku,
+      code: e?.code,
+      message: e?.message,
+      interrupted: interrupted.current,
+      shown,
+      appVersion: Application.nativeApplicationVersion,
+      build: Application.nativeBuildVersion,
+      osVersion: Platform.Version,
+    });
+  };
+
   const onPurchaseError = (e) => {
     // Nobody is waiting: a stray error from a connection-level retry.
     if (!pending.current) return;
@@ -169,13 +188,14 @@ export default function useStorePurchase(products) {
       e?.message,
       interrupted.current ? '(after app went inactive)' : ''
     );
+    let shown = MESSAGES.failed;
     if (e?.code === ErrorCode.UserCancelled) {
-      return settle(false, interrupted.current ? MESSAGES.interrupted : null);
+      shown = interrupted.current ? MESSAGES.interrupted : null;
+    } else if (e?.code === ErrorCode.Pending || e?.code === ErrorCode.DeferredPayment) {
+      shown = MESSAGES.pending;
     }
-    if (e?.code === ErrorCode.Pending || e?.code === ErrorCode.DeferredPayment) {
-      return settle(false, MESSAGES.pending);
-    }
-    settle(false, MESSAGES.failed);
+    report('error', pending.current.sku, e, shown);
+    settle(false, shown);
   };
 
   const iap = useIAP({ onPurchaseSuccess, onPurchaseError });
@@ -258,6 +278,9 @@ export default function useStorePurchase(products) {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      // The paywall going away under an open sheet looks to the user exactly
+      // like a silent reset, so it is reported like a failure.
+      if (pending.current) report('unmounted', pending.current.sku, null, null);
       // Leave no caller awaiting a sheet that belongs to a gone screen.
       settle(false);
     };
@@ -266,18 +289,19 @@ export default function useStorePurchase(products) {
   const purchase = async (product) => {
     if (pending.current || restoringRef.current) return false;
     const sku = store.skuOf(product);
+    interrupted.current = false;
     // Unresolved means the store has not priced it, so there is nothing the
     // user could knowingly agree to — and Play could not sell it anyway: its
     // offer token, which says which base plan or trial is bought, lives on the
     // resolved product.
     const subscription = (iapRef.current?.subscriptions ?? []).find((s) => s?.id === sku);
     if (!iapRef.current?.connected || !sku || !termsFor(product)) {
+      report('unavailable', sku, { code: iapRef.current?.connected ? 'sku-unresolved' : 'not-connected' }, MESSAGES.unavailable);
       setError(MESSAGES.unavailable);
       return false;
     }
     setBusy(true);
     setError(null);
-    interrupted.current = false;
     const result = new Promise((resolve) => {
       pending.current = { sku, resolve };
     });
