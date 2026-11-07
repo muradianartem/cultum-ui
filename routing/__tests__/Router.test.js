@@ -36,3 +36,30 @@ test('reset passes params through', () => {
   expect(api.route).toBe('scan-camera');
   expect(api.params).toEqual({ from: 'close' });
 });
+
+describe('screen views', () => {
+  const analytics = require('../../lib/analytics');
+  let client;
+  beforeEach(() => {
+    client = { screen: jest.fn() };
+    analytics.__setAnalyticsClient(client);
+  });
+  afterEach(() => analytics.__setAnalyticsClient(undefined));
+
+  test('records the initial route and every navigation, without params', () => {
+    mount('today');
+    act(() => api.navigate('product', { plantId: 'p1' }));
+    act(() => api.back());
+    expect(client.screen.mock.calls).toEqual([
+      ['today', undefined],
+      ['product', undefined],
+      ['today', undefined],
+    ]);
+  });
+
+  test('a back with nothing to go back to is not a new view', () => {
+    mount('today');
+    act(() => api.back());
+    expect(client.screen).toHaveBeenCalledTimes(1);
+  });
+});

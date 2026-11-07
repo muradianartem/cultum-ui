@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RouterContext } from './RouterContext';
+import { screen } from '../lib/analytics';
 
 /**
  * Router — the minimal in-app navigator.
@@ -46,6 +47,14 @@ export default function Router({ initial, children }) {
       return { route: prev.route, params: prev.params, stack };
     });
   }, []);
+
+  // A screen view per route change — the one hook that covers every <Route>.
+  // Params stay out: they carry plant and room ids, and the route name is
+  // what the funnels need. Keyed on navigation itself (the state object), so
+  // navigating to the same route again still counts.
+  useEffect(() => {
+    if (state.route) screen(state.route);
+  }, [state]);
 
   const value = useMemo(
     () => ({

@@ -8,6 +8,7 @@ import { loadTokens, saveTokens, clearTokens, withExpiry } from '../lib/authStor
 import { authApi } from '../api/auth';
 import { getMe } from '../api/account';
 import { ApiError, setAuthTokenProvider, setUnauthorizedHandler } from '../api/client';
+import { identify, resetAnalytics } from '../lib/analytics';
 
 const AuthContext = createContext(null);
 
@@ -67,6 +68,16 @@ export function claimsFromIdToken(idToken) {
   } catch {
     return {};
   }
+}
+
+/**
+ * The backend user id: the `sub` of the access token the backend minted
+ * (app/core/security.py). Used only as the analytics identity — never the
+ * email. Null for an opaque token (the dev session's).
+ */
+export function userIdFromAccessToken(accessToken) {
+  const sub = claimsFromIdToken(accessToken).sub;
+  return sub == null ? null : String(sub);
 }
 
 /** The user's given name, for the greeting. */
@@ -155,6 +166,13 @@ export function AuthProvider({ children }) {
     tokensRef.current = next;
     setTokens(next);
   }
+
+  // Tie analytics to the signed-in user. Keyed on the id, not the token, so a
+  // rotation (same user, new token) does not identify again.
+  const userId = tokens?.access_token ? userIdFromAccessToken(tokens.access_token) : null;
+  useEffect(() => {
+    if (userId && !devSession) identify(userId);
+  }, [userId, devSession]);
 
   // The profile travels with the tokens under one storage key, and every writer
   // re-serialises the whole record — so it has to be read from a ref, not from
@@ -402,6 +420,8 @@ export function AuthProvider({ children }) {
     applyTokens(null);
     originRef.current = null;
     accountRef.current = null;
+    // The next account on this device must not inherit this one's identity.
+    resetAnalytics();
     setStatus('signedOut');
   }
 
