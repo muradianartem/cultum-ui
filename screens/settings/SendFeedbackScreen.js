@@ -23,12 +23,16 @@ import { space, typography } from '../../theme/foundations';
 import { APP_BUILD, APP_VERSION, SUPPORT_EMAIL } from './appInfo';
 import SettingsShell from './SettingsShell';
 
-export default function SendFeedbackScreen() {
+// `initialTopic` preselects the dropdown — the review prompt's "Not quite"
+// (screens/useReviewPrompt.js) opens this screen with one.
+export default function SendFeedbackScreen({ initialTopic = null }) {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { navigate } = useRouter();
 
-  const [topic, setTopic] = useState(null);
+  const [topic, setTopic] = useState(() =>
+    FEEDBACK_TOPICS.some((o) => o.key === initialTopic) ? initialTopic : null,
+  );
   const [message, setMessage] = useState('');
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
