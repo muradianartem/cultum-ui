@@ -23,7 +23,7 @@
 // through reset() so closing the paywall can never remount this wizard. The
 // plant is already saved by then; nothing on that path saves it again.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Icon, NavigationBar, useKeyboard } from '../../components';
@@ -38,6 +38,7 @@ import { useGarden } from '../../store/GardenProvider';
 import { frequencyValue, parseFrequency } from '../../store/format';
 import { showError } from '../../lib/showError';
 import AddReminderSheet from '../AddReminderSheet';
+import { useReviewPrompt } from '../useReviewPrompt';
 import ReminderValueSheet from '../ReminderValueSheet';
 import { parseShortDate } from '../addReminderData';
 import AddRoomSheet from './AddRoomSheet';
@@ -97,6 +98,25 @@ export default function AddPlantScreen({ plant, today }) {
 
   // Rooms come from the store, so one created here is a room everywhere —
   // the flow no longer keeps a private list that the Rooms tab never sees.
+  // The review prompt rides on success: the user just found and saved a plant,
+  // which is the moment the question is about. Not in onboarding — that first
+  // plant is followed straight by the paywall, and asking twice in a row is a
+  // poor first impression. The delay lets success land before anything covers
+  // it; Done or close before then unmounts the screen and clears the timer.
+  // Keyed on the step alone, read through a ref: anything that re-runs this
+  // effect while success is up restarts the delay, and on a device that can
+  // mean it never fires.
+  const review = useReviewPrompt();
+  const offerReview = useRef(review.offer);
+  offerReview.current = review.offer;
+  const addingInOnboarding = useRef(onboarding.addingPlant);
+  addingInOnboarding.current = onboarding.addingPlant;
+  useEffect(() => {
+    if (step !== 'success' || addingInOnboarding.current) return undefined;
+    const id = setTimeout(() => offerReview.current(), 800);
+    return () => clearTimeout(id);
+  }, [step]);
+
   const rooms = garden.rooms;
   const room = rooms.find((r) => r.id === roomId) ?? null;
   const previous = PREVIOUS[step];
@@ -373,6 +393,9 @@ export default function AddPlantScreen({ plant, today }) {
         onClose={() => setEditorOpen(false)}
         onConfirm={applyEdit}
       />
+
+      {/* Only ever visible on success, when none of the sheets above is open. */}
+      {review.dialog}
     </View>
   );
 }

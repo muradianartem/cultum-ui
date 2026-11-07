@@ -588,3 +588,94 @@ describe('on the free plan', () => {
     expect(sheetVisible(tree, 'add-reminder-sheet')).toBe(false);
   });
 });
+
+describe('review prompt', () => {
+  const StoreReview = require('expo-store-review');
+  const SendFeedbackScreen = require('../../settings/SendFeedbackScreen').default;
+
+  function createWithFeedback() {
+    harness = renderWithGarden(
+      <>
+        <GardenProbe />
+        <Route name="add-plant" component={() => <AddPlantScreen plant={VM} today={TODAY} />} />
+        <Route name="today" component={TodayScreen} />
+        <Route name="settings-feedback" component={SendFeedbackScreen} />
+      </>,
+      {
+        state: seedGarden({ now: TODAY, rooms: ['Kitchen'] }),
+        initial: 'add-plant',
+        clock: TODAY,
+      },
+    );
+    return harness;
+  }
+
+  // The prompt waits for success to land, then the Dialog fades before handing off.
+  const wait = (ms) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+  const promptVisible = (r) => sheetVisible(r, 'review-prompt');
+
+  beforeEach(() => {
+    require('expo-file-system').__files.clear();
+    StoreReview.requestReview.mockClear();
+  });
+
+  test('asks on success, and a yes opens the store rating sheet and is never asked again', async () => {
+    const tree = createWithFeedback();
+    await walkTo(tree, 'success');
+    expect(promptVisible(tree)).toBe(false);
+    await wait(900);
+    expect(promptVisible(tree)).toBe(true);
+    expect(texts(tree)).toContain('Did Cultum find your plant?');
+
+    press(tree, 'Yes, love it');
+    expect(promptVisible(tree)).toBe(false);
+    await wait(400);
+    expect(StoreReview.requestReview).toHaveBeenCalledTimes(1);
+    expect(require('../../../lib/reviewPrompt').loadReviewRecord()).toMatchObject({ asks: 1, answer: 'yes' });
+  });
+
+  test('"Not quite" opens Send feedback with a topic picked', async () => {
+    const tree = createWithFeedback();
+    await walkTo(tree, 'success');
+    await wait(900);
+    press(tree, 'Not quite');
+    await wait(400);
+    expect(tree.router.route).toBe('settings-feedback');
+    expect(texts(tree)).toContain('Something else');
+    expect(StoreReview.requestReview).not.toHaveBeenCalled();
+  });
+
+  test('is not asked again inside the cooldown', async () => {
+    require('../../../lib/reviewPrompt').recordReviewAsked(new Date(), 'no');
+    const tree = createWithFeedback();
+    await walkTo(tree, 'success');
+    await wait(900);
+    expect(promptVisible(tree)).toBe(false);
+  });
+});
+
+describe('review prompt timing', () => {
+  const { useState } = require('react');
+  const { useReviewPrompt } = require('../../useReviewPrompt');
+
+  test('offer keeps one identity across re-renders, so a pending delay is never restarted', () => {
+    const offers = [];
+    let bump;
+    function Probe() {
+      const { offer, dialog } = useReviewPrompt();
+      const [, set] = useState(0);
+      bump = () => set((n) => n + 1);
+      offers.push(offer);
+      return dialog;
+    }
+    harness = renderWithGarden(<Route name="today" component={Probe} />, {
+      state: seedGarden({ now: TODAY }),
+      initial: 'today',
+      clock: TODAY,
+    });
+    act(() => bump());
+    act(() => bump());
+    expect(offers.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(offers).size).toBe(1);
+  });
+});
