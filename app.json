@@ -3,7 +3,10 @@
     "name": "cultum-ui",
     "slug": "cultum-ui",
     "version": "1.1.8",
-    "scheme": ["cultum", "com.cultum.ui"],
+    "scheme": [
+      "cultum",
+      "com.cultum.ui"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -84,6 +87,8 @@
     ],
     "extra": {
       "eas": {
+        "posthogKey": "phc_t3cMufrLSJFDy3dJ2hmPZnAL5gBf6rBe5rbHvaRYXBEy",
+        "posthogHost": "https://eu.i.posthog.com",
         "projectId": "4814abf4-2c89-490f-a0f2-c4619d600b82"
       },
       "apiBaseUrl": "https://ca-cultum-dev-cac.redsand-9719b340.canadacentral.azurecontainerapps.io",
