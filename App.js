@@ -8,6 +8,7 @@ import FontGate from './theme/FontGate';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { GardenProvider, useGarden } from './store/GardenProvider';
 import { errorMessage } from './lib/showError';
+import { initAnalytics } from './lib/analytics';
 import { clearState } from './store/persist';
 import { clearPhotos } from './store/media';
 import { clearEntitlement } from './lib/entitlementCache';
@@ -47,6 +48,7 @@ import { OnboardingNavigator, OnboardingProvider, useOnboarding } from './onboar
 // reminder, so notifications show a banner in the foreground too. Set once, at
 // module scope, as the SDK expects.
 configureNotifications();
+initAnalytics();
 
 // Chooses login vs. the app router based on async auth status. Gating happens
 // here at the root (not via routing/guards, which are pure sync functions with
