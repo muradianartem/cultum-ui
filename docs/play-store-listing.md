@@ -8,7 +8,7 @@ character limits are Google's.
 
 | Field | Value |
 |---|---|
-| App name (≤30) | `Cultum: Plant Care & Identify` (29, matches the App Store name) |
+| App name (≤30) | `Cultum: Plant Care & Identify` (29) |
 | Package name | `com.cultum.ui` (from `app.json`, cannot change after first upload) |
 | Default language | English (United States) – en-US |
 | App or game | App |
@@ -28,12 +28,10 @@ Identify houseplants by photo and get smart watering reminders for every plant.
 
 ## Full description (≤4000)
 
-**Live in Play Console (saved draft, 2,187 characters):** the App Store
-Connect description with the iOS-only parts changed: "photo library" became
-"gallery", and the Cultum Plus billing paragraph now refers to Google Play
-instead of the Apple ID and App Store. The terms and privacy links stay at the
-end. Treat App Store Connect as the source of truth for the description and
-re-adapt it when that changes.
+**Live in Play Console (saved draft, 2,187 characters).** Play Console holds
+the current text. It says "gallery" for picked photos, and the Cultum Plus
+paragraph says subscriptions are billed and cancelled through Google Play. The
+terms and privacy links are at the end.
 
 Earlier draft, superseded:
 
@@ -90,8 +88,7 @@ These live under **Policy → App content** and block publishing until done:
 - [x] **Ads** — saved: no ads
 - [x] **Sign in details** — saved: a reviewer Google account. It must have no 2-step verification. It is a Play license tester: it's in the "Testers" email list, which is ticked under Manage developer account → License testing.
 - [ ] **Data safety** — saved as a draft in Play Console. It can't be submitted
-  until Target audience and content is done. Answers come from cultum.app/privacy
-  (the iOS App Privacy section was never filled in):
+  until Target audience and content is done. Answers come from cultum.app/privacy:
   - Encrypted in transit: yes. Account creation: OAuth (Apple, Google).
   - Delete account URL: https://www.cultum.app/privacy#delete.
     Partial deletion: yes, at https://www.cultum.app/privacy#rights.
