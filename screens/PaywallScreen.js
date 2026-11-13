@@ -1,7 +1,7 @@
 // Paywall — Figma "Paywall / Cultum Plus" (file 4jmjNlaM7IRpCOogYRJMks,
 // node 250:11): a photo hero that dissolves into the page, the 7-day trial
-// timeline, a Free-vs-Plus comparison table, social proof, and a sticky price
-// bar. "See all plans" opens <ChoosePlanSheet> (node 265:159).
+// timeline, a Free-vs-Plus comparison table and a sticky price bar. "See all
+// plans" opens <ChoosePlanSheet> (node 265:159).
 //
 // The copy, the trial timeline, the comparison rows and both products come
 // from GET /billing/plans via billing/paywallContent.js. Nothing is bundled, so
@@ -10,8 +10,11 @@
 // until the content lands the screen draws <PaywallPending>: a Close plus a
 // spinner, or an error with Try again.
 //
-// The rating and the reviews are NOT in that payload and stay local constants;
-// there is no endpoint to hunt for.
+// Figma's frame also has a star rating and two customer reviews. They are left
+// out on purpose: the app has no App Store ratings yet, so any figures here
+// would be invented. A made-up rating on a purchase screen is misleading
+// (App Review 2.3.1 / 3.1.2) and looks templated (4.3). Bring the block back
+// only with real numbers from the App Store.
 //
 // The CTA buys the selected plan through billing/useStorePurchase: StoreKit 2
 // plus POST /billing/apple/verify on iOS, Play Billing plus
@@ -60,12 +63,6 @@ const COL_W = 64;
 const RAIL_LINE = { left: 27.5, top: 44, bottom: 44 };
 const PLUS_CORNER = radius[16]; // Figma 14px — nearest step on the radius scale
 
-// Not in GET /billing/plans — the backend has no App Store review data — so
-// these stay transcribed from the Figma frame.
-// FIXME(App Review 1.1.6/3.1.2): the app has no ratings yet, so this is a made-up
-// claim on a purchase screen. Needs an owner decision before submission.
-const SOCIAL_PROOF = { rating: '4.8', count: '6.2K ratings' };
-
 /**
  * The line above the CTA from the backend's copy — what platforms without a
  * store flow show. On iOS the headline comes from StoreKit (billing/storeTerms).
@@ -80,19 +77,6 @@ export function headlineFor(product) {
     ? `${product.trialDays} days free, then ${price}`
     : price;
 }
-
-const REVIEWS = [
-  {
-    title: 'They are all still alive',
-    body: 'First winter I have not lost anything. The checks are the part that works.',
-    name: 'Rina',
-  },
-  {
-    title: 'Tells me when it is not sure',
-    body: 'It says how confident the match is instead of guessing at me. That is rare.',
-    name: 'Tomas',
-  },
-];
 
 /**
  * @param {object} props
@@ -315,26 +299,6 @@ function Paywall({ content, source }) {
             ))}
           </View>
 
-          <View style={styles.rating}>
-            <View style={styles.stars}>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <Icon key={i} name="star-filled" size={14} color={t.warning.primary} />
-              ))}
-            </View>
-            <Text style={styles.ratingScore}>{SOCIAL_PROOF.rating}</Text>
-            <Text style={styles.ratingCount}>{SOCIAL_PROOF.count}</Text>
-          </View>
-
-          <View style={styles.reviews}>
-            {REVIEWS.map((review) => (
-              <View key={review.name} style={styles.review}>
-                <Text style={styles.reviewTitle}>{review.title}</Text>
-                <Text style={styles.reviewBody}>{review.body}</Text>
-                <Text style={styles.reviewName}>{review.name}</Text>
-              </View>
-            ))}
-          </View>
-
           <Text style={styles.footnote}>{content.footnote}</Text>
         </View>
       </ScrollView>
@@ -518,22 +482,6 @@ function makeStyles(t, insets) {
       backgroundColor: t.brand.primary,
     },
 
-    // ---- social proof ----
-    rating: { flexDirection: 'row', alignItems: 'center', gap: space[8] },
-    stars: { flexDirection: 'row', gap: 3 },
-    ratingScore: { ...typography.bodyLargeEmphasized, color: t.text.primary },
-    ratingCount: { ...typography.bodyMedium, color: t.text.placeholder },
-    reviews: { gap: 10 },
-    review: {
-      paddingVertical: 15,
-      paddingHorizontal: space[16],
-      borderRadius: radius[16],
-      backgroundColor: t.surface.primary,
-      gap: 6,
-    },
-    reviewTitle: { ...typography.bodyLargeEmphasized, color: t.text.primary },
-    reviewBody: { ...typography.bodyMedium, color: t.text.secondary },
-    reviewName: { ...typography.captionEmphasized, color: t.text.placeholder },
     footnote: {
       ...typography.captionEmphasized,
       color: t.text.placeholder,
