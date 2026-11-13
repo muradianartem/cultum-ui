@@ -16,6 +16,7 @@
       "bundleIdentifier": "com.cultum.ui",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Cultum",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [

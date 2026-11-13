@@ -70,8 +70,11 @@ deliberately left out.
   `expo-iap` is native, so all of this needs a rebuild and not an OTA update.
 - **Figma's copy now comes from the backend.** `PRICING`, `TRIAL_STEPS`,
   `FEATURES`, `FOOTNOTE` and `ChoosePlanSheet`'s `PLANS` are gone — see
-  "Content" below. `SOCIAL_PROOF` and `REVIEWS` stayed: the API has no App Store
-  review data.
+  "Content" below. `SOCIAL_PROOF` and `REVIEWS` were removed on 2026-11-13. The
+  app has no App Store ratings, so Figma's "4.8 · 6.2K ratings" and its two
+  reviews were invented figures on a purchase screen. App Review rejected
+  1.1.9 under 4.3/4.2.6, and these would also have broken 2.3.1. Restore the
+  block only with real App Store numbers.
 - **The comparison table lost two rows and gained real numbers.**
   `GET /billing/plans` returns seven features, not Figma's nine — neither
   "Journal and history" nor "Shared household" is in it — and the FREE column
@@ -116,7 +119,8 @@ deliberately left out.
   exports it with `feTurbulence` noise filters that react-native-svg cannot
   render; the committed file is the same art with the filters stripped.
 - `assets/icons/star-filled.svg` — the icon set only had an outline star, and
-  the paywall's rating and PLUS header both use a filled one.
+  the paywall's PLUS header uses a filled one (the rating that also used it is
+  gone).
 
 Both new SVGs are registered as brand glyphs in
 [scripts/gen-icon-registry.js](../scripts/gen-icon-registry.js) — rerun
@@ -127,7 +131,7 @@ Both new SVGs are registered as brand glyphs in
 | Piece | Source |
 |---|---|
 | title, trial timeline, feature table, footnote, products | `GET /billing/plans` via [api/billing.js](../api/billing.js) → [billing/paywallContent.js](../billing/paywallContent.js) |
-| rating, reviews | local constants in the screen — no endpoint |
+| rating, reviews | not shown — removed until there are real App Store ratings |
 | **the price and trial** | the store, via `useStorePurchase#termsFor`; the payload's `fallback_price` only where there is no store |
 | price headline | `headline(terms, product)` from the store's terms, else `headlineFor(product)` |
 | plan sub-label | `detailFor(product)`, derived from `period` |

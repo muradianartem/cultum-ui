@@ -255,12 +255,15 @@ describe('with the live payload', () => {
     expect(ticks(tree)).toHaveLength(6);
   });
 
-  test('renders the rating and both reviews — neither comes from the API', async () => {
+  // The app has no App Store ratings yet; Figma's placeholder rating and
+  // reviews were invented figures on a purchase screen (App Review 2.3.1/4.3).
+  test('shows no rating or customer reviews', async () => {
     const tree = await renderWith(LIVE_RESPONSE);
-    expect(texts(tree)).toContain('4.8');
-    expect(texts(tree)).toContain('6.2K ratings');
-    expect(texts(tree)).toContain('Rina');
-    expect(texts(tree)).toContain('Tomas');
+    const all = texts(tree).join('\n');
+    expect(all).not.toMatch(/\bratings?\b/i);
+    expect(all).not.toContain('6.2K');
+    expect(all).not.toContain('Rina');
+    expect(all).not.toContain('Tomas');
   });
 
   test('the close button pops the router, or goes home with no history', async () => {
